@@ -1522,21 +1522,30 @@ function extractEasybankDescription(rawDesc, contLines) {
   // Combine all text for broad pattern matching
   const allText = [raw, ...contLines].join(' ');
 
-  // 1. Card payment — case-insensitive, scan all available text
+  // 1. Card payment — pattern: Line1=Bezahlung Karte, Line2=POS, Line3=Merchant
   if (/bezahlung karte/i.test(raw)) {
-    // Scan all text for known merchant names
+    // Try known merchants first (quick match)
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(allText)) return name;
     }
-    // Generic: scan continuation lines for first non-junk line
+    // Line3 = contLines[1] is the merchant name (after the POS line)
+    const merchantLine = contLines[1] || contLines[0] || '';
+    if (merchantLine) {
+      const merchant = merchantLine.split(/[\\\/]/)[0]
+        .replace(/DANKT\s*/gi, '')
+        .replace(/\d{4,}/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (merchant.length > 2) return merchant;
+    }
+    // Fallback: scan all lines
     for (const cl of contLines) {
-      if (/^POS[\s\d]/i.test(cl)) continue;                      // POS terminal
-      if (/^(OG|MC|BG|FE|VD)\//i.test(cl)) continue;            // reference codes
+      if (/^POS[\s\d]/i.test(cl)) continue;
+      if (/^(OG|MC|BG|FE|VD)\//i.test(cl)) continue;
       if (/^Manuel Koblischek$|^Koblischek/i.test(cl)) continue;
-      if (/^[A-Z0-9]{8,}$/i.test(cl)) continue;                  // hash
+      if (/^[A-Z0-9]{8,}$/i.test(cl)) continue;
       if (/^\d+$/.test(cl)) continue;
-      // Take text before first backslash, clean up
-      const merchant = cl.split(/[\\]/)[0]
+      const merchant = cl.split(/[\\\/]/)[0]
         .replace(/DANKT\s*/gi, '')
         .replace(/\d{4,}/g, '')
         .replace(/\s+/g, ' ')
@@ -1849,15 +1858,19 @@ async function handleBonUpload(input) {
   showLoading('Bon wird analysiert…');
 
   try {
-    let base64 = '';
-    if (file.type.startsWith('image/')) {
-      base64 = await fileToBase64(file);
-    }
-
-    // Call AI vision
     let bonData;
-    if (state.aiProvider === 'anthropic' && base64) {
-      bonData = await analyzeBonWithClaude(key, base64, file.type);
+    if (state.aiProvider === 'anthropic') {
+      if (file.type.startsWith('image/')) {
+        // Image: send as base64 vision
+        const base64 = await fileToBase64(file);
+        bonData = await analyzeBonWithClaude(key, base64, file.type);
+      } else if (file.type === 'application/pdf') {
+        // PDF: extract text and send as text prompt
+        const pdfText = await extractPdfText(file);
+        bonData = await analyzeBonPdfWithClaude(key, pdfText);
+      } else {
+        bonData = getDemoBonData();
+      }
     } else {
       bonData = getDemoBonData();
     }
@@ -1898,6 +1911,29 @@ async function analyzeBonWithClaude(key, base64, mimeType) {
           { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
           { type: 'text', text: 'Extrahiere alle Positionen aus diesem Kassenbon als JSON: {"store":"","date":"","items":[{"name":"","price":0.00,"subcategory":""}],"total":0.00}. Verwende deutsche Sub-Kategorien wie Milchprodukte, Süßwaren, Backwaren, Getränke, Fleisch, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges. Nur reines JSON.' },
         ],
+      }],
+    }),
+  });
+  if (!resp.ok) throw new Error('API error');
+  const data = await resp.json();
+  return JSON.parse(data.content[0].text.match(/\{[\s\S]*\}/)[0]);
+}
+
+async function analyzeBonPdfWithClaude(key, pdfText) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `Extrahiere alle Positionen aus dieser Rechnung/diesem Bon als JSON:\n{"store":"","date":"","items":[{"name":"","price":0.00,"subcategory":""}],"total":0.00}\nVerwende deutsche Sub-Kategorien wie Milchprodukte, Süßwaren, Backwaren, Getränke, Fleisch, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Elektronik, Dienstleistung, Sonstiges.\nNur reines JSON, kein weiterer Text.\n\nRechnungstext:\n${pdfText.slice(0, 8000)}`,
       }],
     }),
   });
