@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Meine Finanzen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,600;0,700;1,400&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root { color-scheme: light only; }
+
+/* ── DESIGN TOKENS ── */
+:root {
+  --bg:                  #FFF8F5;
+  --surface:             #FFF8F5;
+  --surface-low:         #FFF1E8;
+  --surface-mid:         #FEEADB;
+  --surface-high:        #F8E5D6;
+  --surface-highest:     #F2DFD0;
+  --surface-dim:         #EAD7C8;
+
+  --primary:             #41051F;
+  --primary-container:   #5D1C34;
+  --on-primary:          #FFFFFF;
+  --primary-soft:        #FFD9E1;
+  --primary-softer:      #FFB1C6;
+
+  --secondary:           #7B5723;
+  --secondary-container: #FDCC8C;
+  --secondary-soft:      #FFDDB5;
+  --on-secondary:        #FFFFFF;
+
+  --dark-card:           #2C3727;
+  --dark-card-text:      #DAE6D0;
+
+  --text:                #231A11;
+  --text-muted:          #534346;
+  --outline:             #857276;
+  --outline-soft:        #D7C1C5;
+
+  --green:               #2D6A4F;
+  --green-bg:            #D8F3DC;
+  --red:                 #BA1A1A;
+  --red-bg:              #FFDAD6;
+
+  --serif: 'Noto Serif', Georgia, serif;
+  --sans:  'Manrope', sans-serif;
+
+  --radius-sm: 10px;
+  --radius:    16px;
+  --radius-lg: 24px;
+
+  --shadow-sm: 0 1px 4px rgba(65,5,31,0.06);
+  --shadow:    0 4px 20px rgba(65,5,31,0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  background-color: #FFF8F5 !important;
+  color: #231A11 !important;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  max-width: 430px;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+/* ── SCREENS ── */
+.screen { display: none; min-height: 100vh; padding-bottom: 100px; animation: fadeIn 0.25s ease; }
+.screen.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── TOP BAR ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(255,248,245,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--outline-soft);
+}
+.topbar-brand {
+  font-family: var(--serif);
+  font-size: 1.05rem; font-weight: 700;
+  color: var(--primary-container);
+  display: flex; align-items: center; gap: 10px;
+}
+.topbar-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: var(--primary-container);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--on-primary);
+  font-family: var(--serif); font-size: 0.8rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.topbar-badge {
+  font-size: 0.52rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 100px;
+  background: var(--surface-mid); color: var(--text-muted);
+}
+.topbar-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--surface-mid); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; transition: background 0.15s;
+}
+.topbar-icon:hover { background: var(--surface-high); }
+
+/* ── BOTTOM NAV ── */
+.bottomnav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: rgba(255,248,245,0.96);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid var(--outline-soft);
+  display: flex; justify-content: space-around; align-items: center;
+  padding: 10px 8px 20px;
+  z-index: 200;
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 6px 14px; border-radius: var(--radius-sm);
+  cursor: pointer; border: none; background: transparent;
+  color: var(--text-muted);
+  font-family: var(--sans); font-size: 0.58rem; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  transition: all 0.15s; flex: 1;
+}
+.nav-item .nav-icon { font-size: 1.3rem; line-height: 1; }
+.nav-item.active { background: var(--surface-mid); color: var(--primary-container); }
+
+/* ── TYPOGRAPHY ── */
+.serif { font-family: var(--serif); }
+.page-title {
+  font-family: var(--serif); font-size: 2.4rem; font-weight: 700;
+  color: var(--text); line-height: 1.1; letter-spacing: -0.02em;
+}
+.section-label {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--secondary); margin-bottom: 12px;
+}
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface-low); border: 1px solid var(--outline-soft);
+  border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);
+}
+.card-dark {
+  background: var(--dark-card); border-radius: var(--radius);
+  padding: 24px; color: var(--dark-card-text);
+}
+
+/* ── CHIPS ── */
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 4px 10px; border-radius: 100px;
+}
+.chip-green { background: var(--green-bg); color: var(--green); }
+.chip-red   { background: var(--red-bg);   color: var(--red); }
+.chip-gold  { background: var(--secondary-soft); color: var(--secondary); }
+.chip-ai    { background: var(--primary-soft); color: var(--primary-container); }
+
+/* ── BUTTONS ── */
+.btn-primary {
+  width: 100%; background: var(--primary-container); color: var(--on-primary);
+  border: none; border-radius: var(--radius-sm); padding: 16px;
+  font-family: var(--sans); font-size: 0.9rem; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost {
+  width: 100%; background: transparent; color: var(--primary-container);
+  border: 1.5px dashed var(--outline-soft); border-radius: var(--radius-sm);
+  padding: 14px; font-family: var(--sans); font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.btn-ghost:hover { border-color: var(--primary-container); background: var(--surface-low); }
+
+/* ── MONTH STRIP ── */
+.month-strip {
+  display: flex; gap: 8px; overflow-x: auto; padding: 0 20px;
+  scrollbar-width: none;
+}
+.month-strip::-webkit-scrollbar { display: none; }
+.month-pill {
+  flex-shrink: 0; padding: 8px 18px; border-radius: 100px;
+  border: 1.5px solid var(--outline-soft); background: var(--surface-low);
+  font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.month-pill.active {
+  background: var(--primary-container); border-color: var(--primary-container); color: var(--on-primary);
+}
+
+/* ── CATEGORY BAR ── */
+.cat-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0; border-bottom: 1px solid var(--outline-soft);
+}
+.cat-row:last-child { border-bottom: none; }
+.cat-icon-wrap {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--surface-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; flex-shrink: 0;
+}
+.cat-label { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+.cat-sub   { font-size: 0.68rem; color: var(--text-muted); margin-top: 2px; }
+.cat-amount { font-family: var(--serif); font-size: 0.95rem; font-weight: 700; color: var(--text); margin-left: auto; white-space: nowrap; }
+.cat-bar-wrap { width: 100%; height: 3px; background: var(--outline-soft); border-radius: 2px; margin-top: 6px; }
+.cat-bar { height: 100%; border-radius: 2px; background: var(--primary-container); }
+
+/* ── TX ITEM ── */
+.tx-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 0; border-bottom: 1px solid var(--surface-high);
+  cursor: pointer; transition: opacity 0.15s;
+}
+.tx-item:last-child { border-bottom: none; }
+.tx-item:active { opacity: 0.7; }
+.tx-icon-wrap {
+  width: 44px; height: 44px; border-radius: 14px; background: var(--surface-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+}
+.tx-name { font-size: 0.88rem; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-meta { font-size: 0.65rem; color: var(--text-muted); margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tx-amount { font-family: var(--serif); font-size: 1rem; font-weight: 700; margin-left: auto; white-space: nowrap; }
+.tx-amount.out { color: var(--text); }
+.tx-amount.in  { color: var(--green); }
+
+/* ── SALDO CARD ── */
+.saldo-card {
+  background: var(--surface-low); border: 1px solid var(--outline-soft);
+  border-radius: var(--radius); padding: 24px;
+  position: relative; overflow: hidden;
+}
+.saldo-card::before {
+  content: ''; position: absolute; top: -30px; right: -30px;
+  width: 100px; height: 100px; background: var(--primary-softer);
+  border-radius: 50%; opacity: 0.25; filter: blur(20px);
+}
+.saldo-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.saldo-amount { font-family: var(--serif); font-size: 2.6rem; font-weight: 700; color: var(--primary-container); line-height: 1.1; margin: 8px 0 12px; letter-spacing: -0.02em; }
+
+/* ── STATS ROW ── */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat-card {
+  background: var(--surface-low); border: 1px solid var(--outline-soft);
+  border-radius: var(--radius-sm); padding: 16px;
+}
+.stat-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+.stat-val { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; color: var(--text); }
+
+/* ── INSIGHT CARD ── */
+.insight-card {
+  background: var(--primary-container); border-radius: var(--radius);
+  padding: 20px; color: var(--on-primary);
+}
+.insight-tag { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.7; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.insight-title { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+.insight-text { font-size: 0.8rem; line-height: 1.6; opacity: 0.85; }
+
+/* ── ACCOUNT CARD ── */
+.account-card {
+  background: var(--surface-low); border: 1px solid var(--outline-soft);
+  border-radius: var(--radius); padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: var(--shadow-sm); cursor: pointer; transition: box-shadow 0.15s;
+}
+.account-card:hover { box-shadow: var(--shadow); }
+.account-header { display: flex; align-items: center; gap: 12px; }
+.account-logo {
+  width: 42px; height: 42px; border-radius: 12px; background: var(--primary-container);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--on-primary); font-weight: 700; flex-shrink: 0;
+}
+.account-name { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.account-iban { font-size: 0.65rem; color: var(--text-muted); font-family: 'Courier New', monospace; margin-top: 2px; }
+.account-balance-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.account-balance { font-family: var(--serif); font-size: 1.8rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+
+/* ── UPLOAD ZONE ── */
+.upload-zone {
+  border: 2px dashed var(--outline-soft); border-radius: var(--radius);
+  padding: 40px 24px; text-align: center; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s; background: var(--surface-low);
+}
+.upload-zone:hover, .upload-zone.dragover { border-color: var(--primary-container); background: var(--surface-mid); }
+.upload-icon-wrap {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--surface-mid);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; margin: 0 auto 16px;
+}
+.upload-title { font-family: var(--serif); font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.upload-sub { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+
+/* ── PROGRESS STEPS ── */
+.progress-steps { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.progress-step { display: flex; flex-direction: column; gap: 6px; }
+.progress-bar { height: 3px; border-radius: 2px; background: var(--outline-soft); overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--primary-container); border-radius: 2px; transition: width 0.4s ease; }
+.progress-label { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.progress-step.done .progress-label { color: var(--primary-container); }
+
+/* ── API INPUT ── */
+.api-input-wrap { border-bottom: 1.5px solid var(--outline-soft); padding-bottom: 10px; }
+.api-label { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.api-input {
+  width: 100%; background: transparent; border: none; outline: none;
+  font-family: 'Courier New', monospace; font-size: 0.85rem; color: var(--text);
+}
+.api-input::placeholder { color: var(--outline); }
+
+/* ── MINI CHART ── */
+.mini-chart { display: flex; align-items: flex-end; gap: 6px; height: 48px; }
+.mini-bar { flex: 1; border-radius: 4px 4px 0 0; background: rgba(218,230,208,0.4); min-width: 0; transition: background 0.2s, height 0.4s; }
+.mini-bar.active { background: rgba(218,230,208,0.9); }
+
+/* ── TX GROUP LABEL ── */
+.tx-group-label {
+  font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--secondary); padding: 16px 0 8px;
+}
+
+/* ── HOW IT WORKS ── */
+.step-row { display: flex; gap: 12px; align-items: flex-start; }
+.step-num {
+  width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 700;
+}
+.step-num.done { background: var(--primary-container); color: var(--on-primary); }
+.step-num.todo { background: var(--surface-high); color: var(--text-muted); }
+.step-text { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; padding-top: 4px; }
+
+/* ── SECURITY NOTE ── */
+.security-note {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--surface-high); border-radius: var(--radius-sm);
+  padding: 12px 14px; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5;
+}
+
+/* ── CONCIERGE ── */
+.bon-preview {
+  background: var(--surface-high); border-radius: var(--radius);
+  padding: 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.bon-row { display: flex; justify-content: space-between; align-items: center; }
+.bon-item { font-size: 0.82rem; color: var(--text); }
+.bon-sub  { font-size: 0.7rem; color: var(--text-muted); }
+.bon-price { font-family: var(--serif); font-size: 0.9rem; font-weight: 700; color: var(--text); }
+.bon-divider { height: 1px; background: var(--outline-soft); margin: 4px 0; }
+.bon-total { font-family: var(--serif); font-size: 1.1rem; font-weight: 700; color: var(--primary-container); }
+.sub-cat-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 100px;
+  background: var(--surface-high); color: var(--text-muted); margin-top: 4px;
+}
+
+/* ── MATCH CARD ── */
+.match-card {
+  border: 1.5px solid var(--primary-container); border-radius: var(--radius);
+  padding: 16px; background: var(--primary-soft);
+  display: flex; align-items: center; gap: 12px;
+}
+.match-pct {
+  background: var(--primary-container); color: var(--on-primary);
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.08em;
+  padding: 4px 8px; border-radius: 6px; margin-left: auto; white-space: nowrap;
+}
+
+/* ── SPACING HELPERS ── */
+.px { padding-left: 20px; padding-right: 20px; }
+.py-sm { padding-top: 12px; padding-bottom: 12px; }
+.py-md { padding-top: 20px; padding-bottom: 20px; }
+.gap-sm { display: flex; flex-direction: column; gap: 8px; }
+.gap-md { display: flex; flex-direction: column; gap: 16px; }
+.gap-lg { display: flex; flex-direction: column; gap: 24px; }
+.divider { height: 1px; background: var(--outline-soft); margin: 4px 0; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0; z-index: 500;
+  background: rgba(35,26,17,0.4); backdrop-filter: blur(4px);
+  align-items: flex-end; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  width: 100%; max-width: 430px; background: var(--bg);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 28px 24px 40px;
+  animation: slideUp 0.3s ease;
+  max-height: 85vh; overflow-y: auto;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle { width: 36px; height: 4px; background: var(--outline-soft); border-radius: 2px; margin: 0 auto 20px; }
+
+/* ── EMPTY STATE ── */
+.empty-state { text-align: center; padding: 60px 24px; }
+.empty-state-icon { font-size: 3rem; margin-bottom: 16px; }
+.empty-state-title { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+.empty-state-text { font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; max-width: 260px; margin: 0 auto 24px; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+  background: var(--primary-container); color: var(--on-primary);
+  padding: 10px 20px; border-radius: 100px;
+  font-size: 0.82rem; font-weight: 600; z-index: 1000;
+  opacity: 0; transition: opacity 0.2s;
+  white-space: nowrap; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+/* ── LOADING OVERLAY ── */
+.loading-overlay {
+  display: none; position: fixed; inset: 0; z-index: 800;
+  background: rgba(255,248,245,0.92); backdrop-filter: blur(4px);
+  flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+}
+.loading-overlay.active { display: flex; }
+.loading-spinner {
+  width: 40px; height: 40px; border: 3px solid var(--outline-soft);
+  border-top-color: var(--primary-container); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+
+/* ── PROVIDER TOGGLE ── */
+.provider-btn {
+  border-radius: var(--radius-sm); padding: 10px; text-align: center;
+  cursor: pointer; border: 1.5px solid transparent; transition: all 0.15s;
+}
+.provider-btn.active { background: var(--primary-container); color: var(--on-primary); border-color: var(--primary-container); }
+.provider-btn:not(.active) { background: var(--surface-high); color: var(--text-muted); border-color: var(--outline-soft); }
+
+/* ── SEARCH ── */
+.search-wrap {
+  flex: 1; background: var(--surface-high); border-radius: 100px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+}
+.search-input {
+  border: none; background: transparent; outline: none; width: 100%;
+  font-family: var(--sans); font-size: 0.82rem; color: var(--text);
+}
+.search-input::placeholder { color: var(--text-muted); }
+
+/* ── CATEGORY EDIT ── */
+.cat-select {
+  width: 100%; background: var(--surface-low); border: 1.5px solid var(--outline-soft);
+  border-radius: var(--radius-sm); padding: 12px 16px;
+  font-family: var(--sans); font-size: 0.88rem; color: var(--text);
+  outline: none; cursor: pointer;
+}
+
+/* ── CONCIERGE UPLOAD ── */
+.concierge-scan-area {
+  border: 2px dashed var(--outline-soft); border-radius: var(--radius);
+  padding: 48px 24px; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--surface-low);
+}
+.concierge-scan-area:hover { border-color: var(--primary-container); background: var(--surface-mid); }
+</style>
+</head>
+<body>
+
+<!-- ══════ LOADING OVERLAY ══════ -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loading-text">Verarbeite…</div>
+</div>
+
+<!-- ══════ TOAST ══════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ════════════════════════════════════════ SCREEN: DASHBOARD ══ -->
+<div class="screen active" id="screen-dashboard">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-avatar">MK</div>
+      Meine Finanzen
+    </div>
+    <span class="topbar-badge">PROTOTYP v0.2</span>
+  </div>
+
+  <div style="padding:24px 20px 16px;" class="gap-lg">
+    <div>
+      <p style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">Übersicht</p>
+      <h1 class="page-title">Finanzen<br>im Blick</h1>
+    </div>
+  </div>
+
+  <div class="month-strip" id="month-strip" style="margin-bottom:20px;"></div>
+
+  <div class="px gap-lg">
+    <!-- Saldo -->
+    <div class="saldo-card" id="db-saldo-card">
+      <div class="saldo-label">Verfügbarer Saldo</div>
+      <div class="saldo-amount" id="db-saldo">—</div>
+      <div id="db-saldo-change" style="display:flex;align-items:center;gap:8px;"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">↓ Einnahmen</div>
+        <div class="stat-val" id="db-income" style="color:var(--green);">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">↑ Ausgaben</div>
+        <div class="stat-val" id="db-expense" style="color:var(--primary-container);">—</div>
+      </div>
+    </div>
+
+    <!-- Categories -->
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div class="section-label">Top Kategorien</div>
+        <span style="font-size:0.75rem;color:var(--primary-container);font-weight:600;cursor:pointer;" onclick="showScreen('buchungen')">Alle ›</span>
+      </div>
+      <div class="card" style="padding:16px 20px;" id="db-categories">
+        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Noch keine Daten — PDF importieren</div>
+      </div>
+    </div>
+
+    <!-- AI Insight -->
+    <div class="insight-card" id="db-insight" style="display:none;">
+      <div class="insight-tag">✦ Haiku Intelligence</div>
+      <div class="insight-title" id="db-insight-title">Ausgaben-Analyse</div>
+      <div class="insight-text" id="db-insight-text"></div>
+    </div>
+
+    <!-- CTA -->
+    <div class="card" style="text-align:center;padding:28px 20px;" id="db-cta">
+      <div style="font-size:2rem;margin-bottom:12px;">📄</div>
+      <div style="font-family:var(--serif);font-size:1.1rem;font-weight:700;margin-bottom:6px;">Daten importieren</div>
+      <div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:20px;line-height:1.5;">Importieren Sie Ihren Kontoauszug für eine lückenlose Analyse.</div>
+      <button class="btn-primary" onclick="showScreen('import')">📤 Kontoauszug importieren</button>
+      <button class="btn-ghost" style="margin-top:10px;" onclick="loadDemoData()">🎭 Demo-Daten laden</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ SCREEN: BUCHUNGEN ══ -->
+<div class="screen" id="screen-buchungen">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-avatar">MK</div>
+      Buchungen
+    </div>
+    <button class="topbar-icon" onclick="openClearModal()">⚙️</button>
+  </div>
+
+  <div class="px" style="padding-top:24px;">
+    <h1 class="page-title" style="margin-bottom:6px;">Buchungen</h1>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;">Überblick Ihrer Aktivitäten</p>
+
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
+      <div class="search-wrap">
+        <span style="color:var(--text-muted);font-size:1rem;">🔍</span>
+        <input class="search-input" id="search-input" placeholder="Buchung suchen…" oninput="renderBuchungen()">
+      </div>
+      <button style="width:42px;height:42px;border-radius:12px;border:none;background:var(--surface-high);font-size:1rem;cursor:pointer;" onclick="toggleFilterPanel()" title="Filter">⚡</button>
+    </div>
+
+    <!-- Month strip for buchungen -->
+    <div class="month-strip" id="month-strip-buch" style="margin-bottom:16px;padding:0;"></div>
+
+    <div id="buchungen-list"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ SCREEN: IMPORT ══ -->
+<div class="screen" id="screen-import">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-avatar">MK</div>
+      Import &amp; Setup
+    </div>
+    <button class="topbar-icon">🔔</button>
+  </div>
+
+  <div class="px" style="padding-top:24px;" class="gap-lg">
+    <div style="margin-bottom:20px;">
+      <h1 class="page-title" style="margin-bottom:10px;">Import<br>&amp; Setup</h1>
+      <p style="font-size:0.8rem;color:var(--text-muted);line-height:1.6;">Kontoauszüge werden lokal verarbeitet — keine Rohdaten verlassen Ihr Gerät.</p>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-steps" style="margin-bottom:20px;" id="import-progress">
+      <div class="progress-step" id="step-1">
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:0%" id="step-1-fill"></div></div>
+        <div class="progress-label" id="step-1-label">01. PDF</div>
+      </div>
+      <div class="progress-step" id="step-2">
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:0%" id="step-2-fill"></div></div>
+        <div class="progress-label" id="step-2-label">02. KI</div>
+      </div>
+      <div class="progress-step" id="step-3">
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:0%" id="step-3-fill"></div></div>
+        <div class="progress-label" id="step-3-label">03. Fertig</div>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="card gap-md" style="padding:24px;margin-bottom:16px;">
+      <div>
+        <div style="font-family:var(--serif);font-size:1.15rem;font-weight:700;margin-bottom:4px;">Kontoauszug hochladen</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);">BAWAG und easybank PDF-Exporte werden unterstützt.</div>
+      </div>
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('pdf-input').click()">
+        <div class="upload-icon-wrap" id="upload-icon">📄</div>
+        <div class="upload-title" id="upload-title">BAWAG / easybank PDF</div>
+        <div class="upload-sub" id="upload-sub">Per Klick oder Drag &amp; Drop<br><br>
+          <span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>
+        </div>
+      </div>
+      <input type="file" id="pdf-input" accept=".pdf" style="display:none;" onchange="handlePdfUpload(this)">
+      <div class="security-note">
+        <span style="font-size:1rem;">🔒</span>
+        <span>Verarbeitung erfolgt vollständig im Browser. Keine Finanzdaten werden an Server übermittelt.</span>
+      </div>
+      <button class="btn-primary" id="import-btn" style="display:none;" onclick="runImport()">📤 Import starten</button>
+    </div>
+
+    <!-- AI Config -->
+    <div class="card" style="padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <span style="font-size:1rem;">⚙️</span>
+        <div class="section-label" style="margin:0;">KI-Konfiguration</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <div class="provider-btn active" id="btn-anthropic" onclick="setProvider('anthropic')">
+          <div style="font-size:0.7rem;font-weight:700;">Anthropic</div>
+          <div style="font-size:0.58rem;opacity:0.8;margin-top:2px;">Claude Haiku</div>
+        </div>
+        <div class="provider-btn" id="btn-openai" onclick="setProvider('openai')">
+          <div style="font-size:0.7rem;font-weight:700;">OpenAI</div>
+          <div style="font-size:0.58rem;margin-top:2px;">GPT-4o mini</div>
+        </div>
+      </div>
+
+      <div class="api-input-wrap" id="anthropic-key-wrap">
+        <div class="api-label">Anthropic API Key</div>
+        <input class="api-input" id="anthropic-key-input" type="password" placeholder="sk-ant-…" oninput="saveKeys()">
+      </div>
+      <div class="api-input-wrap" id="openai-key-wrap" style="display:none;margin-top:16px;">
+        <div class="api-label">OpenAI API Key</div>
+        <input class="api-input" id="openai-key-input" type="password" placeholder="sk-…" oninput="saveKeys()">
+      </div>
+      <div style="margin-top:12px;background:var(--surface-high);border-radius:8px;padding:10px 12px;font-size:0.7rem;color:var(--text-muted);line-height:1.5;">
+        <strong>Sicherheit:</strong> Ihr Key wird nur in <em>localStorage</em> gespeichert und direkt an die API gesendet.
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="card" style="padding:20px;margin-bottom:16px;">
+      <div style="font-family:var(--serif);font-size:1rem;font-weight:700;margin-bottom:16px;">So funktioniert's</div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="step-row">
+          <div class="step-num done">1</div>
+          <div class="step-text">PDF-Daten werden lokal im Browser in strukturierte Buchungen umgewandelt.</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num todo">2</div>
+          <div class="step-text">Die KI analysiert Buchungsmuster und weist Kategorien zu (benötigt API Key).</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num todo">3</div>
+          <div class="step-text">Ihr Dashboard wird mit strukturierten Finanzdaten befüllt.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status card -->
+    <div class="card-dark" style="margin-bottom:16px;" id="import-status-card">
+      <div style="font-family:var(--serif);font-size:1.4rem;font-weight:700;margin-bottom:6px;" id="import-status-title">Warte auf Daten</div>
+      <div style="font-size:0.78rem;opacity:0.65;margin-bottom:20px;" id="import-status-text">Laden Sie einen Kontoauszug hoch um Ihre Auswertung zu starten.</div>
+      <div class="mini-chart" id="import-mini-chart">
+        <div class="mini-bar" style="height:20%"></div>
+        <div class="mini-bar" style="height:55%"></div>
+        <div class="mini-bar" style="height:35%"></div>
+        <div class="mini-bar" style="height:75%"></div>
+        <div class="mini-bar" style="height:50%"></div>
+        <div class="mini-bar active" style="height:65%"></div>
+      </div>
+      <div style="text-align:center;font-size:0.6rem;letter-spacing:0.2em;text-transform:uppercase;opacity:0.3;margin-top:12px;" id="import-status-sub">System bereit</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ SCREEN: KONTEN ══ -->
+<div class="screen" id="screen-konten">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-avatar">MK</div>
+      Meine Konten
+    </div>
+    <button class="topbar-icon" title="Konto hinzufügen" onclick="showToast('Konto-Verwaltung folgt in Phase 2')">＋</button>
+  </div>
+
+  <div class="px" style="padding-top:24px;">
+    <h1 class="page-title" style="margin-bottom:6px;">Meine<br>Konten</h1>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:24px;">Verwalten Sie Ihr Portfolio über alle Konten.</p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;" id="account-list"></div>
+
+    <button class="btn-ghost" style="margin-top:12px;" onclick="showToast('Multi-Konto folgt in Phase 2')">＋ Neues Konto verknüpfen</button>
+
+    <!-- Gesamtvermögen -->
+    <div class="card-dark" style="margin-top:20px;" id="gesamtvermoegen-card">
+      <div style="font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.6;margin-bottom:8px;">Gesamtvermögen</div>
+      <div style="font-family:var(--serif);font-size:2.2rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px;" id="gesamtvermoegen">—</div>
+      <div style="font-size:0.65rem;opacity:0.5;margin-bottom:20px;">Alle importierten Konten</div>
+      <div class="mini-chart" id="konten-mini-chart">
+        <div class="mini-bar" style="height:40%"></div>
+        <div class="mini-bar" style="height:55%"></div>
+        <div class="mini-bar" style="height:45%"></div>
+        <div class="mini-bar" style="height:70%"></div>
+        <div class="mini-bar" style="height:60%"></div>
+        <div class="mini-bar active" style="height:85%"></div>
+      </div>
+    </div>
+
+    <!-- Concierge Teaser -->
+    <div class="card" style="margin-top:12px;padding:20px;display:flex;align-items:center;gap:14px;margin-bottom:8px;cursor:pointer;" onclick="showScreen('concierge')">
+      <div style="font-size:2rem;">🧾</div>
+      <div style="flex:1;">
+        <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;margin-bottom:4px;">Bon scannen</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Kassenbon mit Buchung verknüpfen — inkl. Einzelpositionen</div>
+      </div>
+      <span style="color:var(--text-muted);font-size:1.2rem;">›</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ SCREEN: CONCIERGE ══ -->
+<div class="screen" id="screen-concierge">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-avatar">MK</div>
+      Bon-Analyse
+    </div>
+    <button class="topbar-icon" onclick="resetConcierge()">✕</button>
+  </div>
+
+  <div class="px" style="padding-top:24px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <div class="section-label" style="margin:0;">Digital Concierge</div>
+      <span class="chip chip-ai">✦ AI</span>
+    </div>
+    <h1 class="page-title" style="font-size:1.8rem;margin-bottom:20px;">Kassenbon<br>verknüpfen</h1>
+
+    <!-- State: upload -->
+    <div id="concierge-upload" style="">
+      <div class="concierge-scan-area" onclick="document.getElementById('bon-input').click()">
+        <div style="font-size:3rem;margin-bottom:16px;">📸</div>
+        <div style="font-family:var(--serif);font-size:1rem;font-weight:700;margin-bottom:6px;">Bon hochladen</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);line-height:1.5;">Foto oder PDF des Kassenbons<br><br>
+          <span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">JPG · PNG · PDF</span>
+        </div>
+      </div>
+      <input type="file" id="bon-input" accept="image/*,.pdf" style="display:none;" onchange="handleBonUpload(this)">
+      <div class="security-note" style="margin-top:16px;">
+        <span>🔒</span>
+        <span>Das Bild wird für die Analyse kurz an die KI-API gesendet. Kein Speichern auf unseren Servern.</span>
+      </div>
+    </div>
+
+    <!-- State: result (hidden until scan) -->
+    <div id="concierge-result" style="display:none;">
+      <div class="bon-preview" style="margin-bottom:16px;" id="bon-preview-content"></div>
+      <div class="card" style="padding:16px 20px;margin-bottom:16px;" id="bon-breakdown"></div>
+      <div style="margin-bottom:16px;" id="bon-match-section"></div>
+      <button class="btn-primary" style="margin-bottom:12px;" id="bon-link-btn">🔗 Buchung verknüpfen</button>
+      <button class="btn-ghost" onclick="resetConcierge()">Weiteren Bon scannen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ BOTTOM NAV ══ -->
+<nav class="bottomnav">
+  <button class="nav-item active" id="nav-dashboard" onclick="showScreen('dashboard')">
+    <span class="nav-icon">⊞</span>Dashboard
+  </button>
+  <button class="nav-item" id="nav-buchungen" onclick="showScreen('buchungen')">
+    <span class="nav-icon">📋</span>Buchungen
+  </button>
+  <button class="nav-item" id="nav-import" onclick="showScreen('import')">
+    <span class="nav-icon">📤</span>Import
+  </button>
+  <button class="nav-item" id="nav-konten" onclick="showScreen('konten')">
+    <span class="nav-icon">🏦</span>Konten
+  </button>
+  <button class="nav-item" id="nav-concierge" onclick="showScreen('concierge')">
+    <span class="nav-icon">🧾</span>Bon
+  </button>
+</nav>
+
+<!-- ════════════════════════════════════════ TX DETAIL MODAL ══ -->
+<div class="modal-overlay" id="tx-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="tx-modal-content"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ CLEAR MODAL ══ -->
+<div class="modal-overlay" id="clear-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="font-family:var(--serif);font-size:1.2rem;font-weight:700;margin-bottom:8px;">Einstellungen</div>
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:24px;">Daten verwalten und App zurücksetzen.</p>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-ghost" onclick="exportCSV()">📊 Buchungen als CSV exportieren</button>
+      <button onclick="clearTransactions(); closeClearModal();" style="width:100%;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);padding:14px;font-family:var(--sans);font-size:0.85rem;font-weight:600;cursor:pointer;">🗑️ Alle Buchungen löschen</button>
+      <button onclick="closeClearModal();" class="btn-ghost" style="margin-top:4px;">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+'use strict';
+
+// ── PDF.js worker ──
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ── CATEGORIES ──
+const CAT_CONFIG = {
+  'Supermarkt':          { icon: '🛒', color: '#7B5723' },
+  'Restaurant / Café':   { icon: '🍽️', color: '#c44b28' },
+  'Mobilität / Auto':    { icon: '🚗', color: '#534346' },
+  'Wohnen / Miete':      { icon: '🏠', color: '#41051F' },
+  'Energie / Strom':     { icon: '⚡', color: '#f59e0b' },
+  'Versicherung':        { icon: '🛡️', color: '#6366f1' },
+  'Gesundheit':          { icon: '❤️', color: '#e11d48' },
+  'Online Shopping':     { icon: '📦', color: '#0ea5e9' },
+  'Freizeit':            { icon: '🎮', color: '#22c55e' },
+  'Gehalt / Einnahmen':  { icon: '💰', color: '#2D6A4F' },
+  'Gebühren / Bank':     { icon: '🏦', color: '#857276' },
+  'Sonstiges':           { icon: '📌', color: '#534346' },
+};
+
+// ── STATE ──
+const STORAGE_KEY = 'finance_v2_data';
+let state = loadState();
+let pendingTransactions = [];
+let selectedPdfFile = null;
+let toastTimer = null;
+
+function loadState() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s);
+  } catch(e) {}
+  return {
+    transactions: [],
+    accounts: [
+      { id: 'bawag', name: 'BAWAG Girokonto', iban: 'AT45 •••••••••• 8821', balance: null, lastImport: null, color: '#41051F', initial: 'B' },
+      { id: 'easybank', name: 'easybank Sparkonto', iban: 'AT12 •••••••••• 4590', balance: null, lastImport: null, color: '#4a7c59', initial: 'e' },
+    ],
+    currentMonth: getCurrentMonth(),
+    aiProvider: 'anthropic',
+  };
+}
+
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function loadKeys() {
+  try {
+    return {
+      anthropic: localStorage.getItem('api_key_anthropic') || '',
+      openai:    localStorage.getItem('api_key_openai') || '',
+    };
+  } catch(e) { return { anthropic: '', openai: '' }; }
+}
+
+function saveKeys() {
+  const ak = document.getElementById('anthropic-key-input').value.trim();
+  const ok = document.getElementById('openai-key-input').value.trim();
+  try {
+    if (ak) localStorage.setItem('api_key_anthropic', ak);
+    if (ok) localStorage.setItem('api_key_openai', ok);
+  } catch(e) {}
+}
+
+// ── HELPERS ──
+function getCurrentMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function formatEur(amount) {
+  return new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' }).format(amount);
+}
+
+function formatDate(isoDate) {
+  const d = new Date(isoDate + 'T12:00:00');
+  return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function getMonthLabel(ym) {
+  const [y, m] = ym.split('-');
+  const d = new Date(parseInt(y), parseInt(m)-1, 1);
+  return d.toLocaleDateString('de-AT', { month: 'short', year: 'numeric' });
+}
+
+function getAvailableMonths() {
+  const months = new Set(state.transactions.map(t => t.date.slice(0,7)));
+  const cur = getCurrentMonth();
+  months.add(cur);
+  return Array.from(months).sort().reverse();
+}
+
+function getTransactionsForMonth(ym) {
+  return state.transactions.filter(t => t.date.startsWith(ym));
+}
+
+function showToast(msg, duration = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Verarbeite…';
+  document.getElementById('loading-overlay').classList.add('active');
+}
+
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('active');
+}
+
+// ── NAVIGATION ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  const nav = document.getElementById('nav-' + name);
+  if (nav) nav.classList.add('active');
+  window.scrollTo(0, 0);
+
+  if (name === 'dashboard') renderDashboard();
+  if (name === 'buchungen') renderBuchungen();
+  if (name === 'konten')    renderKonten();
+}
+
+// ── MONTH STRIP ──
+function renderMonthStrip(containerId, onSelect) {
+  const months = getAvailableMonths();
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.innerHTML = months.map(m => `
+    <div class="month-pill ${m === state.currentMonth ? 'active' : ''}"
+         onclick="${onSelect}('${m}')">
+      ${getMonthLabel(m)}
+    </div>`).join('');
+}
+
+function setMonth(ym) {
+  state.currentMonth = ym;
+  saveState();
+  renderDashboard();
+}
+
+function setMonthBuch(ym) {
+  state.currentMonth = ym;
+  saveState();
+  renderBuchungen();
+}
+
+// ── DASHBOARD ──
+function renderDashboard() {
+  renderMonthStrip('month-strip', 'setMonth');
+  const txs = getTransactionsForMonth(state.currentMonth);
+
+  const income  = txs.filter(t => t.amount > 0).reduce((s,t) => s + t.amount, 0);
+  const expense = txs.filter(t => t.amount < 0).reduce((s,t) => s + Math.abs(t.amount), 0);
+  const saldo   = income - expense;
+
+  document.getElementById('db-saldo').textContent = txs.length ? formatEur(saldo) : '—';
+  document.getElementById('db-income').textContent  = txs.length ? formatEur(income)  : '—';
+  document.getElementById('db-expense').textContent = txs.length ? formatEur(expense) : '—';
+
+  // Saldo change chip (placeholder)
+  const changeEl = document.getElementById('db-saldo-change');
+  if (txs.length) {
+    changeEl.innerHTML = `<span class="chip ${saldo >= 0 ? 'chip-green' : 'chip-red'}">${saldo >= 0 ? '▲' : '▼'} ${formatEur(Math.abs(saldo))}</span>
+      <span style="font-size:0.7rem;color:var(--text-muted);">Netto ${getMonthLabel(state.currentMonth)}</span>`;
+  } else {
+    changeEl.innerHTML = '';
+  }
+
+  // CTA visibility
+  document.getElementById('db-cta').style.display = txs.length ? 'none' : 'block';
+
+  // Categories
+  renderDashboardCategories(txs);
+
+  // Insight
+  renderInsight(txs);
+}
+
+function renderDashboardCategories(txs) {
+  const el = document.getElementById('db-categories');
+  const expenses = txs.filter(t => t.amount < 0);
+  if (!expenses.length) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Noch keine Daten — PDF importieren</div>';
+    return;
+  }
+
+  const bycat = {};
+  expenses.forEach(t => {
+    const cat = t.category || 'Sonstiges';
+    bycat[cat] = (bycat[cat] || 0) + Math.abs(t.amount);
+  });
+
+  const sorted = Object.entries(bycat).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const max = sorted[0][1];
+
+  el.innerHTML = sorted.map(([cat, amt], i) => {
+    const cfg = CAT_CONFIG[cat] || CAT_CONFIG['Sonstiges'];
+    const pct = Math.round((amt / max) * 100);
+    const colors = ['var(--primary-container)', 'var(--secondary)', 'var(--secondary)', 'var(--outline)', 'var(--outline)'];
+    return `
+      <div class="cat-row">
+        <div class="cat-icon-wrap">${cfg.icon}</div>
+        <div style="flex:1;">
+          <div class="cat-label">${cat}</div>
+          <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${colors[i] || 'var(--outline)'}"></div></div>
+        </div>
+        <div class="cat-amount">${formatEur(amt)}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderInsight(txs) {
+  const insightEl = document.getElementById('db-insight');
+  if (!txs.length) { insightEl.style.display = 'none'; return; }
+
+  const expenses = txs.filter(t => t.amount < 0);
+  const total = expenses.reduce((s,t) => s + Math.abs(t.amount), 0);
+  if (!total) { insightEl.style.display = 'none'; return; }
+
+  const bycat = {};
+  expenses.forEach(t => { const c = t.category||'Sonstiges'; bycat[c]=(bycat[c]||0)+Math.abs(t.amount); });
+  const top = Object.entries(bycat).sort((a,b)=>b[1]-a[1])[0];
+  const pct = Math.round((top[1]/total)*100);
+
+  document.getElementById('db-insight-title').textContent = 'Ausgaben-Analyse';
+  document.getElementById('db-insight-text').textContent =
+    `Ihre größte Ausgabenkategorie ist "${top[0]}" mit ${formatEur(top[1])} (${pct}% der Gesamtausgaben von ${formatEur(total)}). ${expenses.length} Buchungen diesen Monat.`;
+  insightEl.style.display = 'block';
+}
+
+// ── BUCHUNGEN ──
+function renderBuchungen() {
+  renderMonthStrip('month-strip-buch', 'setMonthBuch');
+
+  const search = (document.getElementById('search-input')?.value || '').toLowerCase();
+  let txs = getTransactionsForMonth(state.currentMonth);
+
+  if (search) {
+    txs = txs.filter(t =>
+      t.description.toLowerCase().includes(search) ||
+      (t.category||'').toLowerCase().includes(search)
+    );
+  }
+
+  const el = document.getElementById('buchungen-list');
+
+  if (!txs.length) {
+    el.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-title">${search ? 'Keine Treffer' : 'Keine Buchungen'}</div>
+      <div class="empty-state-text">${search ? 'Suche anpassen oder anderen Monat wählen.' : 'PDF importieren oder Demo-Daten laden.'}</div>
+      ${!search ? '<button class="btn-primary" style="max-width:240px;margin:0 auto;" onclick="showScreen(\'import\')">📤 Importieren</button>' : ''}
+    </div>`;
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  txs.forEach(t => {
+    const d = t.date;
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(t);
+  });
+
+  const sortedDates = Object.keys(groups).sort().reverse();
+
+  el.innerHTML = sortedDates.map(date => {
+    const today = new Date().toISOString().slice(0,10);
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    let label;
+    if (date === today) label = 'Heute';
+    else if (date === yesterday) label = 'Gestern';
+    else label = formatDate(date);
+
+    const items = groups[date].map(t => renderTxItem(t)).join('');
+    return `<div class="tx-group-label">${label}</div>
+      <div class="card" style="padding:0 16px;">${items}</div>`;
+  }).join('');
+}
+
+function renderTxItem(tx) {
+  const cfg = CAT_CONFIG[tx.category] || CAT_CONFIG['Sonstiges'];
+  const isIn = tx.amount > 0;
+  const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
+  const aiTag = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
+
+  return `<div class="tx-item" onclick="openTxModal('${tx.id}')">
+    <div class="tx-icon-wrap">${cfg.icon}</div>
+    <div style="flex:1;min-width:0;">
+      <div class="tx-name">${escHtml(tx.description)}</div>
+      <div class="tx-meta">
+        ${aiTag}
+        <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
+        <span>${formatDate(tx.date)}</span>
+      </div>
+    </div>
+    <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '−'}${formatEur(Math.abs(tx.amount))}</div>
+  </div>`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toggleFilterPanel() {
+  showToast('Filter-Optionen folgen bald');
+}
+
+// ── TX MODAL ──
+function openTxModal(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  const cfg = CAT_CONFIG[tx.category] || CAT_CONFIG['Sonstiges'];
+  const isIn = tx.amount > 0;
+
+  const catOptions = Object.keys(CAT_CONFIG).map(k =>
+    `<option value="${k}" ${k === tx.category ? 'selected' : ''}>${CAT_CONFIG[k].icon} ${k}</option>`
+  ).join('');
+
+  document.getElementById('tx-modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+      <div style="width:52px;height:52px;border-radius:16px;background:var(--surface-mid);display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">${cfg.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px;">${escHtml(tx.description)}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);">${formatDate(tx.date)} · ${tx.account || 'Konto'}</div>
+      </div>
+    </div>
+    <div style="font-family:var(--serif);font-size:2rem;font-weight:700;color:${isIn ? 'var(--green)' : 'var(--primary-container)'};margin-bottom:20px;">
+      ${isIn ? '+' : '−'}${formatEur(Math.abs(tx.amount))}
+    </div>
+    <div style="margin-bottom:16px;">
+      <div class="api-label" style="margin-bottom:8px;">Kategorie</div>
+      <select class="cat-select" id="cat-edit-${id}" onchange="updateCategory('${id}', this.value)">${catOptions}</select>
+    </div>
+    ${tx.aiCategorized ? '<div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:16px;"><span class="chip chip-ai" style="padding:2px 8px;">✦ KI kategorisiert</span></div>' : ''}
+    <button class="btn-ghost" style="margin-top:8px;" onclick="closeTxModal()">Schließen</button>
+  `;
+  document.getElementById('tx-modal').classList.add('open');
+}
+
+function closeTxModal() {
+  document.getElementById('tx-modal').classList.remove('open');
+}
+
+function updateCategory(id, newCat) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (tx) { tx.category = newCat; tx.aiCategorized = false; saveState(); }
+  showToast('Kategorie gespeichert');
+  closeTxModal();
+  renderBuchungen();
+  renderDashboard();
+}
+
+// ── CLEAR MODAL ──
+function openClearModal() { document.getElementById('clear-modal').classList.add('open'); }
+function closeClearModal() { document.getElementById('clear-modal').classList.remove('open'); }
+
+function clearTransactions() {
+  state.transactions = [];
+  saveState();
+  showToast('Alle Buchungen gelöscht');
+  renderDashboard();
+  renderBuchungen();
+  renderKonten();
+}
+
+// ── KONTEN ──
+function renderKonten() {
+  const list = document.getElementById('account-list');
+  const txs = state.transactions;
+
+  const accountData = state.accounts.map(acc => {
+    const accTxs = txs.filter(t => t.account === acc.id || t.account === acc.name);
+    const balance = accTxs.reduce((s,t) => s + t.amount, 0);
+    return { ...acc, computedBalance: balance, txCount: accTxs.length,
+      lastDate: accTxs.length ? accTxs.map(t=>t.date).sort().reverse()[0] : null };
+  });
+
+  list.innerHTML = accountData.map(acc => {
+    const hasData = acc.txCount > 0;
+    const lastImportText = acc.lastDate ? `Letzter Import: ${formatDate(acc.lastDate)} ›` : 'Noch keine Daten';
+    const statusChip = hasData
+      ? '<span class="chip chip-green">● Aktiv</span>'
+      : '<span class="chip chip-gold">Kein Import</span>';
+
+    return `<div class="account-card">
+      <div class="account-header">
+        <div class="account-logo" style="background:${acc.color};font-size:0.9rem;">${acc.initial}</div>
+        <div style="flex:1;">
+          <div class="account-name">${escHtml(acc.name)}</div>
+          <div class="account-iban">${escHtml(acc.iban)}</div>
+        </div>
+        ${statusChip}
+      </div>
+      <div>
+        <div class="account-balance-label">Verfügbarer Saldo</div>
+        <div class="account-balance">${hasData ? formatEur(acc.computedBalance) : '—'}</div>
+      </div>
+      <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);">${lastImportText}</div>
+    </div>`;
+  }).join('');
+
+  // Gesamtvermögen
+  const total = accountData.filter(a=>a.txCount>0).reduce((s,a)=>s+a.computedBalance, 0);
+  document.getElementById('gesamtvermoegen').textContent = state.transactions.length ? formatEur(total) : '—';
+}
+
+// ── PDF UPLOAD ──
+function handlePdfUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  selectedPdfFile = file;
+  document.getElementById('upload-icon').textContent = '✅';
+  document.getElementById('upload-title').textContent = file.name;
+  document.getElementById('upload-sub').textContent = `${(file.size/1024).toFixed(1)} KB — bereit zum Import`;
+  document.getElementById('import-btn').style.display = 'flex';
+}
+
+// Drag & drop
+document.addEventListener('DOMContentLoaded', () => {
+  const zone = document.getElementById('upload-zone');
+  if (zone) {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        selectedPdfFile = file;
+        document.getElementById('upload-icon').textContent = '✅';
+        document.getElementById('upload-title').textContent = file.name;
+        document.getElementById('upload-sub').textContent = `${(file.size/1024).toFixed(1)} KB — bereit zum Import`;
+        document.getElementById('import-btn').style.display = 'flex';
+      }
+    });
+  }
+
+  // Modal close on overlay click
+  document.getElementById('tx-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('tx-modal')) closeTxModal();
+  });
+  document.getElementById('clear-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('clear-modal')) closeClearModal();
+  });
+
+  // Load saved keys
+  const keys = loadKeys();
+  document.getElementById('anthropic-key-input').value = keys.anthropic;
+  document.getElementById('openai-key-input').value = keys.openai;
+
+  // Set provider UI
+  setProviderUI(state.aiProvider);
+
+  // Initial render
+  renderDashboard();
+  renderKonten();
+});
+
+async function runImport() {
+  if (!selectedPdfFile) return;
+
+  setStep(1, 0, false);
+  setStep(2, 0, false);
+  setStep(3, 0, false);
+  showLoading('PDF wird gelesen…');
+
+  let rawText = '';
+  try {
+    rawText = await extractPdfText(selectedPdfFile);
+  } catch(e) {
+    hideLoading();
+    showToast('PDF konnte nicht gelesen werden');
+    return;
+  }
+
+  setStep(1, 100, true);
+  showLoading('Buchungen werden erkannt…');
+
+  const parsed = parseBankStatement(rawText);
+  if (!parsed.length) {
+    hideLoading();
+    setStep(1, 100, false);
+    updateImportStatus('Keine Buchungen gefunden', 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
+    showToast('Keine Buchungen erkannt');
+    return;
+  }
+
+  updateImportStatus(`${parsed.length} Buchungen erkannt`, 'KI-Kategorisierung läuft…');
+  showLoading(`${parsed.length} Buchungen werden kategorisiert…`);
+  setStep(2, 50, false);
+
+  let categorized;
+  try {
+    categorized = await categorizeWithAI(parsed);
+    setStep(2, 100, true);
+  } catch(e) {
+    categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));
+    setStep(2, 100, false);
+    showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
+  }
+
+  // Merge, avoid duplicates
+  const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
+  let added = 0;
+  categorized.forEach(t => {
+    const key = `${t.date}|${t.amount}|${t.description}`;
+    if (!existing.has(key)) {
+      state.transactions.push(t);
+      existing.add(key);
+      added++;
+    }
+  });
+
+  // Update account last import
+  const fileName = selectedPdfFile.name.toLowerCase();
+  const accountId = fileName.includes('easy') ? 'easybank' : 'bawag';
+  const acc = state.accounts.find(a => a.id === accountId);
+  if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
+
+  state.currentMonth = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0] || state.currentMonth;
+  saveState();
+  setStep(3, 100, true);
+  hideLoading();
+
+  updateImportStatus(`Import abgeschlossen`, `${added} neue Buchungen importiert (${categorized.length - added} Duplikate übersprungen).`);
+  showToast(`✓ ${added} Buchungen importiert`);
+
+  // Reset upload
+  selectedPdfFile = null;
+  document.getElementById('pdf-input').value = '';
+  document.getElementById('import-btn').style.display = 'none';
+  document.getElementById('upload-icon').textContent = '📄';
+  document.getElementById('upload-title').textContent = 'BAWAG / easybank PDF';
+  document.getElementById('upload-sub').innerHTML = 'Per Klick oder Drag &amp; Drop<br><br><span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>';
+
+  renderDashboard();
+  renderKonten();
+}
+
+function setStep(n, pct, done) {
+  const step = document.getElementById(`step-${n}`);
+  if (!step) return;
+  document.getElementById(`step-${n}-fill`).style.width = pct + '%';
+  if (done) {
+    step.classList.add('done');
+    document.getElementById(`step-${n}-label`).textContent = `0${n}. ${['PDF','KI','Fertig'][n-1]} ✓`;
+  }
+}
+
+function updateImportStatus(title, text) {
+  document.getElementById('import-status-title').textContent = title;
+  document.getElementById('import-status-text').textContent = text;
+}
+
+// ── PDF EXTRACTION ──
+async function extractPdfText(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(' ') + '\n';
+  }
+  return text;
+}
+
+// ── BANK STATEMENT PARSER ──
+function parseBankStatement(text) {
+  const transactions = [];
+
+  // BAWAG/easybank format patterns
+  // Pattern: DD.MM.YYYY ... amount (with comma as decimal sep)
+  // Try multiple patterns
+
+  // Pattern 1: date at start of recognizable line
+  const linePattern = /(\d{2}\.\d{2}\.\d{4})\s+(.+?)\s+([-+]?\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:EUR)?/g;
+  let match;
+  let found = false;
+
+  while ((match = linePattern.exec(text)) !== null) {
+    const date = parseDate(match[1]);
+    const desc = match[2].trim().replace(/\s+/g,' ').slice(0,80);
+    const amount = parseAmount(match[3]);
+    if (date && !isNaN(amount) && desc.length > 2) {
+      transactions.push(makeTx(date, desc, amount));
+      found = true;
+    }
+  }
+
+  if (found) return dedup(transactions);
+
+  // Pattern 2: looser — just find dates and amounts in proximity
+  const lines = text.split(/\n/);
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    const dateMatch = line.match(/^(\d{2}\.\d{2}\.\d{4})/);
+    if (dateMatch) {
+      const date = parseDate(dateMatch[1]);
+      // Look ahead for description and amount
+      let desc = line.slice(10).trim();
+      let amount = null;
+      for (let j = i; j < Math.min(i+4, lines.length); j++) {
+        const amtMatch = lines[j].match(/([-+]?\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:EUR|\s|$)/);
+        if (amtMatch) {
+          amount = parseAmount(amtMatch[1]);
+          if (!desc) desc = lines[j].replace(amtMatch[0],'').trim();
+          break;
+        }
+      }
+      if (date && amount !== null && !isNaN(amount) && desc.length > 1) {
+        transactions.push(makeTx(date, desc.replace(/\s+/g,' ').slice(0,80), amount));
+      }
+    }
+    i++;
+  }
+
+  return dedup(transactions);
+}
+
+function parseDate(str) {
+  const [d, m, y] = str.split('.');
+  const date = new Date(`${y}-${m}-${d}`);
+  if (isNaN(date)) return null;
+  return `${y}-${m}-${d}`;
+}
+
+function parseAmount(str) {
+  // Austrian format: 1.234,56 or -1.234,56
+  const cleaned = str.replace(/\./g,'').replace(',','.');
+  return parseFloat(cleaned);
+}
+
+function makeTx(date, description, amount) {
+  return {
+    id: `tx_${date}_${Math.random().toString(36).slice(2,8)}`,
+    date,
+    description,
+    amount,
+    category: 'Sonstiges',
+    aiCategorized: false,
+    account: 'bawag',
+  };
+}
+
+function dedup(txs) {
+  const seen = new Set();
+  return txs.filter(t => {
+    const key = `${t.date}|${t.amount}|${t.description.slice(0,20)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ── AI CATEGORIZATION ──
+async function categorizeWithAI(transactions) {
+  const provider = state.aiProvider;
+  const keys = loadKeys();
+  const key = provider === 'anthropic' ? keys.anthropic : keys.openai;
+
+  if (!key) {
+    return transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }));
+  }
+
+  const categories = Object.keys(CAT_CONFIG).join(', ');
+  const list = transactions.map((t,i) => `${i}: ${t.description} (${t.amount > 0 ? '+' : ''}${t.amount}€)`).join('\n');
+
+  const prompt = `Du bist ein österreichischer Finanz-Assistent. Kategorisiere diese Bankbuchungen.
+
+Verfügbare Kategorien: ${categories}
+
+Buchungen:
+${list}
+
+Antworte NUR mit einem JSON-Array, Format: [{"index":0,"category":"Kategorie"}, ...]
+Keine anderen Texte, kein Markdown, nur reines JSON.`;
+
+  let result;
+  if (provider === 'anthropic') {
+    result = await callAnthropic(key, prompt);
+  } else {
+    result = await callOpenAI(key, prompt);
+  }
+
+  // Apply categories
+  return transactions.map((t, i) => {
+    const found = result.find(r => r.index === i);
+    const cat = found && CAT_CONFIG[found.category] ? found.category : guessCategory(t.description);
+    return { ...t, category: cat, aiCategorized: !!found };
+  });
+}
+
+async function callAnthropic(key, prompt) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: prompt }],
+    }),
+  });
+  if (!resp.ok) throw new Error(`Anthropic API ${resp.status}`);
+  const data = await resp.json();
+  const text = data.content[0].text;
+  return JSON.parse(text.match(/\[[\s\S]*\]/)[0]);
+}
+
+async function callOpenAI(key, prompt) {
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      max_tokens: 2048,
+    }),
+  });
+  if (!resp.ok) throw new Error(`OpenAI API ${resp.status}`);
+  const data = await resp.json();
+  const text = data.choices[0].message.content;
+  const parsed = JSON.parse(text);
+  return Array.isArray(parsed) ? parsed : (parsed.categories || parsed.transactions || []);
+}
+
+// Rule-based fallback
+function guessCategory(desc) {
+  const d = desc.toLowerCase();
+  if (/edeka|billa|spar|hofer|lidl|aldi|merkur|penny|rewe|interspar|netto|kaufland/.test(d)) return 'Supermarkt';
+  if (/restaurant|café|cafe|mcdonalds|burger|pizza|kebab|starbucks|gasthaus|wirtshaus|beisl/.test(d)) return 'Restaurant / Café';
+  if (/miete|wohnung|immobilien|hausverwaltung|betriebskosten/.test(d)) return 'Wohnen / Miete';
+  if (/tankstelle|omv|bp|shell|eni|jet|avanti|esso|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi/.test(d)) return 'Mobilität / Auto';
+  if (/energie|strom|gas|wien energie|verbund|e-control/.test(d)) return 'Energie / Strom';
+  if (/versicherung|generali|allianz|uniqa|wiener städtische/.test(d)) return 'Versicherung';
+  if (/apotheke|arzt|krankenhaus|pharmig|dm|müller|rossmann|bipa/.test(d)) return 'Gesundheit';
+  if (/amazon|zalando|ebay|otto|shein|aliexpress|paypal/.test(d)) return 'Online Shopping';
+  if (/gehalt|lohn|salary|eingang/.test(d)) return 'Gehalt / Einnahmen';
+  if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d)) return 'Freizeit';
+  if (/gebühr|kontoführung|provision|zinsen|bank|bawag|easybank/.test(d)) return 'Gebühren / Bank';
+  return 'Sonstiges';
+}
+
+// ── PROVIDER TOGGLE ──
+function setProvider(p) {
+  state.aiProvider = p;
+  saveState();
+  setProviderUI(p);
+}
+
+function setProviderUI(p) {
+  document.getElementById('btn-anthropic').className = 'provider-btn ' + (p === 'anthropic' ? 'active' : '');
+  document.getElementById('btn-openai').className    = 'provider-btn ' + (p === 'openai'    ? 'active' : '');
+  document.getElementById('anthropic-key-wrap').style.display = p === 'anthropic' ? 'block' : 'none';
+  document.getElementById('openai-key-wrap').style.display    = p === 'openai'    ? 'block' : 'none';
+}
+
+// ── DEMO DATA ──
+function loadDemoData() {
+  const today = new Date();
+  const mkDate = (daysAgo) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - daysAgo);
+    return d.toISOString().slice(0,10);
+  };
+
+  const demos = [
+    { date: mkDate(0),  desc: 'Billa Plus Wien',                 amount: -43.20,   cat: 'Supermarkt' },
+    { date: mkDate(0),  desc: 'Miete Oktober',                   amount: -1150.00,  cat: 'Wohnen / Miete' },
+    { date: mkDate(1),  desc: 'Gehalt Europapier GmbH',          amount: +4200.00,  cat: 'Gehalt / Einnahmen' },
+    { date: mkDate(1),  desc: 'OMV Tankstelle Wien',             amount: -71.30,    cat: 'Mobilität / Auto' },
+    { date: mkDate(1),  desc: 'Figl Restaurant',                 amount: -89.50,    cat: 'Restaurant / Café' },
+    { date: mkDate(3),  desc: 'Amazon.de',                       amount: -34.99,    cat: 'Online Shopping' },
+    { date: mkDate(3),  desc: 'Hofer Lenti',                     amount: -58.40,    cat: 'Supermarkt' },
+    { date: mkDate(5),  desc: 'Wien Energie Abrechnung',         amount: -89.00,    cat: 'Energie / Strom' },
+    { date: mkDate(5),  desc: 'Wiener Linien Jahreskarte',       amount: -365.00,   cat: 'Mobilität / Auto' },
+    { date: mkDate(7),  desc: 'Spotify Premium',                 amount: -9.99,     cat: 'Freizeit' },
+    { date: mkDate(7),  desc: 'Netflix',                         amount: -12.99,    cat: 'Freizeit' },
+    { date: mkDate(8),  desc: 'BAWAG Kontoführungsgebühr',       amount: -4.90,     cat: 'Gebühren / Bank' },
+    { date: mkDate(10), desc: 'Apotheke Zur Stadt Gottes',       amount: -22.80,    cat: 'Gesundheit' },
+    { date: mkDate(10), desc: 'Edeka Wien Feinkostabteilung',    amount: -142.50,   cat: 'Supermarkt' },
+    { date: mkDate(12), desc: 'Uniqa Versicherung',              amount: -145.00,   cat: 'Versicherung' },
+    { date: mkDate(14), desc: 'Café Landtmann',                  amount: -28.60,    cat: 'Restaurant / Café' },
+    { date: mkDate(15), desc: 'Zalando SE',                      amount: -67.90,    cat: 'Online Shopping' },
+    { date: mkDate(18), desc: 'Interspar Mariahilfer Straße',    amount: -94.30,    cat: 'Supermarkt' },
+    { date: mkDate(20), desc: 'Steam Games Purchase',            amount: -29.99,    cat: 'Freizeit' },
+    { date: mkDate(22), desc: 'Shell Tankstelle Gürtel',         amount: -55.00,    cat: 'Mobilität / Auto' },
+  ];
+
+  const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
+  let added = 0;
+
+  demos.forEach(d => {
+    const key = `${d.date}|${d.amount}|${d.desc}`;
+    if (!existing.has(key)) {
+      state.transactions.push({
+        id: `demo_${d.date}_${Math.random().toString(36).slice(2,8)}`,
+        date: d.date,
+        description: d.desc,
+        amount: d.amount,
+        category: d.cat,
+        aiCategorized: true,
+        account: 'bawag',
+      });
+      existing.add(key);
+      added++;
+    }
+  });
+
+  state.currentMonth = getCurrentMonth();
+  saveState();
+  showToast(`✓ ${added} Demo-Buchungen geladen`);
+  renderDashboard();
+  renderBuchungen();
+  renderKonten();
+}
+
+// ── CSV EXPORT ──
+function exportCSV() {
+  if (!state.transactions.length) { showToast('Keine Buchungen zum Exportieren'); return; }
+
+  const header = 'Datum,Beschreibung,Betrag,Kategorie,Konto';
+  const rows = state.transactions
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .map(t => [
+      t.date,
+      `"${t.description.replace(/"/g,'""')}"`,
+      t.amount.toFixed(2).replace('.',','),
+      t.category,
+      t.account || '',
+    ].join(','));
+
+  const csv = [header, ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `buchungen_${state.currentMonth}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  closeClearModal();
+  showToast('CSV exportiert');
+}
+
+// ── CONCIERGE ──
+function resetConcierge() {
+  document.getElementById('concierge-upload').style.display = 'block';
+  document.getElementById('concierge-result').style.display = 'none';
+  document.getElementById('bon-input').value = '';
+}
+
+async function handleBonUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const keys = loadKeys();
+  const key = state.aiProvider === 'anthropic' ? keys.anthropic : keys.openai;
+  if (!key) {
+    showToast('Bitte zuerst API Key im Import-Screen hinterlegen');
+    return;
+  }
+
+  showLoading('Bon wird analysiert…');
+
+  try {
+    let base64 = '';
+    if (file.type.startsWith('image/')) {
+      base64 = await fileToBase64(file);
+    }
+
+    // Call AI vision
+    let bonData;
+    if (state.aiProvider === 'anthropic' && base64) {
+      bonData = await analyzeBonWithClaude(key, base64, file.type);
+    } else {
+      bonData = getDemoBonData();
+    }
+
+    hideLoading();
+    renderConciergeResult(bonData);
+  } catch(e) {
+    hideLoading();
+    showToast('Bon-Analyse fehlgeschlagen — Demo-Daten werden angezeigt');
+    renderConciergeResult(getDemoBonData());
+  }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function analyzeBonWithClaude(key, base64, mimeType) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+          { type: 'text', text: 'Extrahiere alle Positionen aus diesem Kassenbon als JSON: {"store":"","date":"","items":[{"name":"","price":0.00,"subcategory":""}],"total":0.00}. Verwende deutsche Sub-Kategorien wie Milchprodukte, Süßwaren, Backwaren, Getränke, Fleisch, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges. Nur reines JSON.' },
+        ],
+      }],
+    }),
+  });
+  if (!resp.ok) throw new Error('API error');
+  const data = await resp.json();
+  return JSON.parse(data.content[0].text.match(/\{[\s\S]*\}/)[0]);
+}
+
+function getDemoBonData() {
+  return {
+    store: 'BILLA PLUS Wien',
+    date: new Date().toISOString().slice(0,10),
+    items: [
+      { name: 'Clever Joghurt Natur 500g', price: 1.29, subcategory: 'Milchprodukte' },
+      { name: 'Milka Choco Wafer 3er', price: 2.49, subcategory: 'Süßwaren' },
+      { name: 'Billa Bio Vollmilch 1L', price: 1.59, subcategory: 'Milchprodukte' },
+      { name: 'Manner Schnitten 75g', price: 1.19, subcategory: 'Süßwaren' },
+      { name: 'Brot & Gebäck', price: 2.80, subcategory: 'Backwaren' },
+      { name: 'Weitere Artikel', price: 33.84, subcategory: 'Sonstiges' },
+    ],
+    total: 43.20,
+  };
+}
+
+const SUBCAT_ICONS = {
+  'Milchprodukte': '🥛', 'Süßwaren': '🍫', 'Backwaren': '🍞', 'Getränke': '🥤',
+  'Fleisch': '🥩', 'Obst & Gemüse': '🥦', 'Tiefkühl': '🧊', 'Hygiene': '🧴',
+  'Putzmittel': '🧹', 'Sonstiges': '📦',
+};
+
+function renderConciergeResult(bon) {
+  document.getElementById('concierge-upload').style.display = 'none';
+  document.getElementById('concierge-result').style.display = 'block';
+
+  // Preview
+  const preview = document.getElementById('bon-preview-content');
+  const dateStr = bon.date ? formatDate(bon.date) : '';
+  preview.innerHTML = `
+    <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
+    ${bon.items.map(item => `
+      <div class="bon-row">
+        <div>
+          <div class="bon-item">${escHtml(item.name)}</div>
+          <div><span class="sub-cat-chip">${SUBCAT_ICONS[item.subcategory]||'📦'} ${escHtml(item.subcategory)}</span></div>
+        </div>
+        <div class="bon-price">${formatEur(item.price)}</div>
+      </div>`).join('')}
+    <div class="bon-divider"></div>
+    <div class="bon-row">
+      <div class="bon-total">Gesamt</div>
+      <div class="bon-total">${formatEur(bon.total)}</div>
+    </div>`;
+
+  // Breakdown
+  const breakdown = document.getElementById('bon-breakdown');
+  const bySubcat = {};
+  bon.items.forEach(i => { bySubcat[i.subcategory] = (bySubcat[i.subcategory]||0)+i.price; });
+  const sorted = Object.entries(bySubcat).sort((a,b)=>b[1]-a[1]);
+  breakdown.innerHTML = `<div class="section-label">Aufschlüsselung</div>` +
+    sorted.map(([sc, amt]) => `
+      <div class="cat-row" style="padding:10px 0;${sorted.indexOf(sorted.find(s=>s[0]===sc))===sorted.length-1?'border:none':''}">
+        <div class="cat-icon-wrap" style="width:34px;height:34px;border-radius:8px;font-size:0.9rem;">${SUBCAT_ICONS[sc]||'📦'}</div>
+        <div style="flex:1;"><div class="cat-label" style="font-size:0.82rem;">${escHtml(sc)}</div></div>
+        <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;">${formatEur(amt)}</div>
+      </div>`).join('');
+
+  // Match with existing transactions
+  const matchSection = document.getElementById('bon-match-section');
+  const matches = state.transactions.filter(t => {
+    if (t.amount >= 0) return false;
+    const diff = Math.abs(Math.abs(t.amount) - bon.total);
+    return diff <= 2;
+  }).slice(0,2);
+
+  if (matches.length) {
+    matchSection.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="section-label" style="margin:0;">Passende Buchung</div>
+        <span class="chip chip-green">${matches.length} Treffer</span>
+      </div>
+      ${matches.map(m => `
+        <div class="match-card">
+          <div class="tx-icon-wrap" style="width:40px;height:40px;">${CAT_CONFIG[m.category]?.icon||'📌'}</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.85rem;font-weight:700;">${escHtml(m.description)}</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(m.date)}</div>
+            <div style="font-size:0.65rem;color:var(--green);margin-top:4px;">Betrag stimmt überein</div>
+          </div>
+          <div>
+            <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;text-align:right;">${formatEur(Math.abs(m.amount))}</div>
+            <div class="match-pct">Match</div>
+          </div>
+        </div>`).join('')}`;
+  } else {
+    matchSection.innerHTML = `<div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">Keine passende Buchung gefunden.</div>`;
+  }
+}
+</script>
+</body>
+</html>
