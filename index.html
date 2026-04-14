@@ -1497,65 +1497,89 @@ function parseEasyAmount(str) {
   return parseFloat(str.replace(/\./g, '').replace(',', '.'));
 }
 
+// Known Austrian card merchants (pattern → display name)
+const CARD_MERCHANTS = [
+  [/\bBILLA\b/i,      'Billa'],
+  [/\bSPAR\b/i,       'Spar'],
+  [/\bHOFER\b/i,      'Hofer'],
+  [/\bLIDL\b/i,       'Lidl'],
+  [/DM-?FIL/i,        'DM'],
+  [/\bBIPA\b/i,       'Bipa'],
+  [/\bHARTLAUER\b/i,  'Hartlauer'],
+  [/MUELLER|MÜLLER/i, 'Müller'],
+  [/\bMERKUR\b/i,     'Merkur'],
+  [/\bPENNY\b/i,      'Penny'],
+  [/\bEDEKA\b/i,      'Edeka'],
+  [/DER\s+MANN/i,     'Der Mann'],
+  [/COCA-COLA/i,      'Coca-Cola'],
+  [/\bOMV\b/i,        'OMV'],
+  [/\bSHELL\b/i,      'Shell'],
+  [/\bJET\b/i,        'JET Tankstelle'],
+];
+
 function extractEasybankDescription(rawDesc, contLines) {
   const raw = rawDesc.trim();
+  // Combine all text for broad pattern matching
+  const allText = [raw, ...contLines].join(' ');
 
-  // Card payment — merchant name on continuation lines
-  if (/^Bezahlung Karte/.test(raw)) {
+  // 1. Card payment — case-insensitive, scan all available text
+  if (/bezahlung karte/i.test(raw)) {
+    // Scan all text for known merchant names
+    for (const [pat, name] of CARD_MERCHANTS) {
+      if (pat.test(allText)) return name;
+    }
+    // Generic: scan continuation lines for first non-junk line
     for (const cl of contLines) {
-      if (/^POS\s|^OG\/|^MC\/|^BG\/|^\d{6,}$/.test(cl)) continue;
-      if (/^Manuel Koblischek$|^Koblischek/.test(cl)) continue;
-      if (/^[A-Z0-9]{8,}$/.test(cl)) continue; // reference hash
-      const merchant = cl.split('\\')[0].trim();
-      if (merchant.length > 2 && !/^\d+$/.test(merchant)) {
-        return cleanMerchantStr(merchant);
-      }
+      if (/^POS[\s\d]/i.test(cl)) continue;                      // POS terminal
+      if (/^(OG|MC|BG|FE|VD)\//i.test(cl)) continue;            // reference codes
+      if (/^Manuel Koblischek$|^Koblischek/i.test(cl)) continue;
+      if (/^[A-Z0-9]{8,}$/i.test(cl)) continue;                  // hash
+      if (/^\d+$/.test(cl)) continue;
+      // Take text before first backslash, clean up
+      const merchant = cl.split(/[\\]/)[0]
+        .replace(/DANKT\s*/gi, '')
+        .replace(/\d{4,}/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (merchant.length > 2) return merchant;
     }
     return 'Kartenzahlung';
   }
 
-  // Known counterparties in raw description (SEPA with name on same line)
-  if (/Tesla/.test(raw))                    return 'Tesla Supercharger';
-  if (/T-Mobile|Magenta/.test(raw))         return 'T-Mobile / Magenta';
-  if (/WE Vertrieb|Wien Energie/.test(raw)) return 'Wien Energie';
-  if (/AMAZON|Amazon/.test(raw))            return 'Amazon';
-  if (/PAYPAL|PayPal|PPLX/.test(raw))       return 'PayPal';
+  // 2. Known counterparties — scan full text
+  if (/Tesla/i.test(allText))                    return 'Tesla Supercharger';
+  if (/T-Mobile|Magenta/i.test(allText))         return 'T-Mobile / Magenta';
+  if (/WE Vertrieb|Wien Energie/i.test(allText)) return 'Wien Energie';
+  if (/\bAMAZON\b/i.test(allText))              return 'Amazon';
+  if (/PAYPAL|PPLX/i.test(allText))             return 'PayPal';
+  if (/Helvetia/i.test(allText))                 return 'Helvetia Versicherung';
+  if (/Raiffeisen.Leasing/i.test(allText))       return 'Raiffeisen Leasing';
+  if (/Allianz/i.test(allText))                  return 'Allianz Versicherung';
 
-  // Named operations directly in rawDesc
-  if (/^Gutschrift Onlinebanking/.test(raw)) {
+  // 3. Named operations
+  if (/Gutschrift Onlinebanking/i.test(raw)) {
     for (const cl of contLines) {
-      if (/^BAWAATWW|^OG\/|^BG\//.test(cl)) continue;
+      if (/^(BAWAATWW|OG\/|BG\/)/i.test(cl)) continue;
       const name = cl.replace(/AT\d{18,}/g, '').trim();
       if (name.length > 2) return `Gutschrift (${name.slice(0, 30)})`;
     }
     return 'Gutschrift';
   }
-  if (/^Miete/.test(raw))      return 'Miete';
-  if (/^Sollzinsen/.test(raw)) return 'Sollzinsen';
+  if (/^Miete/i.test(raw))      return 'Miete';
+  if (/^Sollzinsen/i.test(raw)) return 'Sollzinsen';
 
-  // SEPA transfer with BIC — look in continuation lines
-  if (/^[A-Z]{6}[A-Z0-9]{2}/.test(raw)) {
+  // 4. SEPA with BIC — find counterparty in continuation lines
+  if (/^[A-Z]{6}[A-Z0-9]{2}/i.test(raw)) {
     for (const cl of contLines) {
-      if (/^[A-Z]{6}[A-Z0-9]{2}|^OG\/|^BG\/|^Manuel Koblischek$|^\d{8,}$/.test(cl)) continue;
-      if (/^Koblischek|^KOBLISCHEK/.test(cl)) continue;
+      if (/^[A-Z]{6}[A-Z0-9]{2}|^(OG|BG|MC)\/|^Manuel Koblischek$|^\d{8,}$/i.test(cl)) continue;
+      if (/^(Koblischek|KOBLISCHEK)/i.test(cl)) continue;
       const name = cl.split('/')[0].replace(/^\d+\s*/, '').trim();
-      if (name.length > 3 && !/^\d+$/.test(name)) {
-        if (/Helvetia/.test(name))           return 'Helvetia Versicherung';
-        if (/Raiffeisen.Leasing/.test(name)) return 'Raiffeisen Leasing';
-        if (/Allianz/.test(name))            return 'Allianz Versicherung';
-        if (/AMAZON|Amazon/.test(name))      return 'Amazon';
-        if (/T-Mobile|Magenta/.test(name))   return 'T-Mobile / Magenta';
-        return name.slice(0, 50);
-      }
+      if (name.length > 3 && !/^\d+$/.test(name)) return name.slice(0, 50);
     }
   }
 
-  // Fallback: clean up rawDesc
-  return raw.replace(/[A-Z0-9]{10,}/g, '').replace(/\s+/g, ' ').trim().slice(0, 50) || 'Buchung';
-}
-
-function cleanMerchantStr(s) {
-  return s.replace(/DANKT\s*/gi, '').replace(/\d{4,}/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  // 5. Fallback
+  return raw.replace(/\b[A-Z0-9]{10,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 50) || 'Buchung';
 }
 
 function parseGenericStatement(text) {
