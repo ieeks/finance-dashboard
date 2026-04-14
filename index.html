@@ -1522,14 +1522,24 @@ function extractEasybankDescription(rawDesc, contLines) {
   // Combine all text for broad pattern matching
   const allText = [raw, ...contLines].join(' ');
 
-  // 1. Card payment — pattern: Line1=Bezahlung Karte, Line2=POS, Line3=Merchant
-  if (/bezahlung karte/i.test(raw)) {
-    // Try known merchants first (quick match)
+  // 1a. Check rawDesc directly against known card merchants
+  //     (easybank sometimes puts the merchant name directly in rawDesc as "SPAR 2361 K002 DD.MM. HH:MM")
+  for (const [pat, name] of CARD_MERCHANTS) {
+    if (pat.test(raw)) return name;
+  }
+
+  // 1b. POS terminal ID as rawDesc — card payment where merchant is in continuation lines
+  //     Pattern: "POS 4350 D001 27.03. 18:05"
+  const isPosLine = /^POS\s+\d+/i.test(raw);
+
+  // 1c. Bezahlung Karte — three-line pattern: Bezahlung Karte → POS → Merchant
+  if (/bezahlung karte/i.test(raw) || isPosLine) {
+    // Scan all text for known merchants
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(allText)) return name;
     }
-    // Line3 = contLines[1] is the merchant name (after the POS line)
-    const merchantLine = contLines[1] || contLines[0] || '';
+    // contLines[1] = merchant line (after POS line), or contLines[0] if no POS line
+    const merchantLine = isPosLine ? (contLines[0] || '') : (contLines[1] || contLines[0] || '');
     if (merchantLine) {
       const merchant = merchantLine.split(/[\\\/]/)[0]
         .replace(/DANKT\s*/gi, '')
@@ -1538,7 +1548,7 @@ function extractEasybankDescription(rawDesc, contLines) {
         .trim();
       if (merchant.length > 2) return merchant;
     }
-    // Fallback: scan all lines
+    // Generic fallback: scan lines, skip junk
     for (const cl of contLines) {
       if (/^POS[\s\d]/i.test(cl)) continue;
       if (/^(OG|MC|BG|FE|VD)\//i.test(cl)) continue;
@@ -1552,7 +1562,7 @@ function extractEasybankDescription(rawDesc, contLines) {
         .trim();
       if (merchant.length > 2) return merchant;
     }
-    return 'Kartenzahlung';
+    return isPosLine ? 'Kartenzahlung' : 'Kartenzahlung';
   }
 
   // 2. Known counterparties — scan full text
