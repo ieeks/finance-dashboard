@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v0.3 — 2026-04-14 (PDF Parser + Concierge PDF)
+
+### Fixed
+- Card payment merchant extraction: rawDesc now checked directly against CARD_MERCHANTS
+  (easybank writes "SPAR 2361 K002 30.03. 11:25" directly as description, not behind "Bezahlung Karte")
+- POS terminal ID as rawDesc (e.g. "POS 4350 D001 27.03. 18:05") now detected as card payment
+- Concierge screen: PDFs now processed via PDF.js text extraction + Claude text prompt
+  (previously PDFs fell through to hardcoded demo BILLA data)
+- Added `analyzeBonPdfWithClaude()` for text-based invoice analysis (PDF invoices like Tesla)
+
+### Known Remaining Bug
+- "POS 4350 D001 28.03. 15:47" (15,79 EUR) still shows POS ID instead of "Billa"
+  → Billa terminal POS 4350 not in CARD_MERCHANTS; merchant name not found in contLines either
+  → Fix: add POS terminal ID → merchant lookup table, OR improve contLines extraction for this pattern
+
 ## v0.2 — 2026-04-14 (Redesign v2)
 
 ### Added
