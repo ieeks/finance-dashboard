@@ -2,6 +2,8 @@
 
 ## Sofort (nächste Session)
 
+- [x] **Modul-Refactor**: index.html → js/ Module (app, state, parser, bonAnalyzer, matcher, categories, ui)
+
 ### PDF Parser — offene Bugs
 - [ ] **POS 4350 → Billa**: "POS 4350 D001 28.03. 15:47" zeigt POS-ID statt "Billa" (Betrag 15,79 EUR)
       → Billa-Terminal wird nicht erkannt weil Merchant-Name nicht in rawDesc UND nicht in contLines

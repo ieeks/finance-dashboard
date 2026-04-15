@@ -23,17 +23,33 @@ Beispiele:
 - `fix: BAWAG PDF Parser Datumsformat`
 - `chore: Version bump v0.2`
 
-## Dateistruktur (Ziel)
+## Dateistruktur
 
 ```
-index.html            # Haupt-App (Single File solange möglich)
+index.html            # HTML-Gerüst + CSS Design-Tokens (kein JS mehr)
 firebase-config.js    # Firebase Config (nicht committen → .gitignore)
 README.md
 CLAUDE.md
 CHANGELOG.md
 TODO.md
-/docs                 # Später: Skripte, Assets
+/js
+  app.js              # Bootstrap, Navigation, Render-Funktionen, Event-Handler
+  state.js            # globaler App-State + Month-Helpers
+  parser.js           # PDF-Extraktion, BAWAG/easybank Parser, KI-Kategorisierung
+  bonAnalyzer.js      # Bon/Rechnung Analyse via Claude Vision
+  matcher.js          # Bon ↔ Buchung Score-Matching
+  categories.js       # CAT_CONFIG, SUBCAT_ICONS, kanonische Listen
+  ui.js               # formatEur, formatDate, Toast, Loading, API Keys
+/prompts
+  parse-transactions.md  # Claude-Prompt für PDF-Parsing
+  analyze-bon.md         # Claude-Prompt für Bon-Analyse
+/docs
+  mockup-v2.html      # UI-Mockup (Referenz)
 ```
+
+Kategorien ändern: immer in BEIDEN Stellen:
+1. `CAT_CONFIG` in `js/categories.js`
+2. Prompt-Text in `prompts/parse-transactions.md`
 
 ## Login & Zugangsbeschränkung
 
@@ -46,8 +62,8 @@ TODO.md
 ## Kategorien (kanonische Liste)
 
 Änderungen an Kategorien immer in BEIDEN Stellen updaten:
-1. `CAT_CONFIG` in `index.html` (Icon + Farbe)
-2. Prompt-Text im `parseWithClaude()`-Aufruf
+1. `CAT_CONFIG` in `js/categories.js` (Icon + Farbe)
+2. Prompt-Text in `prompts/parse-transactions.md`
 
 Aktuelle Kategorien:
 - Supermarkt

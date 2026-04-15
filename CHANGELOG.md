@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v0.4 — 2026-04-15 (Modul-Refactor)
+
+### Changed
+- Monolithisches index.html (~2000 Zeilen) in ES-Module aufgeteilt
+- Neue Dateistruktur: js/ (app, state, parser, bonAnalyzer, matcher, categories, ui)
+- Prompts ausgelagert nach prompts/ (parse-transactions.md, analyze-bon.md)
+- mockup-v2.html nach docs/ verschoben
+- .gitignore um node_modules/ ergänzt
+- Version Badge v0.2 → v0.4
+
 ## v0.3 — 2026-04-14 (PDF Parser + Concierge PDF)
 
 ### Fixed
