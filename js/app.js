@@ -2,8 +2,8 @@
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoading, hideLoading } from './ui.js';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=12';
-import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI } from './bonAnalyzer.js';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=13';
+import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 
 // ── Navigation ──
 window.showScreen = function(name) {
@@ -479,13 +479,17 @@ window.handleBonUpload = async function(input) {
         return;
       }
     } else {
-      if (!file.type.startsWith('image/')) {
+      if (file.type.startsWith('image/')) {
+        const base64 = await fileToBase64(file);
+        bonData = await analyzeBonOpenAI(base64, file.type);
+      } else if (file.type === 'application/pdf') {
+        const pdfText = await extractPdfText(file);
+        bonData = await analyzeBonPdfOpenAI(pdfText);
+      } else {
         hideLoading();
-        showToast('OpenAI unterstützt nur Bilder (JPG/PNG), kein PDF');
+        showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
         return;
       }
-      const base64 = await fileToBase64(file);
-      bonData = await analyzeBonOpenAI(base64, file.type);
     }
     hideLoading();
     renderConciergeResult(bonData);

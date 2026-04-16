@@ -73,7 +73,7 @@ export async function analyzeBonPdf(pdfText) {
   return _safeParseObject(data.content[0].text);
 }
 
-// ── OpenAI GPT-4o Vision (Alternative) ──
+// ── OpenAI GPT-4o Vision — Bild ──
 export async function analyzeBonOpenAI(base64, mimeType) {
   const keys       = loadKeys();
   const promptText = await _loadPrompt();
@@ -94,6 +94,29 @@ export async function analyzeBonOpenAI(base64, mimeType) {
           { type: 'text',      text: promptText },
         ],
       }],
+    }),
+  });
+  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  const data = await resp.json();
+  return _safeParseObject(data.choices[0].message.content);
+}
+
+// ── OpenAI GPT-4o — PDF (Text-Extraktion) ──
+export async function analyzeBonPdfOpenAI(pdfText) {
+  const keys       = loadKeys();
+  const promptText = await _loadPrompt();
+  const fullPrompt = `${promptText}\n\nRechnungstext:\n${pdfText.slice(0, 8000)}`;
+
+  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:  'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      'Authorization': `Bearer ${keys.openai}`,
+    },
+    body: JSON.stringify({
+      model:      'gpt-4o-mini',
+      max_tokens: 2000,
+      messages:   [{ role: 'user', content: fullPrompt }],
     }),
   });
   if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
