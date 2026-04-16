@@ -108,6 +108,8 @@ function renderInsight(txs) {
 }
 
 // ── Buchungen ──
+let _filterCat = null;
+
 function renderBuchungen() {
   renderMonthStrip('month-strip-buch', 'setMonthBuch');
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
@@ -118,6 +120,12 @@ function renderBuchungen() {
       (t.category||'').toLowerCase().includes(search)
     );
   }
+  if (_filterCat) txs = txs.filter(t => t.category === _filterCat);
+
+  // update filter panel active state
+  document.querySelectorAll('.filter-cat-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.cat === (_filterCat || ''));
+  });
   const el = document.getElementById('buchungen-list');
   if (!txs.length) {
     el.innerHTML = `<div class="empty-state">
@@ -163,7 +171,36 @@ function renderTxItem(tx) {
   </div>`;
 }
 
-window.toggleFilterPanel = function() { showToast('Filter-Optionen folgen bald'); };
+window.toggleFilterPanel = function() {
+  const panel = document.getElementById('filter-panel');
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if (!open) {
+    const cats = ['Alle', ...Object.keys(CAT_CONFIG)];
+    panel.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px;">` +
+      cats.map(c => `<button class="filter-cat-chip${(_filterCat === null && c === 'Alle') || _filterCat === c ? ' active' : ''}"
+        data-cat="${c === 'Alle' ? '' : c}"
+        onclick="setFilterCat('${c === 'Alle' ? '' : c}')"
+        style="padding:6px 14px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);
+               font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);
+               transition:all 0.15s;">
+        ${c === 'Alle' ? '✕ Alle' : (CAT_CONFIG[c]?.icon || '') + ' ' + c}
+      </button>`).join('') +
+    `</div>`;
+  }
+};
+
+window.setFilterCat = function(cat) {
+  _filterCat = cat || null;
+  renderBuchungen();
+  document.querySelectorAll('.filter-cat-chip').forEach(el => {
+    const isActive = (cat === '' && el.dataset.cat === '') || el.dataset.cat === cat;
+    el.style.background    = isActive ? 'var(--primary-container)' : 'var(--surface-low)';
+    el.style.color         = isActive ? 'var(--on-primary)' : 'var(--text-muted)';
+    el.style.borderColor   = isActive ? 'var(--primary-container)' : 'var(--outline-soft)';
+  });
+};
 
 // ── TX Modal ──
 window.openTxModal = function(id) {
@@ -500,6 +537,7 @@ window.handleBonUpload = async function(input) {
 };
 
 function renderConciergeResult(bon) {
+  _currentBon = bon;
   document.getElementById('concierge-upload').style.display = 'none';
   document.getElementById('concierge-result').style.display = 'block';
 
@@ -549,22 +587,40 @@ function renderConciergeResult(bon) {
         <span class="chip chip-green">${matches.length} Treffer</span>
       </div>
       ${matches.map(m => `
-        <div class="match-card">
-          <div class="tx-icon-wrap" style="width:40px;height:40px;">${CAT_CONFIG[m.category]?.icon||'📌'}</div>
+        <div class="match-card" id="match-${m.id}">
+          <div class="tx-icon-wrap" style="width:40px;height:40px;">${m.bon ? '🔗' : (CAT_CONFIG[m.category]?.icon||'📌')}</div>
           <div style="flex:1;min-width:0;">
             <div style="font-size:0.85rem;font-weight:700;">${escHtml(m.description)}</div>
             <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(m.date)}</div>
-            <div style="font-size:0.65rem;color:var(--green);margin-top:4px;">Betrag stimmt überein</div>
+            ${m.bon
+              ? `<div style="font-size:0.65rem;color:var(--green);margin-top:4px;">✅ Bereits verknüpft</div>`
+              : `<div style="font-size:0.65rem;color:var(--green);margin-top:4px;">Betrag stimmt überein</div>`}
           </div>
-          <div>
-            <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;text-align:right;">${formatEur(Math.abs(m.amount))}</div>
-            <div class="match-pct">Match</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;">${formatEur(Math.abs(m.amount))}</div>
+            ${m.bon
+              ? `<span class="chip chip-green" style="padding:2px 8px;font-size:0.6rem;">Verknüpft</span>`
+              : `<button onclick="linkBon('${m.id}')" style="padding:5px 12px;border-radius:8px;border:none;background:var(--primary-container);color:var(--on-primary);font-size:0.68rem;font-weight:700;cursor:pointer;font-family:var(--sans);">🔗 Verknüpfen</button>`}
           </div>
         </div>`).join('')}`;
   } else {
     matchSection.innerHTML = `<div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">Keine passende Buchung gefunden.</div>`;
   }
+
+  document.getElementById('bon-link-btn').style.display = 'none';
 }
+
+let _currentBon = null;
+
+window.linkBon = function(txId) {
+  if (!_currentBon) return;
+  const tx = state.transactions.find(t => t.id === txId);
+  if (!tx) return;
+  tx.bon = _currentBon;
+  saveState();
+  showToast(`✅ Verknüpft mit "${tx.description}"`);
+  renderConciergeResult(_currentBon);
+};
 
 // ── DOMContentLoaded ──
 document.addEventListener('DOMContentLoaded', () => {
@@ -585,6 +641,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  // Search input (not global in ES module, so register via JS)
+  document.getElementById('search-input')?.addEventListener('input', renderBuchungen);
 
   // Modal close on overlay click
   document.getElementById('tx-modal')?.addEventListener('click', e => {

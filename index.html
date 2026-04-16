@@ -565,13 +565,14 @@ html, body {
     <h1 class="page-title" style="margin-bottom:6px;">Buchungen</h1>
     <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:20px;">Überblick Ihrer Aktivitäten</p>
 
-    <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <div style="display:flex;gap:10px;margin-bottom:8px;">
       <div class="search-wrap">
         <span style="color:var(--text-muted);font-size:1rem;">🔍</span>
-        <input class="search-input" id="search-input" placeholder="Buchung suchen…" oninput="renderBuchungen()">
+        <input class="search-input" id="search-input" placeholder="Buchung suchen…">
       </div>
       <button style="width:42px;height:42px;border-radius:12px;border:none;background:var(--surface-high);font-size:1rem;cursor:pointer;" onclick="toggleFilterPanel()" title="Filter">⚡</button>
     </div>
+    <div id="filter-panel" style="display:none;margin-bottom:8px;"></div>
 
     <!-- Month strip for buchungen -->
     <div class="month-strip" id="month-strip-buch" style="margin-bottom:16px;padding:0;"></div>
