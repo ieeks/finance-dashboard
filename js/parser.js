@@ -72,11 +72,45 @@ function parseEasybankStatement(text) {
       const day   = parseInt(m[1]);
       const month = parseInt(m[2]);
       if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
-        const date      = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-        const rawDesc   = m[3];
-        const isExpense = m[6] === '-';
-        const amount    = _parseEasyAmount(m[5]) * (isExpense ? -1 : 1);
+        const bookingDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const rawDesc     = m[3];
+        const isExpense   = m[6] === '-';
+        const amount      = _parseEasyAmount(m[5]) * (isExpense ? -1 : 1);
 
+        // ── Bezahlung Karte: immer 3-Zeilen-Struktur ──
+        // Zeile 1: DD.MM Bezahlung Karte ... DD.MM AMOUNT  (booking date + amount)
+        // Zeile 2: POS XXXX DYYY DD.MM. HH:MM              (terminal + echtes Kaufdatum)
+        // Zeile 3: MERCHANT DANKT XXXX\ORT\PLZ             (Händlername)
+        if (/bezahlung karte/i.test(rawDesc)) {
+          // Genau 2 Folgezeilen sammeln — KEIN Stop bei DD.MM
+          const bzLines = [];
+          let bj = i + 1;
+          while (bj < lines.length && bzLines.length < 2) {
+            const cl = lines[bj];
+            if (headerRe.test(cl)) break;
+            bzLines.push(cl);
+            bj++;
+          }
+
+          // Kaufdatum aus Zeile 2 (POS-Zeile): "POS 4350 D001 27.03. 18:05" → 27.03
+          const posLine     = bzLines[0] || '';
+          const posDateMatch = posLine.match(/(\d{2})\.(\d{2})\./);
+          const txDate      = posDateMatch
+            ? `${year}-${posDateMatch[2].padStart(2,'0')}-${posDateMatch[1].padStart(2,'0')}`
+            : bookingDate;
+
+          // Händlername aus Zeile 3
+          const line3       = bzLines[1] || '';
+          const description = _merchantFromLine3(line3) || _merchantFromLine3(posLine) || 'Kartenzahlung';
+
+          if (Math.abs(amount) >= 0.01) {
+            transactions.push(_makeTx(txDate, description, amount, 'easybank'));
+          }
+          i = bj;
+          continue;
+        }
+
+        // ── Standard-Buchung: contLines bis nächste DD.MM ──
         const contLines = [];
         let j = i + 1;
         while (j < lines.length) {
@@ -89,7 +123,7 @@ function parseEasybankStatement(text) {
 
         const description = extractEasybankDescription(rawDesc, contLines);
         if (Math.abs(amount) >= 0.01 && description.length > 0) {
-          transactions.push(_makeTx(date, description, amount, 'easybank'));
+          transactions.push(_makeTx(bookingDate, description, amount, 'easybank'));
         }
         i = j;
         continue;
@@ -103,6 +137,22 @@ function parseEasybankStatement(text) {
 
 function _parseEasyAmount(str) {
   return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+}
+
+// Händlername aus Zeile 3 einer Bezahlung-Karte-Buchung extrahieren
+// Eingabe: "BILLA DANKT 0000138\WIEN\1030" → "Billa"
+function _merchantFromLine3(line) {
+  if (!line) return '';
+  // Bekannte Händler zuerst
+  for (const [pat, name] of CARD_MERCHANTS) {
+    if (pat.test(line)) return name;
+  }
+  // Generisch: erstes Wort vor DANKT / Zahl / Backslash
+  const match = line.match(/^([A-ZÄÖÜ][A-Za-zÄÖÜäöü\s&\-]+?)(?:\s+DANKT|\s*[\d\\\/]|$)/i);
+  if (match && match[1].trim().length > 2) return match[1].trim();
+  // Fallback: erstes Wort
+  const word = line.split(/[\s\\\/]/)[0];
+  return word.length > 2 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : '';
 }
 
 // Known Austrian card merchants (pattern → display name)
