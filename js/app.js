@@ -113,7 +113,12 @@ let _filterCat = null;
 function renderBuchungen() {
   renderMonthStrip('month-strip-buch', 'setMonthBuch');
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
-  let txs = getTransactionsForMonth(state.currentMonth);
+
+  // when searching, span all months; otherwise only current month
+  let txs = search
+    ? state.transactions.slice()
+    : getTransactionsForMonth(state.currentMonth);
+
   if (search) {
     txs = txs.filter(t =>
       t.description.toLowerCase().includes(search) ||
@@ -126,6 +131,30 @@ function renderBuchungen() {
   document.querySelectorAll('.filter-cat-chip').forEach(el => {
     el.classList.toggle('active', el.dataset.cat === (_filterCat || ''));
   });
+
+  // summary bar when filter or search active
+  const summaryEl = document.getElementById('buchungen-summary');
+  if (summaryEl && (search || _filterCat)) {
+    const total   = txs.reduce((s,t) => s + t.amount, 0);
+    const expense = txs.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
+    const income  = txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
+    summaryEl.style.display = 'flex';
+    summaryEl.innerHTML = `
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px;">${txs.length} Buchungen</div>
+        <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;color:${total>=0?'var(--green)':'var(--red)'};">${total>=0?'+':''}${formatEur(total)}</div>
+      </div>
+      ${income ? `<div style="flex:1;text-align:center;border-left:1px solid var(--outline-soft);">
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px;">Einnahmen</div>
+        <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;color:var(--green);">+${formatEur(income)}</div>
+      </div>` : ''}
+      ${expense ? `<div style="flex:1;text-align:center;border-left:1px solid var(--outline-soft);">
+        <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px;">Ausgaben</div>
+        <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;color:var(--red);">${formatEur(Math.abs(expense))}</div>
+      </div>` : ''}`;
+  } else if (summaryEl) {
+    summaryEl.style.display = 'none';
+  }
   const el = document.getElementById('buchungen-list');
   if (!txs.length) {
     el.innerHTML = `<div class="empty-state">
