@@ -35,3 +35,12 @@ export const SUBCAT_ICONS = {
 
 export const ALL_CATEGORIES    = Object.keys(CAT_CONFIG);
 export const ALL_SUBCATEGORIES = Object.keys(SUBCAT_ICONS);
+
+// Amount-based subscription rules — applied after parsing
+// amount: exact absolute value to match (±0.01 tolerance)
+export const SUBSCRIPTION_RULES = [
+  { pattern: /paypal/i, amount: 19.99, name: 'Netflix',          category: 'Freizeit' },
+  { pattern: /paypal/i, amount: 16.99, name: 'Spotify',          category: 'Freizeit' },
+  { pattern: /paypal/i, amount:  8.99, name: 'Spotify (Solo)',   category: 'Freizeit' },
+  { pattern: /paypal/i, amount: 17.99, name: 'Amazon Prime',     category: 'Online Shopping' },
+];

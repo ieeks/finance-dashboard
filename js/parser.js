@@ -1,6 +1,17 @@
 // parser.js — BAWAG/easybank PDF-Extraktion, lokaler Parser, KI-Kategorisierung
 
 import { loadKeys } from './ui.js';
+import { SUBSCRIPTION_RULES } from './categories.js';
+
+function _applySubscriptionRules(txs) {
+  return txs.map(t => {
+    const rule = SUBSCRIPTION_RULES.find(r =>
+      r.pattern.test(t.description) && Math.abs(Math.abs(t.amount) - r.amount) < 0.015
+    );
+    if (!rule) return t;
+    return { ...t, description: rule.name, category: rule.category, aiCategorized: false };
+  });
+}
 
 // ── PDF.js Worker konfigurieren ──
 if (typeof pdfjsLib !== 'undefined') {
@@ -357,7 +368,7 @@ export async function categorizeWithAI(transactions, provider = 'anthropic') {
   const key  = provider === 'anthropic' ? keys.anthropic : keys.openai;
 
   if (!key) {
-    return transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }));
+    return _applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false })));
   }
 
   const categories = [
@@ -388,17 +399,17 @@ Keine anderen Texte, kein Markdown, nur reines JSON.`;
       result = await _callOpenAI(key, prompt);
     }
   } catch(e) {
-    return transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }));
+    return _applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false })));
   }
 
-  return transactions.map((t, i) => {
+  return _applySubscriptionRules(transactions.map((t, i) => {
     const found = result.find(r => r.index === i);
     const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
       'Energie / Strom','Versicherung','Gesundheit','Online Shopping',
       'Freizeit','Gehalt / Einnahmen','Gebühren / Bank','Sonstiges'];
     const cat = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
     return { ...t, category: cat, aiCategorized: !!found };
-  });
+  }));
 }
 
 async function _callAnthropic(key, prompt) {

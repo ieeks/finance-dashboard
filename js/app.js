@@ -186,12 +186,13 @@ function renderTxItem(tx) {
   const isIn     = tx.amount > 0;
   const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
   const aiTag    = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
+  const bonTag   = tx.bon ? '<span style="font-size:0.7rem;">🧾</span>' : '';
   return `<div class="tx-item" onclick="openTxModal('${tx.id}')">
     <div class="tx-icon-wrap">${cfg.icon}</div>
     <div style="flex:1;min-width:0;">
       <div class="tx-name">${escHtml(tx.description)}</div>
       <div class="tx-meta">
-        ${aiTag}
+        ${aiTag}${bonTag}
         <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
         <span>${formatDate(tx.date)}</span>
       </div>
@@ -256,6 +257,23 @@ window.openTxModal = function(id) {
       <select class="cat-select" id="cat-edit-${id}" onchange="updateCategory('${id}', this.value)">${catOptions}</select>
     </div>
     ${tx.aiCategorized ? '<div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:16px;"><span class="chip chip-ai" style="padding:2px 8px;">✦ KI kategorisiert</span></div>' : ''}
+    ${tx.bon ? `
+    <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
+      <div class="section-label" style="margin-bottom:10px;">🧾 ${escHtml(tx.bon.store || 'Kassenbon')}</div>
+      ${(tx.bon.items||[]).map(item => {
+        const sc = item.subcategory || item.subkategorie || '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-soft);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.82rem;font-weight:600;">${escHtml(item.name)}</div>
+            ${sc ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${SUBCAT_ICONS[sc]||'📦'} ${escHtml(sc)}</div>` : ''}
+          </div>
+          <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;margin-left:12px;">${formatEur(item.gesamt ?? item.price ?? 0)}</div>
+        </div>`;
+      }).join('')}
+      <div style="display:flex;justify-content:space-between;padding-top:10px;font-family:var(--serif);font-size:0.95rem;font-weight:700;">
+        <span>Gesamt</span><span>${formatEur(tx.bon.total)}</span>
+      </div>
+    </div>` : ''}
     <button class="btn-ghost" style="margin-top:8px;" onclick="closeTxModal()">Schließen</button>`;
   document.getElementById('tx-modal').classList.add('open');
 };
