@@ -2,7 +2,7 @@
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoading, hideLoading } from './ui.js';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=10';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=11';
 import { analyzeBonImage, analyzeBonPdf } from './bonAnalyzer.js';
 
 // ── Navigation ──
@@ -434,21 +434,6 @@ function fileToBase64(file) {
   });
 }
 
-function getDemoBonData() {
-  return {
-    store: 'BILLA PLUS Wien',
-    date:  new Date().toISOString().slice(0,10),
-    items: [
-      { name:'Clever Joghurt Natur 500g', price:1.29,  subcategory:'Milchprodukte' },
-      { name:'Milka Choco Wafer 3er',     price:2.49,  subcategory:'Süßwaren' },
-      { name:'Billa Bio Vollmilch 1L',    price:1.59,  subcategory:'Milchprodukte' },
-      { name:'Manner Schnitten 75g',      price:1.19,  subcategory:'Süßwaren' },
-      { name:'Brot & Gebäck',            price:2.80,  subcategory:'Backwaren' },
-      { name:'Weitere Artikel',           price:33.84, subcategory:'Sonstiges' },
-    ],
-    total: 43.20,
-  };
-}
 
 window.handleBonUpload = async function(input) {
   const file = input.files[0];
@@ -456,28 +441,31 @@ window.handleBonUpload = async function(input) {
   const keys = loadKeys();
   const key  = state.aiProvider === 'anthropic' ? keys.anthropic : keys.openai;
   if (!key) { showToast('Bitte zuerst API Key im Import-Screen hinterlegen'); return; }
+
+  if (state.aiProvider !== 'anthropic') {
+    showToast('Bon-Analyse nur mit Anthropic API Key verfügbar');
+    return;
+  }
+
   showLoading('Bon wird analysiert…');
   try {
     let bonData;
-    if (state.aiProvider === 'anthropic') {
-      if (file.type.startsWith('image/')) {
-        const base64 = await fileToBase64(file);
-        bonData = await analyzeBonImage(base64, file.type);
-      } else if (file.type === 'application/pdf') {
-        const pdfText = await extractPdfText(file);
-        bonData = await analyzeBonPdf(pdfText);
-      } else {
-        bonData = getDemoBonData();
-      }
+    if (file.type.startsWith('image/')) {
+      const base64 = await fileToBase64(file);
+      bonData = await analyzeBonImage(base64, file.type);
+    } else if (file.type === 'application/pdf') {
+      const pdfText = await extractPdfText(file);
+      bonData = await analyzeBonPdf(pdfText);
     } else {
-      bonData = getDemoBonData();
+      hideLoading();
+      showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
+      return;
     }
     hideLoading();
     renderConciergeResult(bonData);
   } catch(e) {
     hideLoading();
-    showToast('Bon-Analyse fehlgeschlagen — Demo-Daten werden angezeigt');
-    renderConciergeResult(getDemoBonData());
+    showToast('Bon-Analyse fehlgeschlagen: ' + (e.message || 'Unbekannter Fehler'));
   }
 };
 
