@@ -507,14 +507,17 @@ function renderConciergeResult(bon) {
   const dateStr  = bon.date ? formatDate(bon.date) : '';
   preview.innerHTML = `
     <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
-    ${(bon.items||[]).map(item => `
+    ${(bon.items||[]).map(item => {
+      const sc = item.subcategory || item.subkategorie || 'Sonstiges';
+      return `
       <div class="bon-row">
         <div>
           <div class="bon-item">${escHtml(item.name)}</div>
-          <div><span class="sub-cat-chip">${SUBCAT_ICONS[item.subcategory]||'📦'} ${escHtml(item.subcategory)}</span></div>
+          <div><span class="sub-cat-chip">${SUBCAT_ICONS[sc]||'📦'} ${escHtml(sc)}</span></div>
         </div>
         <div class="bon-price">${formatEur(item.price ?? item.gesamt ?? 0)}</div>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     <div class="bon-divider"></div>
     <div class="bon-row">
       <div class="bon-total">Gesamt</div>
@@ -524,8 +527,9 @@ function renderConciergeResult(bon) {
   const breakdown = document.getElementById('bon-breakdown');
   const bySubcat  = {};
   (bon.items||[]).forEach(i => {
+    const sc = i.subcategory || i.subkategorie || 'Sonstiges';
     const price = i.price ?? i.gesamt ?? 0;
-    bySubcat[i.subcategory] = (bySubcat[i.subcategory]||0) + price;
+    bySubcat[sc] = (bySubcat[sc]||0) + price;
   });
   const sorted = Object.entries(bySubcat).sort((a,b) => b[1]-a[1]);
   breakdown.innerHTML = `<div class="section-label">Aufschlüsselung</div>` +
@@ -537,7 +541,7 @@ function renderConciergeResult(bon) {
       </div>`).join('');
 
   const matchSection = document.getElementById('bon-match-section');
-  const matches      = state.transactions.filter(t => t.amount < 0 && Math.abs(Math.abs(t.amount) - bon.total) <= 2).slice(0,2);
+  const matches      = state.transactions.filter(t => t.amount < 0 && Math.abs(Math.abs(t.amount) - bon.total) < 0.015).slice(0,3);
   if (matches.length) {
     matchSection.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">

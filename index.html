@@ -490,7 +490,7 @@ html, body {
       <div class="topbar-avatar">MK</div>
       Meine Finanzen
     </div>
-    <span class="topbar-badge">PROTOTYP v0.4</span>
+    <span class="topbar-badge">PROTOTYP v0.5</span>
   </div>
 
   <div style="padding:24px 20px 16px;" class="gap-lg">
@@ -631,37 +631,6 @@ html, body {
         <span>Verarbeitung erfolgt vollständig im Browser. Keine Finanzdaten werden an Server übermittelt.</span>
       </div>
       <button class="btn-primary" id="import-btn" style="display:none;" onclick="runImport()">📤 Import starten</button>
-    </div>
-
-    <!-- AI Config -->
-    <div class="card" style="padding:20px;margin-bottom:16px;">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
-        <span style="font-size:1rem;">⚙️</span>
-        <div class="section-label" style="margin:0;">KI-Konfiguration</div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
-        <div class="provider-btn active" id="btn-anthropic" onclick="setProvider('anthropic')">
-          <div style="font-size:0.7rem;font-weight:700;">Anthropic</div>
-          <div style="font-size:0.58rem;opacity:0.8;margin-top:2px;">Claude Haiku</div>
-        </div>
-        <div class="provider-btn" id="btn-openai" onclick="setProvider('openai')">
-          <div style="font-size:0.7rem;font-weight:700;">OpenAI</div>
-          <div style="font-size:0.58rem;margin-top:2px;">GPT-4o mini</div>
-        </div>
-      </div>
-
-      <div class="api-input-wrap" id="anthropic-key-wrap">
-        <div class="api-label">Anthropic API Key</div>
-        <input class="api-input" id="anthropic-key-input" type="password" placeholder="sk-ant-…" oninput="saveKeys()">
-      </div>
-      <div class="api-input-wrap" id="openai-key-wrap" style="display:none;margin-top:16px;">
-        <div class="api-label">OpenAI API Key</div>
-        <input class="api-input" id="openai-key-input" type="password" placeholder="sk-…" oninput="saveKeys()">
-      </div>
-      <div style="margin-top:12px;background:var(--surface-high);border-radius:8px;padding:10px 12px;font-size:0.7rem;color:var(--text-muted);line-height:1.5;">
-        <strong>Sicherheit:</strong> Ihr Key wird nur in <em>localStorage</em> gespeichert und direkt an die API gesendet.
-      </div>
     </div>
 
     <!-- How it works -->
@@ -854,6 +823,6 @@ html, body {
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script type="module" src="./js/app.js?v=13"></script>
+<script type="module">import(`./js/app.js?t=${Date.now()}`);</script>
 </body>
 </html>

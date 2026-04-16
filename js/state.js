@@ -15,8 +15,7 @@ function _loadFromStorage() {
   return {
     transactions: [],
     accounts: [
-      { id: 'bawag',    name: 'BAWAG Girokonto',    iban: 'AT45 •••••••••• 8821', balance: null, lastImport: null, color: '#41051F', initial: 'B' },
-      { id: 'easybank', name: 'easybank Sparkonto',  iban: 'AT12 •••••••••• 4590', balance: null, lastImport: null, color: '#4a7c59', initial: 'e' },
+      { id: 'easybank', name: 'easybank / BAWAG', iban: '', balance: null, lastImport: null, color: '#41051F', initial: 'e' },
     ],
     currentMonth: _getCurrentMonth(),
     aiProvider: 'anthropic',

@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v0.5 — 2026-04-16
+
+### Fixed
+- Concierge: Match-Toleranz cent-genau (< 0,015 € statt ± 2 €)
+- Concierge: Subkategorie "UNDEFINED" behoben — Code liest jetzt `subcategory` UND `subkategorie` (Fallback: "Sonstiges")
+- Bon-Prompt: Feldname auf `subcategory` (EN) vereinheitlicht, "Mobilität / Auto" ergänzt (Tesla-Rechnungen)
+- Import: KI-Konfiguration Card entfernt (API Key jetzt im Bon-Screen)
+- State: Demo-IBANs entfernt (kein "BAWAG Girokonto AT45 •••••••••• 8821" mehr als Default)
+- Cache: `?v=N` durch `Date.now()` ersetzt — kein manuelles Versionieren mehr nötig
+
+### Added
+- OpenAI PDF-Support im Bon-Screen (Text-Extraktion via PDF.js → GPT-4o-mini)
+- Bon-Screen: API Key Eingabe für Anthropic + OpenAI mit Provider-Toggle
+
 ## v0.4 — 2026-04-15 (Modul-Refactor)
 
 ### Changed

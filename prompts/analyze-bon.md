@@ -12,28 +12,18 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
       "menge": 1,
       "einzelpreis": 1.29,
       "gesamt": 1.29,
-      "subkategorie": "Milchprodukte"
+      "subcategory": "Milchprodukte"
     }
-  ],
-  "subkategorien_summen": {
-    "Milchprodukte": 2.88,
-    "Süßwaren / Naschen": 3.68,
-    "Backwaren": 2.80,
-    "Getränke": 0,
-    "Fleisch & Wurst": 0,
-    "Obst & Gemüse": 0,
-    "Tiefkühl": 0,
-    "Hygiene & Drogerie": 0,
-    "Putzmittel": 0,
-    "Elektronik": 0,
-    "Dienstleistung": 0,
-    "Sonstiges": 0
-  }
+  ]
 }
 
-Erlaubte subkategorie-Werte:
+Erlaubte subcategory-Werte:
 Milchprodukte | Süßwaren / Naschen | Backwaren | Getränke |
 Fleisch & Wurst | Obst & Gemüse | Tiefkühl | Hygiene & Drogerie |
-Putzmittel | Elektronik | Dienstleistung | Sonstiges
+Putzmittel | Elektronik | Mobilität / Auto | Dienstleistung | Sonstiges
 
-Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges".
+Hinweise:
+- Tesla Supercharger, Tanken, Parken → "Mobilität / Auto"
+- Apotheke, Drogerie → "Hygiene & Drogerie"
+- Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
+- subcategory immer auf Englisch (kein "subkategorie")

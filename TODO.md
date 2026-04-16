@@ -14,8 +14,11 @@
       → Debug-Button im Import-Screen: "Rohdaten anzeigen" (erste 50 Zeilen des extrahierten Texts)
 
 ### Concierge / PDF-Rechnungen
-- [ ] Tesla-Rechnung testen nach heutigem Fix (PDF → extractPdfText → analyzeBonPdfWithClaude)
-- [ ] Fehlerfall: Was wenn Claude kein valid JSON zurückgibt? bessere Fallback-Meldung statt crash
+- [x] Tesla-Rechnung: subcategory-Feldname-Bug behoben + "Mobilität / Auto" als Subkategorie ergänzt
+- [x] Match cent-genau (< 0,015 € Toleranz)
+- [x] OpenAI PDF-Support (Text-Extraktion → GPT-4o-mini)
+- [x] API Key von Import → Bon-Screen verschoben
+- [ ] Fehlerfall: Was wenn KI kein valid JSON zurückgibt? bessere Fallback-Meldung statt crash
 
 ## Phase 2 — Firebase Integration
 
@@ -79,13 +82,11 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 **Gedanken dazu (siehe unten im Abschnitt "Notizen")**
 
 ## AI Provider — Dual Support
-- [ ] Provider-Auswahl im Settings-Screen: **Anthropic** (Claude) oder **OpenAI** (GPT-4o)
-- [ ] Abstraktions-Layer `aiProvider.js`: einheitliches Interface, Provider-spezifische Implementierung dahinter
-- [ ] Anthropic: Claude Haiku (PDF-Parsing) + Claude Vision (Bon-Extraktion)
-- [ ] OpenAI: gpt-4o-mini (PDF-Parsing) + gpt-4o (Vision / Bon-Extraktion)
-- [ ] Beide API Keys separat in localStorage speichern
+- [x] Anthropic: Claude Haiku (PDF-Parsing) + Claude Vision (Bon-Extraktion)
+- [x] OpenAI: gpt-4o-mini (PDF-Parsing + Bon-PDF) + gpt-4o Vision (Bon-Bild)
+- [x] Beide API Keys separat in localStorage (im Bon-Screen eingebbar)
+- [ ] Abstraktions-Layer `aiProvider.js` für saubere Trennung
 - [ ] Fallback: wenn Provider A fehlschlägt → Hinweis, nicht automatischer Wechsel
-- [ ] Modell-Info im UI anzeigen (welcher Provider / Modell gerade aktiv)
 
 ## Bugs / Verbesserungen
 - [ ] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
