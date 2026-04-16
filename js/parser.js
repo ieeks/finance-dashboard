@@ -77,31 +77,30 @@ function parseEasybankStatement(text) {
         const isExpense   = m[6] === '-';
         const amount      = _parseEasyAmount(m[5]) * (isExpense ? -1 : 1);
 
-        // ── Bezahlung Karte: immer 3-Zeilen-Struktur ──
-        // Zeile 1: DD.MM Bezahlung Karte ... DD.MM AMOUNT  (booking date + amount)
-        // Zeile 2: POS XXXX DYYY DD.MM. HH:MM              (terminal + echtes Kaufdatum)
-        // Zeile 3: MERCHANT DANKT XXXX\ORT\PLZ             (Händlername)
+        // ── Bezahlung Karte ──
         if (/bezahlung karte/i.test(rawDesc)) {
-          // Genau 2 Folgezeilen sammeln — KEIN Stop bei DD.MM
+          // Alle Folgezeilen bis nächste Transaktion sammeln
           const bzLines = [];
           let bj = i + 1;
-          while (bj < lines.length && bzLines.length < 2) {
+          while (bj < lines.length) {
             const cl = lines[bj];
+            if (/^\d{2}\.\d{2}\s/.test(cl)) break;
             if (headerRe.test(cl)) break;
             bzLines.push(cl);
             bj++;
           }
 
-          // Kaufdatum aus Zeile 2 (POS-Zeile): "POS 4350 D001 27.03. 18:05" → 27.03
-          const posLine     = bzLines[0] || '';
-          const posDateMatch = posLine.match(/(\d{2})\.(\d{2})\./);
-          const txDate      = posDateMatch
+          // Terminalzeile hat HH:MM; Händlerzeile hat DANKT oder \CITY\ Format
+          const terminalLine = bzLines.find(l => /\d{2}:\d{2}/.test(l)) || '';
+          const merchantLine = bzLines.find(l => /DANKT|\\[A-ZÄÖÜ]/.test(l)) || '';
+
+          // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
+          const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
+          const txDate = posDateMatch
             ? `${year}-${posDateMatch[2].padStart(2,'0')}-${posDateMatch[1].padStart(2,'0')}`
             : bookingDate;
 
-          // Händlername aus Zeile 3
-          const line3       = bzLines[1] || '';
-          const description = _merchantFromLine3(line3) || _merchantFromLine3(posLine) || 'Kartenzahlung';
+          const description = _extractMerchant(merchantLine, terminalLine);
 
           if (Math.abs(amount) >= 0.01) {
             transactions.push(_makeTx(txDate, description, amount, 'easybank'));
@@ -139,20 +138,24 @@ function _parseEasyAmount(str) {
   return parseFloat(str.replace(/\./g, '').replace(',', '.'));
 }
 
-// Händlername aus Zeile 3 einer Bezahlung-Karte-Buchung extrahieren
-// Eingabe: "BILLA DANKT 0000138\WIEN\1030" → "Billa"
-function _merchantFromLine3(line) {
-  if (!line) return '';
-  // Bekannte Händler zuerst
-  for (const [pat, name] of CARD_MERCHANTS) {
-    if (pat.test(line)) return name;
+// Händlername aus merchant- und terminal-Zeile extrahieren
+function _extractMerchant(merchantLine, terminalLine) {
+  for (const line of [merchantLine, terminalLine]) {
+    if (!line) continue;
+    // Bekannte Händler zuerst (checkt beide Zeilen)
+    for (const [pat, name] of CARD_MERCHANTS) {
+      if (pat.test(line)) return name;
+    }
   }
-  // Generisch: erstes Wort vor DANKT / Zahl / Backslash
-  const match = line.match(/^([A-ZÄÖÜ][A-Za-zÄÖÜäöü\s&\-]+?)(?:\s+DANKT|\s*[\d\\\/]|$)/i);
+  // Generisch: Händlerzeile, alles vor DANKT / Zahl / Backslash
+  const src = merchantLine || terminalLine;
+  if (!src) return 'Kartenzahlung';
+  // Überspringe reine POS/Terminal-Zeilen
+  if (/^POS\s+\d/i.test(src)) return 'Kartenzahlung';
+  const match = src.match(/^([A-ZÄÖÜ][A-Za-zÄÖÜäöü\s&.\-]+?)(?:\s+DANKT|\s+\d|\s*[\\\/]|$)/i);
   if (match && match[1].trim().length > 2) return match[1].trim();
-  // Fallback: erstes Wort
-  const word = line.split(/[\s\\\/]/)[0];
-  return word.length > 2 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : '';
+  const word = src.split(/[\s\\\/]/)[0];
+  return word.length > 2 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : 'Kartenzahlung';
 }
 
 // Known Austrian card merchants (pattern → display name)
