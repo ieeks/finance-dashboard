@@ -2,8 +2,8 @@
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoading, hideLoading } from './ui.js';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=11';
-import { analyzeBonImage, analyzeBonPdf } from './bonAnalyzer.js';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=12';
+import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI } from './bonAnalyzer.js';
 
 // ── Navigation ──
 window.showScreen = function(name) {
@@ -419,6 +419,27 @@ window.saveKeys = function() {
 };
 
 // ── Concierge / Bon ──
+let _bonProvider = 'anthropic';
+
+window.setBonProvider = function(p) {
+  _bonProvider = p;
+  document.getElementById('bon-btn-anthropic').style.background  = p === 'anthropic' ? 'var(--primary)' : 'transparent';
+  document.getElementById('bon-btn-anthropic').style.color       = p === 'anthropic' ? '#fff' : 'var(--on-surface)';
+  document.getElementById('bon-btn-anthropic').style.borderColor = p === 'anthropic' ? 'var(--primary)' : 'var(--outline-variant)';
+  document.getElementById('bon-btn-openai').style.background     = p === 'openai'    ? 'var(--primary)' : 'transparent';
+  document.getElementById('bon-btn-openai').style.color          = p === 'openai'    ? '#fff' : 'var(--on-surface)';
+  document.getElementById('bon-btn-openai').style.borderColor    = p === 'openai'    ? 'var(--primary)' : 'var(--outline-variant)';
+  document.getElementById('bon-anthropic-key').style.display     = p === 'anthropic' ? 'block' : 'none';
+  document.getElementById('bon-openai-key').style.display        = p === 'openai'    ? 'block' : 'none';
+};
+
+window.saveBonKey = function() {
+  const ak = document.getElementById('bon-anthropic-key').value;
+  const ok = document.getElementById('bon-openai-key').value;
+  if (ak) saveKey('anthropic', ak);
+  if (ok) saveKey('openai', ok);
+};
+
 window.resetConcierge = function() {
   document.getElementById('concierge-upload').style.display = 'block';
   document.getElementById('concierge-result').style.display = 'none';
@@ -439,27 +460,32 @@ window.handleBonUpload = async function(input) {
   const file = input.files[0];
   if (!file) return;
   const keys = loadKeys();
-  const key  = state.aiProvider === 'anthropic' ? keys.anthropic : keys.openai;
-  if (!key) { showToast('Bitte zuerst API Key im Import-Screen hinterlegen'); return; }
-
-  if (state.aiProvider !== 'anthropic') {
-    showToast('Bon-Analyse nur mit Anthropic API Key verfügbar');
-    return;
-  }
+  const key  = _bonProvider === 'anthropic' ? keys.anthropic : keys.openai;
+  if (!key) { showToast('Bitte zuerst API Key eingeben'); return; }
 
   showLoading('Bon wird analysiert…');
   try {
     let bonData;
-    if (file.type.startsWith('image/')) {
-      const base64 = await fileToBase64(file);
-      bonData = await analyzeBonImage(base64, file.type);
-    } else if (file.type === 'application/pdf') {
-      const pdfText = await extractPdfText(file);
-      bonData = await analyzeBonPdf(pdfText);
+    if (_bonProvider === 'anthropic') {
+      if (file.type.startsWith('image/')) {
+        const base64 = await fileToBase64(file);
+        bonData = await analyzeBonImage(base64, file.type);
+      } else if (file.type === 'application/pdf') {
+        const pdfText = await extractPdfText(file);
+        bonData = await analyzeBonPdf(pdfText);
+      } else {
+        hideLoading();
+        showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
+        return;
+      }
     } else {
-      hideLoading();
-      showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
-      return;
+      if (!file.type.startsWith('image/')) {
+        hideLoading();
+        showToast('OpenAI unterstützt nur Bilder (JPG/PNG), kein PDF');
+        return;
+      }
+      const base64 = await fileToBase64(file);
+      bonData = await analyzeBonOpenAI(base64, file.type);
     }
     hideLoading();
     renderConciergeResult(bonData);
@@ -566,6 +592,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const okEl = document.getElementById('openai-key-input');
   if (akEl) akEl.value = keys.anthropic;
   if (okEl) okEl.value = keys.openai;
+  // Bon screen keys
+  const bak = document.getElementById('bon-anthropic-key');
+  const bok = document.getElementById('bon-openai-key');
+  if (bak) bak.value = keys.anthropic;
+  if (bok) bok.value = keys.openai;
 
   setProviderUI(state.aiProvider);
   renderDashboard();

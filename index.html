@@ -764,6 +764,28 @@ html, body {
 
     <!-- State: upload -->
     <div id="concierge-upload" style="">
+
+      <!-- API Key -->
+      <div class="card" style="padding:14px 16px;margin-bottom:16px;">
+        <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">API Key für Bon-Analyse</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <button onclick="setBonProvider('anthropic')" id="bon-btn-anthropic"
+            style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--primary);background:var(--primary);color:#fff;font-size:0.72rem;font-weight:700;cursor:pointer;">
+            Anthropic
+          </button>
+          <button onclick="setBonProvider('openai')" id="bon-btn-openai"
+            style="flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--outline-variant);background:transparent;color:var(--on-surface);font-size:0.72rem;font-weight:700;cursor:pointer;">
+            OpenAI
+          </button>
+        </div>
+        <input class="api-input" id="bon-anthropic-key" type="password" placeholder="sk-ant-…"
+          oninput="saveBonKey()"
+          style="display:block;width:100%;box-sizing:border-box;">
+        <input class="api-input" id="bon-openai-key" type="password" placeholder="sk-…"
+          oninput="saveBonKey()"
+          style="display:none;width:100%;box-sizing:border-box;margin-top:8px;">
+      </div>
+
       <div class="concierge-scan-area" onclick="document.getElementById('bon-input').click()">
         <div style="font-size:3rem;margin-bottom:16px;">📸</div>
         <div style="font-family:var(--serif);font-size:1rem;font-weight:700;margin-bottom:6px;">Bon hochladen</div>
@@ -832,6 +854,6 @@ html, body {
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script type="module" src="./js/app.js?v=11"></script>
+<script type="module" src="./js/app.js?v=12"></script>
 </body>
 </html>
