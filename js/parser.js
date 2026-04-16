@@ -93,6 +93,8 @@ function parseEasybankStatement(text) {
           // Terminalzeile hat HH:MM; Händlerzeile hat DANKT oder \CITY\ Format
           const terminalLine = bzLines.find(l => /\d{2}:\d{2}/.test(l)) || '';
           const merchantLine = bzLines.find(l => /DANKT|\\[A-ZÄÖÜ]/.test(l)) || '';
+          console.log('[BK] bzLines:', JSON.stringify(bzLines));
+          console.log('[BK] terminal:', terminalLine, '| merchant:', merchantLine);
 
           // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
           const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
@@ -101,6 +103,7 @@ function parseEasybankStatement(text) {
             : bookingDate;
 
           const description = _extractMerchant(merchantLine, terminalLine);
+          console.log('[BK] description:', description);
 
           if (Math.abs(amount) >= 0.01) {
             transactions.push(_makeTx(txDate, description, amount, 'easybank'));
