@@ -801,6 +801,6 @@ html, body {
 
 <!-- PDF.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script type="module" src="./js/app.js?v=14"></script>
+<script type="module">import(`./js/app.js?t=${Date.now()}`);</script>
 </body>
 </html>

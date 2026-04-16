@@ -490,7 +490,7 @@ function renderConciergeResult(bon) {
   preview.innerHTML = `
     <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
     ${(bon.items||[]).map(item => {
-      const sc = item.subcategory || 'Sonstiges';
+      const sc = item.subcategory || item.subkategorie || 'Sonstiges';
       return `
       <div class="bon-row">
         <div>
@@ -509,7 +509,7 @@ function renderConciergeResult(bon) {
   const breakdown = document.getElementById('bon-breakdown');
   const bySubcat  = {};
   (bon.items||[]).forEach(i => {
-    const sc = i.subcategory || 'Sonstiges';
+    const sc = i.subcategory || i.subkategorie || 'Sonstiges';
     const price = i.price ?? i.gesamt ?? 0;
     bySubcat[sc] = (bySubcat[sc]||0) + price;
   });
