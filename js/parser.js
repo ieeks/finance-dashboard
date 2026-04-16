@@ -160,27 +160,24 @@ function _extractMerchant(merchantLine, terminalLine) {
 
 // Known Austrian card merchants (pattern → display name)
 const CARD_MERCHANTS = [
-  // ── Supermarkte ──
+  // ── Supermärkte (Österreich) ──
   [/\bBILLA\b/i,            'Billa'],
+  [/BILLA\s*PLUS/i,         'Billa Plus'],
   [/INTERSPAR/i,            'Interspar'],
   [/EUROSPAR/i,             'Eurospar'],
   [/\bSPAR\b/i,             'Spar'],
   [/\bHOFER\b/i,            'Hofer'],
   [/\bLIDL\b/i,             'Lidl'],
-  [/\bREWE\b/i,             'Rewe'],
-  [/\bMERKUR\b/i,           'Merkur'],
   [/\bPENNY\b/i,            'Penny'],
-  [/\bEDEKA\b/i,            'Edeka'],
-  [/\bALDI\b/i,             'Aldi'],
   [/NAH.{0,3}FRISCH/i,      'Nah & Frisch'],
   [/\bMPREIS\b/i,           'M-Preis'],
   [/UNIMARKT/i,             'Unimarkt'],
   [/MAXIMARKT/i,            'Maximarkt'],
   [/\bADEG\b/i,             'Adeg'],
-  // ── Drogerie & Gesundheit ──
-  [/DM-?FIL/i,              'DM'],
+  [/JULIUS\s*MEINL/i,       'Julius Meinl'],
+  // ── Drogerie ──
+  [/DM-?FIL/i,              'dm'],
   [/\bBIPA\b/i,             'Bipa'],
-  [/ROSSMANN/i,             'Rossmann'],
   [/MUELLER|MÜLLER/i,       'Müller'],
   // ── Gastronomie ──
   [/MCDONALD|MC\s*DON/i,    "McDonald's"],
@@ -189,36 +186,38 @@ const CARD_MERCHANTS = [
   [/\bSUBWAY\b/i,           'Subway'],
   [/STARBUCKS/i,            'Starbucks'],
   [/\bPRONTO\b/i,           'Pronto'],
+  [/JOSEPH\s*BAC/i,         'Joseph Bäckerei'],
+  [/ANKER/i,                'Anker'],
+  [/\bFELBER\b/i,           'Felber'],
   [/DER\s+MANN/i,           'Der Mann'],
-  [/COCA-COLA/i,            'Coca-Cola'],
-  // ── Tankstellen ──
+  // ── Tankstellen (Österreich) ──
   [/\bOMV\b/i,              'OMV'],
+  [/\bAVANTI\b/i,           'Avanti'],
+  [/TURMOEL|TURM.L/i,       'Turmöl'],
   [/\bSHELL\b/i,            'Shell'],
   [/\bJET\b/i,              'JET'],
   [/\bBP\b/i,               'BP'],
   [/\bENI\b|\bAGIP\b/i,     'ENI'],
-  [/\bESSO\b/i,             'Esso'],
-  [/\bAVANTI\b/i,           'Avanti'],
-  [/TURMOEL|TURM.L/i,       'Turmöl'],
   [/CIRCLE\s*K/i,           'Circle K'],
-  [/\bORLEN\b/i,            'Orlen'],
-  // ── Elektronik & Haushalt ──
+  // ── Elektronik ──
   [/MEDIA\s*MARKT|MEDIAMARKT/i, 'MediaMarkt'],
   [/\bSATURN\b/i,           'Saturn'],
-  [/\bIKEA\b/i,             'IKEA'],
   [/\bHARTLAUER\b/i,        'Hartlauer'],
-  // ── Baumarkt ──
-  [/\bBAUHAUS\b/i,          'Bauhaus'],
+  [/\bCONRAD\b/i,           'Conrad'],
+  // ── Einrichtung & Baumarkt ──
+  [/\bIKEA\b/i,             'IKEA'],
   [/\bOBI\b/i,              'OBI'],
   [/HORNBACH/i,             'Hornbach'],
+  [/\bBAUHAUS\b/i,          'Bauhaus'],
   // ── Mode & Sport ──
   [/\bZARA\b/i,             'Zara'],
-  [/\bH&M\b|H\s*AND\s*M\b/i,'H&M'],
+  [/\bH&M\b/i,              'H&M'],
   [/\bC&A\b/i,              'C&A'],
   [/DEICHMANN/i,            'Deichmann'],
   [/\bHUMANIC\b/i,          'Humanic'],
   [/INTERSPORT/i,           'Intersport'],
   [/DECATHLON/i,            'Decathlon'],
+  [/\bLIBRO\b/i,            'Libro'],
 ];
 
 export function extractEasybankDescription(rawDesc, contLines) {
@@ -447,14 +446,14 @@ async function _callOpenAI(key, prompt) {
 // ── Regelbasierter Fallback ──
 export function guessCategory(desc) {
   const d = desc.toLowerCase();
-  if (/billa|interspar|eurospar|\bspar\b|hofer|lidl|edeka|aldi|merkur|penny|rewe|netto|kaufland|nah.frisch|mpreis|unimarkt|maximarkt|\badeg\b/.test(d)) return 'Supermarkt';
-  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|gasthaus|wirtshaus|beisl|der mann|pizza|kebab|coca-cola/.test(d)) return 'Restaurant / Café';
+  if (/billa|interspar|eurospar|\bspar\b|hofer|lidl|penny|nah.frisch|mpreis|unimarkt|maximarkt|\badeg\b|julius meinl/.test(d)) return 'Supermarkt';
+  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|anker|felber|gasthaus|wirtshaus|beisl|der mann|pizza|kebab/.test(d)) return 'Restaurant / Café';
   if (/^miete|wohnung|immobilien|hausverwaltung|betriebskosten/.test(d))                            return 'Wohnen / Miete';
-  if (/tesla|tankstelle|omv|\bbp\b|shell|\beni\b|agip|\bjet\b|avanti|esso|turmöl|turmoel|circle k|orlen|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
+  if (/tesla|tankstelle|omv|avanti|turmöl|turmoel|circle k|\bbp\b|shell|\beni\b|agip|\bjet\b|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
   if (/wien energie|we vertrieb|energie|strom|gas|verbund|e-control/.test(d))                      return 'Energie / Strom';
   if (/versicherung|helvetia|generali|allianz|uniqa|wiener städtische/.test(d))                    return 'Versicherung';
-  if (/apotheke|arzt|krankenhaus|dm-fil|dm fil|\bdm\b|bipa|rossmann|müller|mueller/.test(d))       return 'Gesundheit';
-  if (/amazon|zalando|ebay|otto|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon/.test(d)) return 'Online Shopping';
+  if (/apotheke|arzt|krankenhaus|dm-fil|dm fil|\bdm\b|bipa|müller|mueller/.test(d))               return 'Gesundheit';
+  if (/amazon|zalando|ebay|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon|\bobi\b|hornbach|libro/.test(d)) return 'Online Shopping';
   if (/gehalt|lohn|salary|gutschrift/.test(d))                                                     return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
   if (/t-mobile|magenta|a1|drei|telekom|sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d)) return 'Gebühren / Bank';
