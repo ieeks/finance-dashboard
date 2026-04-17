@@ -139,14 +139,31 @@ let _filterBon  = null;
 window.setCardFilter = function(who) {
   _filterCard = who;
   renderBuchungen();
+  _updateClearBtn();
 };
 
 window.setBonFilter = function(val) {
   _filterBon = val;
   renderBuchungen();
+  _updateClearBtn();
 };
 
+window.clearAllFilters = function() {
+  _filterCat = null; _filterCard = null; _filterBon = null;
+  const searchEl = document.getElementById('search-input');
+  if (searchEl) searchEl.value = '';
+  renderBuchungen();
+};
+
+function _updateClearBtn() {
+  const hasFilter = _filterCat || _filterCard || _filterBon ||
+                    (document.getElementById('search-input')?.value || '');
+  const btn = document.getElementById('clear-filters-btn');
+  if (btn) btn.style.display = hasFilter ? 'flex' : 'none';
+}
+
 function renderBuchungen() {
+  _updateClearBtn();
   renderMonthStrip('month-strip-buch', 'setMonthBuch');
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
 
@@ -163,12 +180,18 @@ function renderBuchungen() {
   }
   if (_filterCat)             txs = txs.filter(t => t.category === _filterCat);
   if (_filterCard)            txs = txs.filter(t => t.cardHolder === _filterCard);
-  if (_filterBon === 'linked')   txs = txs.filter(t => !!t.bon);
-  if (_filterBon === 'unlinked') txs = txs.filter(t => !t.bon && t.amount < 0);
+  if (_filterBon === 'linked') txs = txs.filter(t => !!t.bon);
+  if (_filterBon === 'open')   txs = txs.filter(t => !t.bon && t.amount < 0);
 
-  // update filter panel active state
+  // update filter active states
   document.querySelectorAll('.filter-cat-chip').forEach(el => {
     el.classList.toggle('active', el.dataset.cat === (_filterCat || ''));
+  });
+  document.querySelectorAll('.filter-card-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.card === (_filterCard || ''));
+  });
+  document.querySelectorAll('.filter-bon-chip').forEach(el => {
+    el.classList.toggle('active', el.dataset.bon === (_filterBon || ''));
   });
 
   // summary bar when filter or search active
@@ -267,6 +290,7 @@ window.toggleFilterPanel = function() {
 window.setFilterCat = function(cat) {
   _filterCat = cat || null;
   renderBuchungen();
+  _updateClearBtn();
   document.querySelectorAll('.filter-cat-chip').forEach(el => {
     const isActive = (cat === '' && el.dataset.cat === '') || el.dataset.cat === cat;
     el.style.background    = isActive ? 'var(--primary-container)' : 'var(--surface-low)';
