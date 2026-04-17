@@ -80,10 +80,10 @@ Aktuelle Kategorien:
 - Gesundheit
 - Online Shopping
 - Freizeit
-- Kommunikation
 - Gehalt / Einnahmen
 - Familientransfer
 - Gebühren / Bank
+- Telekommunikation
 - Sonstiges
 
 ## Design System

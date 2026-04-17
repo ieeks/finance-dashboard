@@ -19,7 +19,7 @@ Regeln:
 Erlaubte Kategorien:
 Supermarkt | Restaurant / Café | Mobilität / Auto | Wohnen / Miete |
 Energie / Strom | Versicherung | Drogerie | Gesundheit | Online Shopping |
-Freizeit | Kommunikation | Gehalt / Einnahmen | Familientransfer | Gebühren / Bank | Sonstiges
+Freizeit | Gehalt / Einnahmen | Familientransfer | Gebühren / Bank | Telekommunikation | Sonstiges
 
 Kontoauszugstext:
 {{TEXT}}

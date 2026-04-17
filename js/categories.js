@@ -11,10 +11,10 @@ export const CAT_CONFIG = {
   'Drogerie':            { icon: '🧴', color: '#a855f7' },
   'Online Shopping':     { icon: '📦', color: '#0ea5e9' },
   'Freizeit':            { icon: '🎮', color: '#22c55e' },
-  'Kommunikation':       { icon: '📱', color: '#06b6d4' },
   'Gehalt / Einnahmen':  { icon: '💰', color: '#2D6A4F' },
   'Familientransfer':    { icon: '👨‍👩‍👧', color: '#2D6A4F' },
   'Gebühren / Bank':     { icon: '🏦', color: '#857276' },
+  'Telekommunikation':   { icon: '📱', color: '#0ea5e9' },
   'Sonstiges':           { icon: '📌', color: '#534346' },
 };
 
@@ -43,9 +43,10 @@ export const ALL_SUBCATEGORIES = Object.keys(SUBCAT_ICONS);
 // amount: exact absolute value to match (±0.01 tolerance)
 export const RECURRING_RULES = [
   { pattern: /Miete \/ Hausverwaltung|Helvetia/i, label: 'Miete' },
-  { pattern: /Magenta Mobil/i,                     label: 'Magenta Mobil' },
-  { pattern: /Magenta Festnetz/i,                  label: 'Magenta Festnetz' },
-  { pattern: /Allianz/i,                           label: 'Allianz' },
+  { pattern: /Magenta Mobil/i,                                        label: 'Magenta Mobil',       category: 'Telekommunikation' },
+  { pattern: /Magenta Festnetz/i,                                     label: 'Magenta Festnetz',    category: 'Telekommunikation' },
+  { pattern: /Allianz.*Elementar|AEV\d+|Allianz KFZ/i,               label: 'Allianz KFZ',         category: 'Mobilität / Auto' },
+  { pattern: /Allianz/i,                                              label: 'Allianz Versicherung',category: 'Versicherung' },
   { pattern: /Raiffeisen.Leasing/i,                label: 'BYD Leasing' },
   { pattern: /Netflix/i,                           label: 'Netflix' },
   { pattern: /Spotify/i,                           label: 'Spotify' },

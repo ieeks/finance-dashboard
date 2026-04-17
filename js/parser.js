@@ -313,7 +313,10 @@ export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
     return 'Helvetia Versicherung';
   }
   if (/Raiffeisen.Leasing/i.test(allText))       return 'Raiffeisen Leasing';
-  if (/Allianz/i.test(allText))                  return 'Allianz Versicherung';
+  if (/Allianz/i.test(allText)) {
+    if (/Elementar|AEV\d+|Kfz|KFZ/i.test(allText)) return 'Allianz KFZ-Versicherung';
+    return 'Allianz Versicherung';
+  }
 
   // 3. Benannte Vorgänge
   if (/Gutschrift Onlinebanking/i.test(raw)) {
@@ -439,7 +442,7 @@ Keine anderen Texte, kein Markdown, nur reines JSON.`;
     const found = result.find(r => r.index === i);
     const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
       'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
-      'Freizeit','Kommunikation','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Sonstiges'];
+      'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Telekommunikation','Sonstiges'];
     const cat = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
     return { ...t, category: cat, aiCategorized: !!found };
   })));
@@ -495,6 +498,7 @@ export function guessCategory(desc) {
   if (/^miete|wohnung|immobilien|hausverwaltung|betriebskosten|vorschreibung|miete \/ hausverwaltung/.test(d)) return 'Wohnen / Miete';
   if (/tesla|tankstelle|omv|avanti|turmöl|turmoel|circle k|\bbp\b|shell|\beni\b|agip|\bjet\b|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
   if (/wien energie|we vertrieb|energie|strom|gas|verbund|e-control/.test(d))                      return 'Energie / Strom';
+  if (/allianz kfz/i.test(d))                                                                       return 'Mobilität / Auto';
   if (/versicherung|helvetia|generali|allianz|uniqa|wiener städtische/.test(d))                    return 'Versicherung';
   if (/dm-fil|dm fil|\bdm\b|bipa|müller|mueller|rossmann|schlecker/.test(d))                       return 'Drogerie';
   if (/apotheke|arzt|krankenhaus/.test(d))                                                          return 'Gesundheit';
@@ -502,7 +506,7 @@ export function guessCategory(desc) {
   if (/olga zelenina|zelenina|manuel koblischek|familientransfer/.test(d))                          return 'Familientransfer';
   if (/gehalt|lohn|salary|gutschrift/.test(d))                                                     return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
-  if (/t-mobile|magenta|\ba1\b|drei\b|telekom/.test(d))                                            return 'Kommunikation';
+  if (/t-mobile|magenta|\ba1\b|\bdrei\b|telekom|hutchison/.test(d))                                return 'Telekommunikation';
   if (/sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d))                    return 'Gebühren / Bank';
   return 'Sonstiges';
 }
