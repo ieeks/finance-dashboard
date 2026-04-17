@@ -18,8 +18,8 @@ Regeln:
 
 Erlaubte Kategorien:
 Supermarkt | Restaurant / Café | Mobilität / Auto | Wohnen / Miete |
-Energie / Strom | Versicherung | Gesundheit | Online Shopping |
-Freizeit | Gehalt / Einnahmen | Gebühren / Bank | Sonstiges
+Energie / Strom | Versicherung | Drogerie | Gesundheit | Online Shopping |
+Freizeit | Kommunikation | Gehalt / Einnahmen | Familientransfer | Gebühren / Bank | Sonstiges
 
 Kontoauszugstext:
 {{TEXT}}

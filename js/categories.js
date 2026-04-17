@@ -11,6 +11,7 @@ export const CAT_CONFIG = {
   'Drogerie':            { icon: '🧴', color: '#a855f7' },
   'Online Shopping':     { icon: '📦', color: '#0ea5e9' },
   'Freizeit':            { icon: '🎮', color: '#22c55e' },
+  'Kommunikation':       { icon: '📱', color: '#06b6d4' },
   'Gehalt / Einnahmen':  { icon: '💰', color: '#2D6A4F' },
   'Familientransfer':    { icon: '👨‍👩‍👧', color: '#2D6A4F' },
   'Gebühren / Bank':     { icon: '🏦', color: '#857276' },

@@ -76,10 +76,13 @@ Aktuelle Kategorien:
 - Wohnen / Miete
 - Energie / Strom
 - Versicherung
+- Drogerie
 - Gesundheit
 - Online Shopping
 - Freizeit
+- Kommunikation
 - Gehalt / Einnahmen
+- Familientransfer
 - Gebühren / Bank
 - Sonstiges
 

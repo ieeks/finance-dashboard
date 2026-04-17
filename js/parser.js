@@ -305,7 +305,7 @@ export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
   if (/WE Vertrieb|Wien Energie/i.test(allText)) return 'Wien Energie';
   if (/\bAMAZON\b/i.test(allText))              return 'Amazon';
   if (/Olga\s*Zelenina|Zelenina/i.test(allText)) return 'Gutschrift (Olga Zelenina)';
-  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Eigene Überweisung';
+  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift (Manuel Koblischek)';
   if (/PAYPAL|PPLX/i.test(allText))             return 'PayPal';
   if (/Helvetia/i.test(allText)) {
     if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
@@ -439,7 +439,7 @@ Keine anderen Texte, kein Markdown, nur reines JSON.`;
     const found = result.find(r => r.index === i);
     const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
       'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
-      'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Sonstiges'];
+      'Freizeit','Kommunikation','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Sonstiges'];
     const cat = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
     return { ...t, category: cat, aiCategorized: !!found };
   })));
@@ -499,9 +499,10 @@ export function guessCategory(desc) {
   if (/dm-fil|dm fil|\bdm\b|bipa|müller|mueller|rossmann|schlecker/.test(d))                       return 'Drogerie';
   if (/apotheke|arzt|krankenhaus/.test(d))                                                          return 'Gesundheit';
   if (/amazon|zalando|ebay|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon|\bobi\b|hornbach|libro/.test(d)) return 'Online Shopping';
-  if (/olga zelenina|zelenina|eigene überweisung|familientransfer/.test(d))                         return 'Familientransfer';
+  if (/olga zelenina|zelenina|manuel koblischek|familientransfer/.test(d))                          return 'Familientransfer';
   if (/gehalt|lohn|salary|gutschrift/.test(d))                                                     return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
-  if (/t-mobile|magenta|a1|drei|telekom|sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d)) return 'Gebühren / Bank';
+  if (/t-mobile|magenta|\ba1\b|drei\b|telekom/.test(d))                                            return 'Kommunikation';
+  if (/sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d))                    return 'Gebühren / Bank';
   return 'Sonstiges';
 }
