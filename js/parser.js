@@ -71,6 +71,9 @@ export function parseBankStatement(text) {
 // Format: DD.MM DESCRIPTION VALUE_DATE AMOUNT[-]
 function parseEasybankStatement(text) {
   const transactions = [];
+  // Terminal-ID → Merchant-Name cache (POS 4350 → 'Billa' usw.)
+  // Wird bei jedem erfolgreichen Match befüllt und als Fallback genutzt.
+  const terminalCache = new Map();
 
   // Extract year from "vom DD.MM.YYYY"
   const yearMatch = text.match(/vom\s+\d{2}\.\d{2}\.(\d{4})/);
@@ -148,7 +151,19 @@ function parseEasybankStatement(text) {
             ? `${year}-${posDateMatch[2].padStart(2,'0')}-${posDateMatch[1].padStart(2,'0')}`
             : bookingDate;
 
-          const description = _extractMerchant(merchantLine, terminalLine, rawDesc);
+          let description = _extractMerchant(merchantLine, terminalLine, rawDesc);
+
+          // Terminal-Cache: erfolgreiche Matches speichern, fehlgeschlagene nachschlagen.
+          // Deckt den Fall ab, wo BILLA DANKT komplett aus dem PDF fehlt (Y-merge auf Seite).
+          const termId = terminalLine.match(/^POS\s+([A-Z0-9]+)/i)?.[1];
+          if (termId) {
+            if (description !== 'Kartenzahlung') {
+              terminalCache.set(termId, description);
+            } else if (terminalCache.has(termId)) {
+              description = terminalCache.get(termId);
+              console.log('[DBG-KARTE] Terminal cache hit:', termId, '→', description);
+            }
+          }
 
           // ── DEBUG (bitte nach Bugfix entfernen) ──
           console.log('[DBG-KARTE]', bookingDate, amount + '€ →', description);
