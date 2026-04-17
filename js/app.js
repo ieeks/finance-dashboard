@@ -63,6 +63,7 @@ function renderDashboard() {
 
   document.getElementById('db-cta').style.display = txs.length ? 'none' : 'block';
   renderDashboardCategories(txs);
+  renderFixkosten(txs);
   renderInsight(txs);
 }
 
@@ -92,6 +93,29 @@ function renderDashboardCategories(txs) {
   }).join('');
 }
 
+function renderFixkosten(txs) {
+  const el = document.getElementById('db-fixkosten');
+  if (!el) return;
+  const fixed = txs.filter(t => t.isRecurring && t.amount < 0);
+  if (!fixed.length) { el.style.display = 'none'; return; }
+  const total = fixed.reduce((s, t) => s + Math.abs(t.amount), 0);
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="section-label">Fixkosten</div>
+    <div class="card" style="padding:0;">
+      ${fixed.map(t => `
+        <div class="cat-row" style="padding:12px 16px;border-bottom:1px solid var(--outline-soft);">
+          <div class="cat-icon-wrap">${CAT_CONFIG[t.category]?.icon || '📌'}</div>
+          <div style="flex:1;"><div class="cat-label">${escHtml(t.recurringLabel || t.description)}</div></div>
+          <div style="font-family:var(--serif);font-weight:700;">${formatEur(Math.abs(t.amount))}</div>
+        </div>`).join('')}
+      <div class="cat-row" style="padding:12px 16px;background:var(--surface-variant);border-radius:0 0 16px 16px;">
+        <div style="flex:1;font-size:0.75rem;font-weight:700;color:var(--text-muted);">GESAMT FIXKOSTEN</div>
+        <div style="font-family:var(--serif);font-weight:700;">${formatEur(total)}</div>
+      </div>
+    </div>`;
+}
+
 function renderInsight(txs) {
   const el       = document.getElementById('db-insight');
   const expenses = txs.filter(t => t.amount < 0);
@@ -108,7 +132,13 @@ function renderInsight(txs) {
 }
 
 // ── Buchungen ──
-let _filterCat = null;
+let _filterCat  = null;
+let _filterCard = null;
+
+window.setCardFilter = function(who) {
+  _filterCard = who;
+  renderBuchungen();
+};
 
 function renderBuchungen() {
   renderMonthStrip('month-strip-buch', 'setMonthBuch');
@@ -125,7 +155,8 @@ function renderBuchungen() {
       (t.category||'').toLowerCase().includes(search)
     );
   }
-  if (_filterCat) txs = txs.filter(t => t.category === _filterCat);
+  if (_filterCat)  txs = txs.filter(t => t.category === _filterCat);
+  if (_filterCard) txs = txs.filter(t => t.cardHolder === _filterCard);
 
   // update filter panel active state
   document.querySelectorAll('.filter-cat-chip').forEach(el => {
@@ -187,6 +218,9 @@ function renderTxItem(tx) {
   const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
   const aiTag    = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
   const bonTag   = tx.bon ? '<span style="font-size:0.7rem;">🧾</span>' : '';
+  const avatar   = tx.cardHolder === 'manuel' ? '<span class="avatar-chip avatar-m">M</span>'
+                 : tx.cardHolder === 'olga'   ? '<span class="avatar-chip avatar-o">O</span>'
+                 : '';
   return `<div class="tx-item" onclick="openTxModal('${tx.id}')">
     <div class="tx-icon-wrap">${cfg.icon}</div>
     <div style="flex:1;min-width:0;">
@@ -194,6 +228,7 @@ function renderTxItem(tx) {
       <div class="tx-meta">
         ${aiTag}${bonTag}
         <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
+        ${avatar}
         <span>${formatDate(tx.date)}</span>
       </div>
     </div>

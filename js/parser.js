@@ -1,7 +1,15 @@
 // parser.js — BAWAG/easybank PDF-Extraktion, lokaler Parser, KI-Kategorisierung
 
 import { loadKeys } from './ui.js';
-import { SUBSCRIPTION_RULES } from './categories.js';
+import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js';
+
+function _applyRecurringFlags(txs) {
+  return txs.map(t => {
+    const rule = RECURRING_RULES.find(r => r.pattern.test(t.description));
+    if (!rule) return t;
+    return { ...t, isRecurring: true, recurringLabel: rule.label };
+  });
+}
 
 function _applySubscriptionRules(txs) {
   return txs.map(t => {
@@ -122,8 +130,13 @@ function parseEasybankStatement(text) {
           console.log('txDate      :', txDate);
           console.groupEnd();
 
+          const cardCode   = terminalLine.match(/\b([DK]\d{3})\b/)?.[1] ?? null;
+          const cardHolder = cardCode?.startsWith('D') ? 'manuel'
+                           : cardCode?.startsWith('K') ? 'olga'
+                           : null;
+
           if (Math.abs(amount) >= 0.01) {
-            transactions.push(_makeTx(txDate, description, amount, 'easybank'));
+            transactions.push(_makeTx(txDate, description, amount, 'easybank', cardHolder));
           }
           i = bj;
           continue;
@@ -140,7 +153,7 @@ function parseEasybankStatement(text) {
           j++;
         }
 
-        const description = extractEasybankDescription(rawDesc, contLines);
+        const description = extractEasybankDescription(rawDesc, contLines, amount);
         if (Math.abs(amount) >= 0.01 && description.length > 0) {
           transactions.push(_makeTx(bookingDate, description, amount, 'easybank'));
         }
@@ -244,7 +257,7 @@ const CARD_MERCHANTS = [
   [/\bLIBRO\b/i,            'Libro'],
 ];
 
-export function extractEasybankDescription(rawDesc, contLines) {
+export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
   const raw     = rawDesc.trim();
   const allText = [raw, ...contLines].join(' ');
 
@@ -291,6 +304,8 @@ export function extractEasybankDescription(rawDesc, contLines) {
   if (/T-Mobile|Magenta/i.test(allText))         return 'T-Mobile / Magenta';
   if (/WE Vertrieb|Wien Energie/i.test(allText)) return 'Wien Energie';
   if (/\bAMAZON\b/i.test(allText))              return 'Amazon';
+  if (/Olga\s*Zelenina|Zelenina/i.test(allText)) return 'Gutschrift (Olga Zelenina)';
+  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Eigene Überweisung';
   if (/PAYPAL|PPLX/i.test(allText))             return 'PayPal';
   if (/Helvetia/i.test(allText)) {
     if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
@@ -353,7 +368,7 @@ function _parseAmount(str) {
   return parseFloat(str.replace(/\./g,'').replace(',','.'));
 }
 
-export function makeTx(date, description, amount, account) {
+export function makeTx(date, description, amount, account, cardHolder = null) {
   return {
     id:            `tx_${date}_${Math.random().toString(36).slice(2,8)}`,
     date,
@@ -361,12 +376,13 @@ export function makeTx(date, description, amount, account) {
     amount,
     category:      'Sonstiges',
     aiCategorized: false,
-    account:       account || 'bawag',
+    account:       account || 'easybank',
+    cardHolder,
   };
 }
 
-function _makeTx(date, description, amount, account) {
-  return makeTx(date, description, amount, account);
+function _makeTx(date, description, amount, account, cardHolder = null) {
+  return makeTx(date, description, amount, account, cardHolder);
 }
 
 function _dedup(txs) {
@@ -385,7 +401,7 @@ export async function categorizeWithAI(transactions, provider = 'anthropic') {
   const key  = provider === 'anthropic' ? keys.anthropic : keys.openai;
 
   if (!key) {
-    return _applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false })));
+    return _applyRecurringFlags(_applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))));
   }
 
   const categories = [
@@ -416,17 +432,17 @@ Keine anderen Texte, kein Markdown, nur reines JSON.`;
       result = await _callOpenAI(key, prompt);
     }
   } catch(e) {
-    return _applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false })));
+    return _applyRecurringFlags(_applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))));
   }
 
-  return _applySubscriptionRules(transactions.map((t, i) => {
+  return _applyRecurringFlags(_applySubscriptionRules(transactions.map((t, i) => {
     const found = result.find(r => r.index === i);
     const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
-      'Energie / Strom','Versicherung','Gesundheit','Online Shopping',
-      'Freizeit','Gehalt / Einnahmen','Gebühren / Bank','Sonstiges'];
+      'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
+      'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Sonstiges'];
     const cat = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
     return { ...t, category: cat, aiCategorized: !!found };
-  }));
+  })));
 }
 
 async function _callAnthropic(key, prompt) {
@@ -480,8 +496,10 @@ export function guessCategory(desc) {
   if (/tesla|tankstelle|omv|avanti|turmöl|turmoel|circle k|\bbp\b|shell|\beni\b|agip|\bjet\b|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
   if (/wien energie|we vertrieb|energie|strom|gas|verbund|e-control/.test(d))                      return 'Energie / Strom';
   if (/versicherung|helvetia|generali|allianz|uniqa|wiener städtische/.test(d))                    return 'Versicherung';
-  if (/apotheke|arzt|krankenhaus|dm-fil|dm fil|\bdm\b|bipa|müller|mueller/.test(d))               return 'Gesundheit';
+  if (/dm-fil|dm fil|\bdm\b|bipa|müller|mueller|rossmann|schlecker/.test(d))                       return 'Drogerie';
+  if (/apotheke|arzt|krankenhaus/.test(d))                                                          return 'Gesundheit';
   if (/amazon|zalando|ebay|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon|\bobi\b|hornbach|libro/.test(d)) return 'Online Shopping';
+  if (/olga zelenina|zelenina|eigene überweisung|familientransfer/.test(d))                         return 'Familientransfer';
   if (/gehalt|lohn|salary|gutschrift/.test(d))                                                     return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
   if (/t-mobile|magenta|a1|drei|telekom|sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d)) return 'Gebühren / Bank';

@@ -164,6 +164,9 @@ html, body {
 .chip-red   { background: var(--red-bg);   color: var(--red); }
 .chip-gold  { background: var(--secondary-soft); color: var(--secondary); }
 .chip-ai    { background: var(--primary-soft); color: var(--primary-container); }
+.avatar-chip { display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:0.6rem;font-weight:700;font-family:var(--sans);margin-left:4px; }
+.avatar-chip.avatar-m { background: var(--primary-container); color: var(--on-primary); }
+.avatar-chip.avatar-o { background: #e0f2fe; color: #0369a1; }
 
 /* ── BUTTONS ── */
 .btn-primary {
@@ -490,7 +493,7 @@ html, body {
       <div class="topbar-avatar">MK</div>
       Meine Finanzen
     </div>
-    <span class="topbar-badge">PROTOTYP v0.7</span>
+    <span class="topbar-badge">PROTOTYP v0.8</span>
   </div>
 
   <div style="padding:24px 20px 16px;" class="gap-lg">
@@ -533,6 +536,9 @@ html, body {
       </div>
     </div>
 
+    <!-- Fixkosten -->
+    <div id="db-fixkosten" style="display:none;margin-top:16px;"></div>
+
     <!-- AI Insight -->
     <div class="insight-card" id="db-insight" style="display:none;">
       <div class="insight-tag">✦ Haiku Intelligence</div>
@@ -573,6 +579,11 @@ html, body {
       <button style="width:42px;height:42px;border-radius:12px;border:none;background:var(--surface-high);font-size:1rem;cursor:pointer;" onclick="toggleFilterPanel()" title="Filter">⚡</button>
     </div>
     <div id="filter-panel" style="display:none;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;">
+      <button class="filter-cat-chip" data-card="" onclick="setCardFilter(null)" style="padding:5px 12px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);">Alle</button>
+      <button class="filter-cat-chip avatar-m" data-card="manuel" onclick="setCardFilter('manuel')" style="padding:5px 14px;border-radius:100px;border:1.5px solid var(--outline-soft);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);">M</button>
+      <button class="filter-cat-chip avatar-o" data-card="olga" onclick="setCardFilter('olga')" style="padding:5px 14px;border-radius:100px;border:1.5px solid #bae6fd;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);">O</button>
+    </div>
     <div id="buchungen-summary" style="display:none;background:var(--surface-low);border:1px solid var(--outline-soft);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:12px;gap:0;"></div>
 
     <!-- Month strip for buchungen -->
