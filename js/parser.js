@@ -201,6 +201,7 @@ const CARD_MERCHANTS = [
   [/ANKER/i,                'Anker'],
   [/\bFELBER\b/i,           'Felber'],
   [/DER\s+MANN/i,           'Der Mann'],
+  [/COCA.COLA\s*HBC/i,      'Coca-Cola Automat'],
   // ── Tankstellen (Österreich) ──
   [/\bOMV\b/i,              'OMV'],
   [/\bAVANTI\b/i,           'Avanti'],
@@ -279,7 +280,11 @@ export function extractEasybankDescription(rawDesc, contLines) {
   if (/WE Vertrieb|Wien Energie/i.test(allText)) return 'Wien Energie';
   if (/\bAMAZON\b/i.test(allText))              return 'Amazon';
   if (/PAYPAL|PPLX/i.test(allText))             return 'PayPal';
-  if (/Helvetia/i.test(allText))                 return 'Helvetia Versicherung';
+  if (/Helvetia/i.test(allText)) {
+    if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
+      return 'Miete / Hausverwaltung';
+    return 'Helvetia Versicherung';
+  }
   if (/Raiffeisen.Leasing/i.test(allText))       return 'Raiffeisen Leasing';
   if (/Allianz/i.test(allText))                  return 'Allianz Versicherung';
 
@@ -292,7 +297,7 @@ export function extractEasybankDescription(rawDesc, contLines) {
     }
     return 'Gutschrift';
   }
-  if (/^Miete/i.test(raw))      return 'Miete';
+  if (/^Miete/i.test(raw))      return 'Miete / Hausverwaltung';
   if (/^Sollzinsen/i.test(raw)) return 'Sollzinsen';
 
   // 4. SEPA mit BIC → Gegenpartei aus Folgezeilen
@@ -458,8 +463,8 @@ async function _callOpenAI(key, prompt) {
 export function guessCategory(desc) {
   const d = desc.toLowerCase();
   if (/billa|interspar|eurospar|\bspar\b|hofer|lidl|penny|nah.frisch|mpreis|unimarkt|maximarkt|\badeg\b|julius meinl/.test(d)) return 'Supermarkt';
-  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|anker|felber|gasthaus|wirtshaus|beisl|der mann|pizza|kebab/.test(d)) return 'Restaurant / Café';
-  if (/^miete|wohnung|immobilien|hausverwaltung|betriebskosten/.test(d))                            return 'Wohnen / Miete';
+  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|anker|felber|gasthaus|wirtshaus|beisl|der mann|pizza|kebab|coca.cola hbc/.test(d)) return 'Restaurant / Café';
+  if (/^miete|wohnung|immobilien|hausverwaltung|betriebskosten|vorschreibung|miete \/ hausverwaltung/.test(d)) return 'Wohnen / Miete';
   if (/tesla|tankstelle|omv|avanti|turmöl|turmoel|circle k|\bbp\b|shell|\beni\b|agip|\bjet\b|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
   if (/wien energie|we vertrieb|energie|strom|gas|verbund|e-control/.test(d))                      return 'Energie / Strom';
   if (/versicherung|helvetia|generali|allianz|uniqa|wiener städtische/.test(d))                    return 'Versicherung';
