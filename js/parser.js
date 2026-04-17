@@ -126,6 +126,22 @@ function parseEasybankStatement(text) {
             }
           }
 
+          // Fallback: DANKT-Zeile erscheint als Orphan-Line VOR dem aktuellen Header
+          // (Y-sortiert auf Seitenumbruch: nächste Seite beginnt mit hohem Y → landet früher)
+          // Outer while-loop überspringt sie via i++ → rückwärts in lines suchen
+          if (!merchantLine && i > 0) {
+            for (let back = i - 1; back >= Math.max(0, i - 4); back--) {
+              const prevLine = lines[back] || '';
+              if (/^\d{2}\.\d{2}\s/.test(prevLine)) break; // Transaktion → nicht weiter zurück
+              if (headerRe.test(prevLine)) continue;
+              if (/DANKT/i.test(prevLine)) {
+                merchantLine = prevLine;
+                console.log('[DBG-KARTE] Backward fallback hit:', prevLine);
+                break;
+              }
+            }
+          }
+
           // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
           const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
           const txDate = posDateMatch
