@@ -112,7 +112,8 @@ function parseEasybankStatement(text) {
           // Terminalzeile hat HH:MM; Händlerzeile hat DANKT oder bekannten Händlernamen
           const terminalLine = bzLines.find(l => /\d{2}:\d{2}/.test(l)) || '';
           const merchantLine = bzLines.find(l => /DANKT/i.test(l)) ||
-                               bzLines.find(l => /BILLA|SPAR|HOFER|LIDL|DM-FIL/i.test(l)) || '';
+                               bzLines.find(l => /BILLA|SPAR|HOFER|LIDL|DM-FIL/i.test(l)) ||
+                               bzLines.find(l => !/\d{2}:\d{2}/.test(l) && !/^POS\b/i.test(l)) || '';
 
           // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
           const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
