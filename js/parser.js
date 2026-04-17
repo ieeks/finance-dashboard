@@ -114,6 +114,14 @@ function parseEasybankStatement(text) {
 
           const description = _extractMerchant(merchantLine, terminalLine);
 
+          // ── DEBUG (bitte nach Bugfix entfernen) ──
+          console.group(`[DBG-KARTE] ${bookingDate} | ${amount} € → "${description}"`);
+          console.log('bzLines     :', bzLines);
+          console.log('terminalLine:', terminalLine || '(leer)');
+          console.log('merchantLine:', merchantLine || '(leer)');
+          console.log('txDate      :', txDate);
+          console.groupEnd();
+
           if (Math.abs(amount) >= 0.01) {
             transactions.push(_makeTx(txDate, description, amount, 'easybank'));
           }
@@ -154,11 +162,14 @@ function _parseEasyAmount(str) {
 function _extractMerchant(merchantLine, terminalLine) {
   for (const line of [merchantLine, terminalLine]) {
     if (!line) continue;
-    // Bekannte Händler zuerst (checkt beide Zeilen)
     for (const [pat, name] of CARD_MERCHANTS) {
-      if (pat.test(line)) return name;
+      if (pat.test(line)) {
+        console.log(`[DBG-MERCHANT] Match: "${line}" → ${name} (${pat})`);
+        return name;
+      }
     }
   }
+  console.log(`[DBG-MERCHANT] Kein CARD_MERCHANTS Match. merchantLine="${merchantLine}" terminalLine="${terminalLine}"`);
   // Generisch: Händlerzeile, alles vor DANKT / Zahl / Backslash
   const src = merchantLine || terminalLine;
   if (!src) return 'Kartenzahlung';
