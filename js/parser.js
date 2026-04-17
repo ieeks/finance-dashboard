@@ -121,7 +121,7 @@ function parseEasybankStatement(text) {
             ? `${year}-${posDateMatch[2].padStart(2,'0')}-${posDateMatch[1].padStart(2,'0')}`
             : bookingDate;
 
-          const description = _extractMerchant(merchantLine, terminalLine);
+          const description = _extractMerchant(merchantLine, terminalLine, rawDesc);
 
           // ── DEBUG (bitte nach Bugfix entfernen) ──
           console.log('[DBG-KARTE]', bookingDate, amount + '€ →', description);
@@ -171,9 +171,12 @@ function _parseEasyAmount(str) {
   return parseFloat(str.replace(/\./g, '').replace(',', '.'));
 }
 
-// Händlername aus merchant- und terminal-Zeile extrahieren
-function _extractMerchant(merchantLine, terminalLine) {
-  for (const line of [merchantLine, terminalLine]) {
+// Händlername aus merchant-, terminal- und rawDesc-Zeile extrahieren
+// rawDesc wird als Fallback geprüft — BILLA DANKT kann durch Y-Grouping
+// in PDF.js mit der Hauptzeile zusammengefasst werden und landet dann
+// in rawDesc statt in bzLines.
+function _extractMerchant(merchantLine, terminalLine, rawDesc = '') {
+  for (const line of [merchantLine, terminalLine, rawDesc]) {
     if (!line) continue;
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(line)) {
@@ -182,7 +185,7 @@ function _extractMerchant(merchantLine, terminalLine) {
       }
     }
   }
-  console.log(`[DBG-MERCHANT] Kein CARD_MERCHANTS Match. merchantLine="${merchantLine}" terminalLine="${terminalLine}"`);
+  console.log(`[DBG-MERCHANT] Kein CARD_MERCHANTS Match. merchantLine="${merchantLine}" terminalLine="${terminalLine}" rawDesc="${rawDesc}"`);
   // Generisch: Händlerzeile, alles vor DANKT / Zahl / Backslash
   const src = merchantLine || terminalLine;
   if (!src) return 'Kartenzahlung';
