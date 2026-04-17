@@ -123,12 +123,11 @@ function parseEasybankStatement(text) {
           const description = _extractMerchant(merchantLine, terminalLine);
 
           // ── DEBUG (bitte nach Bugfix entfernen) ──
-          console.group(`[DBG-KARTE] ${bookingDate} | ${amount} € → "${description}"`);
-          console.log('bzLines     :', bzLines);
-          console.log('terminalLine:', terminalLine || '(leer)');
-          console.log('merchantLine:', merchantLine || '(leer)');
-          console.log('txDate      :', txDate);
-          console.groupEnd();
+          console.log('[DBG-KARTE]', bookingDate, amount + '€ →', description);
+          console.log('[DBG-KARTE] bzLines     :', bzLines);
+          console.log('[DBG-KARTE] terminalLine:', terminalLine || '(leer)');
+          console.log('[DBG-KARTE] merchantLine:', merchantLine || '(leer)');
+          console.log('[DBG-KARTE] txDate      :', txDate);
 
           const cardCode   = terminalLine.match(/\b([DK]\d{3})\b/)?.[1] ?? null;
           const cardHolder = cardCode?.startsWith('D') ? 'manuel'
@@ -177,7 +176,7 @@ function _extractMerchant(merchantLine, terminalLine) {
     if (!line) continue;
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(line)) {
-        console.log(`[DBG-MERCHANT] Match: "${line}" → ${name} (${pat})`);
+        console.log('[DBG-MERCHANT] Match:', line, '→', name);
         return name;
       }
     }
