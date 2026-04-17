@@ -104,7 +104,7 @@ function parseEasybankStatement(text) {
           while (bj < lines.length) {
             const cl = lines[bj];
             if (/^\d{2}\.\d{2}\s/.test(cl)) break;
-            if (headerRe.test(cl)) break;
+            if (headerRe.test(cl)) { bj++; continue; }
             bzLines.push(cl);
             bj++;
           }
