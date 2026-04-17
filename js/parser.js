@@ -258,6 +258,12 @@ const CARD_MERCHANTS = [
 ];
 
 export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
+  const result = _extractDesc(rawDesc, contLines, amount);
+  console.log(`[DBG-SEPA] "${rawDesc.trim()}" (${amount}€) → "${result}"`);
+  return result;
+}
+
+function _extractDesc(rawDesc, contLines, amount) {
   const raw     = rawDesc.trim();
   const allText = [raw, ...contLines].join(' ');
 
@@ -343,6 +349,7 @@ export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
   // 5. Fallback
   return raw.replace(/\b[A-Z0-9]{10,}\b/g, '').replace(/\s+/g, ' ').trim().slice(0, 50) || 'Buchung';
 }
+
 
 // ── Generic Statement Parser ──
 function parseGenericStatement(text) {
