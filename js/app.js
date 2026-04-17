@@ -134,9 +134,15 @@ function renderInsight(txs) {
 // ── Buchungen ──
 let _filterCat  = null;
 let _filterCard = null;
+let _filterBon  = null;
 
 window.setCardFilter = function(who) {
   _filterCard = who;
+  renderBuchungen();
+};
+
+window.setBonFilter = function(val) {
+  _filterBon = val;
   renderBuchungen();
 };
 
@@ -155,8 +161,10 @@ function renderBuchungen() {
       (t.category||'').toLowerCase().includes(search)
     );
   }
-  if (_filterCat)  txs = txs.filter(t => t.category === _filterCat);
-  if (_filterCard) txs = txs.filter(t => t.cardHolder === _filterCard);
+  if (_filterCat)             txs = txs.filter(t => t.category === _filterCat);
+  if (_filterCard)            txs = txs.filter(t => t.cardHolder === _filterCard);
+  if (_filterBon === 'linked')   txs = txs.filter(t => !!t.bon);
+  if (_filterBon === 'unlinked') txs = txs.filter(t => !t.bon && t.amount < 0);
 
   // update filter panel active state
   document.querySelectorAll('.filter-cat-chip').forEach(el => {

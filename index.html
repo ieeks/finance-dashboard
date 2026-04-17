@@ -493,7 +493,7 @@ html, body {
       <div class="topbar-avatar">MK</div>
       Meine Finanzen
     </div>
-    <span class="topbar-badge">PROTOTYP v0.8</span>
+    <span class="topbar-badge">PROTOTYP v0.9</span>
   </div>
 
   <div style="padding:24px 20px 16px;" class="gap-lg">
@@ -583,6 +583,10 @@ html, body {
       <button class="filter-cat-chip" data-card="" onclick="setCardFilter(null)" style="padding:5px 12px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);">Alle</button>
       <button class="filter-cat-chip avatar-m" data-card="manuel" onclick="setCardFilter('manuel')" style="padding:5px 14px;border-radius:100px;border:1.5px solid var(--outline-soft);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);">M</button>
       <button class="filter-cat-chip avatar-o" data-card="olga" onclick="setCardFilter('olga')" style="padding:5px 14px;border-radius:100px;border:1.5px solid #bae6fd;font-size:0.72rem;font-weight:700;cursor:pointer;font-family:var(--sans);">O</button>
+      <div style="width:1px;background:var(--outline-soft);margin:2px 2px;"></div>
+      <button onclick="setBonFilter(null)"       style="padding:5px 12px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);">🧾 Alle</button>
+      <button onclick="setBonFilter('linked')"   style="padding:5px 12px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);">✅ Verknüpft</button>
+      <button onclick="setBonFilter('unlinked')" style="padding:5px 12px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);">⬜ Offen</button>
     </div>
     <div id="buchungen-summary" style="display:none;background:var(--surface-low);border:1px solid var(--outline-soft);border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:12px;gap:0;"></div>
 
