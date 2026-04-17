@@ -97,7 +97,7 @@ function parseEasybankStatement(text) {
         const amount      = _parseEasyAmount(m[5]) * (isExpense ? -1 : 1);
 
         // ── Bezahlung Karte ──
-        if (/bezahlung karte/i.test(rawDesc)) {
+        if (/bezahlung\s+karte/i.test(rawDesc)) {
           // Alle Folgezeilen bis nächste Transaktion sammeln
           const bzLines = [];
           let bj = i + 1;
@@ -275,7 +275,7 @@ function _extractDesc(rawDesc, contLines, amount) {
   const isPosLine = /^POS\s+\d+/i.test(raw);
 
   // 1c. Bezahlung Karte oder POS-Zeile
-  if (/bezahlung karte/i.test(raw) || isPosLine) {
+  if (/bezahlung\s+karte/i.test(raw) || isPosLine) {
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(allText)) return name;
     }
@@ -304,27 +304,8 @@ function _extractDesc(rawDesc, contLines, amount) {
     return 'Kartenzahlung';
   }
 
-  // 2. Bekannte Gegenstellen
-  if (/Tesla/i.test(allText))                    return 'Tesla Supercharger';
-  if (/T-Mobile|Magenta/i.test(allText))         return 'T-Mobile / Magenta';
-  if (/WE Vertrieb|Wien Energie/i.test(allText)) return 'Wien Energie';
-  if (/\bAMAZON\b/i.test(allText))              return 'Amazon';
-  if (/Olga\s*Zelenina|Zelenina/i.test(allText)) return 'Gutschrift (Olga Zelenina)';
-  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift (Manuel Koblischek)';
-  if (/PAYPAL|PPLX/i.test(allText))             return 'PayPal';
-  if (/Helvetia/i.test(allText)) {
-    if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
-      return 'Miete / Hausverwaltung';
-    return 'Helvetia Versicherung';
-  }
-  if (/Raiffeisen.Leasing/i.test(allText))       return 'Raiffeisen Leasing';
-  if (/Allianz/i.test(allText)) {
-    if (/Elementar|AEV\d+|Kfz|KFZ/i.test(allText)) return 'Allianz KFZ-Versicherung';
-    return 'Allianz Versicherung';
-  }
-
-  // 3. Benannte Vorgänge
-  if (/Gutschrift Onlinebanking/i.test(raw)) {
+  // 2. Benannte Vorgänge auf rawDesc — VOR allText-Checks damit Miete/Gutschrift nicht überschrieben werden
+  if (/Gutschrift\s+Onlinebanking/i.test(raw)) {
     for (const cl of contLines) {
       if (/^(BAWAATWW|OG\/|BG\/)/i.test(cl)) continue;
       const name = cl.replace(/AT\d{18,}/g, '').trim();
@@ -335,10 +316,30 @@ function _extractDesc(rawDesc, contLines, amount) {
   if (/^Miete/i.test(raw))      return 'Miete / Hausverwaltung';
   if (/^Sollzinsen/i.test(raw)) return 'Sollzinsen';
 
-  // 4. SEPA mit BIC → Gegenpartei aus Folgezeilen
-  if (/^[A-Z]{6}[A-Z0-9]{2}/i.test(raw)) {
+  // 3. Bekannte Gegenstellen (allText-basiert)
+  if (/Tesla/i.test(allText))                          return 'Tesla Supercharger';
+  if (/T-Mobile|Magenta/i.test(allText))               return 'T-Mobile / Magenta';
+  if (/WE\s+Vertrieb|Wien\s+Energie/i.test(allText))  return 'Wien Energie';
+  if (/\bAMAZON\b/i.test(allText))                    return 'Amazon';
+  if (/Olga\s*Zelenina|Zelenina/i.test(allText))
+    return amount > 0 ? 'Gutschrift (Olga Zelenina)' : 'Olga Zelenina';
+  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift (Manuel Koblischek)';
+  if (/PAYPAL|PPLX/i.test(allText))                   return 'PayPal';
+  if (/Helvetia/i.test(allText)) {
+    if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
+      return 'Miete / Hausverwaltung';
+    return 'Helvetia Versicherung';
+  }
+  if (/Raiffeisen.Leasing/i.test(allText))             return 'Raiffeisen Leasing';
+  if (/Allianz/i.test(allText)) {
+    if (/Elementar|AEV\d+|Kfz|KFZ/i.test(allText)) return 'Allianz KFZ-Versicherung';
+    return 'Allianz Versicherung';
+  }
+
+  // 4. SEPA mit BIC → Gegenpartei aus Folgezeilen (kein i-Flag: BICs sind immer Großbuchstaben)
+  if (/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}/.test(raw)) {
     for (const cl of contLines) {
-      if (/^[A-Z]{6}[A-Z0-9]{2}|^(OG|BG|MC)\/|^Manuel Koblischek$|^\d{8,}$/i.test(cl)) continue;
+      if (/^[A-Z]{6}[A-Z0-9]{2}|^(OG|BG|MC)\/|^Manuel Koblischek$|^\d{8,}$/.test(cl)) continue;
       if (/^(Koblischek|KOBLISCHEK)/i.test(cl)) continue;
       const name = cl.split('/')[0].replace(/^\d+\s*/, '').trim();
       if (name.length > 3 && !/^\d+$/.test(name)) return name.slice(0, 50);
