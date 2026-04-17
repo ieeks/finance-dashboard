@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v0.9.7 — 2026-04-17
+
+### Fixed
+- PDF Parser: Kartenzahlungen ohne DANKT-Zeile im PDF (z.B. -19,49€, -19,44€, -10,55€, -15,35€) werden jetzt korrekt erkannt
+- **Backward Lookup**: DANKT-Zeile die durch Y-Sortierung als Orphan-Zeile *vor* dem "Bezahlung Karte" Header landet wird rückwärts in `lines[i-1..i-4]` gefunden (löst -10,55€ und -15,35€)
+- **Terminal Cache**: POS-Terminal-ID → Händlername wird während des Parsens gecacht. Wenn DANKT-Zeile komplett fehlt (PDF-Extraktion verliert sie), wird der Cache als Fallback genutzt (löst -19,49€ und -19,44€: POS 4350 war bereits als "Billa" bekannt)
+
 ## v0.5 — 2026-04-16
 
 ### Fixed

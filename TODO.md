@@ -5,13 +5,9 @@
 - [x] **Modul-Refactor**: index.html → js/ Module (app, state, parser, bonAnalyzer, matcher, categories, ui)
 
 ### PDF Parser — offene Bugs
-- [ ] **POS 4350 → Billa**: "POS 4350 D001 28.03. 15:47" zeigt POS-ID statt "Billa" (Betrag 15,79 EUR)
-      → Billa-Terminal wird nicht erkannt weil Merchant-Name nicht in rawDesc UND nicht in contLines
-      → Option A: POS-Terminal-ID Lookup-Table (4350 → Billa, etc.) — aber nicht skalierbar
-      → Option B: Debug-Log einbauen, schauen was contLines für diesen Eintrag wirklich enthält
-      → Wahrscheinlichste Ursache: Y-Grouping in extractPdfText fasst Merchant-Zeile mit falscher Transaktion zusammen
-- [ ] **extractPdfText debuggen**: Direkt ausgeben welche Zeilen für POS 4350 Eintrag in contLines landen
-      → Debug-Button im Import-Screen: "Rohdaten anzeigen" (erste 50 Zeilen des extrahierten Texts)
+- [x] **POS 4350 → Billa**: Gelöst via Backward Lookup + Terminal Cache (v=28/29, 2026-04-17)
+      → DANKT-Zeile erscheint durch Y-Sortierung teils als Orphan-Zeile vor dem Header → Backward Lookup
+      → Wenn DANKT komplett fehlt (PDF verliert die Zeile bei Seitenumbruch) → Terminal Cache Fallback
 
 ### Concierge / PDF-Rechnungen
 - [x] Tesla-Rechnung: subcategory-Feldname-Bug behoben + "Mobilität / Auto" als Subkategorie ergänzt
