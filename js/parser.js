@@ -103,7 +103,7 @@ function parseEasybankStatement(text) {
           let bj = i + 1;
           while (bj < lines.length) {
             const cl = lines[bj];
-            if (/^\d{2}\.\d{2}\s/.test(cl)) break;
+            if (/^\d{2}\.\d{2}\s/.test(cl) && /\d{1,3}(?:\.\d{3})*,\d{2}-?$/.test(cl)) break;
             if (headerRe.test(cl)) { bj++; continue; }
             bzLines.push(cl);
             bj++;
