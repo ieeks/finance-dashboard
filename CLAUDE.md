@@ -10,9 +10,13 @@ Lokaler Ordner: ~/Developer/finance-dashboard
 
 ## Versionierung
 
-- Version steht in `index.html` im Header-Badge (`PROTOTYP v0.x`)
-- **Bei jedem Commit: Patch-Version inkrementieren** (v0.1 → v0.2 → …)
-- Minor-Version bei neuen Features (v0.1 → v1.0 bei Firebase-Integration)
+Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
+
+- **Patch** (`v0.9.0 → v0.9.1`): Bugfix oder kleines Tweak (ein Commit)
+- **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
+- **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
+
+Aktuelle Version: `v0.9.0` (Badge in `index.html`)
 
 ## Commit-Konventionen
 
