@@ -2,7 +2,7 @@
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoading, hideLoading } from './ui.js';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=13';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=20';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 
 // ── Navigation ──
