@@ -111,9 +111,20 @@ function parseEasybankStatement(text) {
 
           // Terminalzeile hat HH:MM; Händlerzeile hat DANKT oder bekannten Händlernamen
           const terminalLine = bzLines.find(l => /\d{2}:\d{2}/.test(l)) || '';
-          const merchantLine = bzLines.find(l => /DANKT/i.test(l)) ||
-                               bzLines.find(l => /BILLA|SPAR|HOFER|LIDL|DM-FIL/i.test(l)) ||
-                               bzLines.find(l => !/\d{2}:\d{2}/.test(l) && !/^POS\b/i.test(l)) || '';
+          let merchantLine = bzLines.find(l => /DANKT/i.test(l)) ||
+                             bzLines.find(l => /BILLA|SPAR|HOFER|LIDL|DM-FIL/i.test(l)) ||
+                             bzLines.find(l => !/\d{2}:\d{2}/.test(l) && !/^POS\b/i.test(l)) || '';
+
+          // Fallback: BILLA DANKT kann durch Y-Grouping (±4px) mit der Kopfzeile
+          // der nächsten Buchung zusammengefasst werden und landet dann in deren rawDesc.
+          // Wenn merchantLine leer: break-Line (= nächste Tx) auf DANKT prüfen.
+          if (!merchantLine) {
+            const breakLine = lines[bj] || '';
+            const nm = breakLine.match(/^(\d{2})\.(\d{2})\s+(.*?)\s+(\d{2}\.\d{2})\s+(\d{1,3}(?:\.\d{3})*,\d{2})-?$/);
+            if (nm && /bezahlung\s+karte/i.test(nm[3]) && /DANKT|BILLA|SPAR|HOFER|LIDL|DM-FIL|BIPA/i.test(nm[3])) {
+              merchantLine = nm[3]; // rawDesc der nächsten Tx enthält den Y-gemergten DANKT-Text
+            }
+          }
 
           // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
           const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
