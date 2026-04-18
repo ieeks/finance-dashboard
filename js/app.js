@@ -17,33 +17,21 @@ window.showScreen = function(name) {
   if (name === 'konten')    renderKonten();
 };
 
-// ── Month Strip ──
-function renderMonthStrip(containerId, onSelectName) {
-  const months = getAvailableMonths();
-  const el = document.getElementById(containerId);
-  if (!el) return;
-  el.innerHTML = months.map(m => `
-    <div class="month-pill ${m === state.currentMonth ? 'active' : ''}"
-         onclick="${onSelectName}('${m}')">
-      ${getMonthLabel(m)}
-    </div>`).join('');
+// ── Month Trigger ──
+const MONTH_NAMES_LONG = ['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+function updateMonthTriggers() {
+  const [y, m] = state.currentMonth.split('-').map(Number);
+  const label = `${MONTH_NAMES_LONG[m-1]} ${y}`;
+  const el1 = document.getElementById('monthTriggerLabel');
+  const el2 = document.getElementById('monthTriggerLabelBuch');
+  if (el1) el1.textContent = label;
+  if (el2) el2.textContent = label;
 }
-
-window.setMonth = function(ym) {
-  state.currentMonth = ym;
-  saveState();
-  renderDashboard();
-};
-
-window.setMonthBuch = function(ym) {
-  state.currentMonth = ym;
-  saveState();
-  renderBuchungen();
-};
 
 // ── Dashboard ──
 function renderDashboard() {
-  renderMonthStrip('month-strip', 'setMonth');
+  updateMonthTriggers();
   const txs     = getTransactionsForMonth(state.currentMonth);
   const income  = txs.filter(t => t.amount > 0).reduce((s,t) => s + t.amount, 0);
   const expense = txs.filter(t => t.amount < 0).reduce((s,t) => s + Math.abs(t.amount), 0);
@@ -202,7 +190,7 @@ function _updateClearBtn() {
 
 function renderBuchungen() {
   _updateClearBtn();
-  renderMonthStrip('month-strip-buch', 'setMonthBuch');
+  updateMonthTriggers();
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
 
   // when searching, span all months; otherwise only current month
@@ -799,6 +787,106 @@ window.linkBon = function(txId) {
 };
 
 // ── DOMContentLoaded ──
+// ── Month Picker Bottom Sheet ──
+function initMonthPicker() {
+  const MONTH_NAMES_SHORT = ['Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+
+  let pendingYear, pendingMonth;
+  let _onConfirm = null;
+
+  const overlay      = document.getElementById('monthPickerOverlay');
+  const sheet        = document.getElementById('monthPickerSheet');
+  const sheetYearLbl = document.getElementById('sheetYearLabel');
+  const grid         = document.getElementById('monthPickerGrid');
+  const btnPrev      = document.getElementById('yearPrev');
+  const btnNext      = document.getElementById('yearNext');
+  const btnClose     = document.getElementById('monthPickerClose');
+  const btnConfirm   = document.getElementById('monthPickerConfirm');
+
+  if (!overlay || !sheet) return;
+
+  function buildAvailableMonths() {
+    const result = {};
+    getAvailableMonths().forEach(ym => {
+      const [y, m] = ym.split('-').map(Number);
+      if (!result[y]) result[y] = [];
+      result[y].push(m - 1);
+    });
+    return result;
+  }
+
+  function renderGrid() {
+    const available = buildAvailableMonths();
+    const availMonths = available[pendingYear] || [];
+    const allYears = Object.keys(available).map(Number);
+    const minYear = Math.min(...allYears);
+    const maxYear = Math.max(...allYears);
+
+    sheetYearLbl.textContent = pendingYear;
+    btnPrev.disabled = pendingYear <= minYear;
+    btnNext.disabled = pendingYear >= maxYear;
+
+    grid.innerHTML = MONTH_NAMES_SHORT.map((name, i) => {
+      const isAvail  = availMonths.includes(i);
+      const isActive = i === pendingMonth;
+      return `
+        <button class="grid-month-btn${isActive ? ' active' : ''}"
+          ${!isAvail ? 'disabled' : ''}
+          data-month="${i}">
+          ${name}
+          ${isAvail ? '<div class="grid-month-dot"></div>' : ''}
+        </button>`;
+    }).join('');
+
+    grid.querySelectorAll('.grid-month-btn:not(:disabled)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingMonth = parseInt(btn.dataset.month);
+        renderGrid();
+      });
+    });
+  }
+
+  function openSheet(onConfirmCb) {
+    _onConfirm = onConfirmCb;
+    const [y, m] = state.currentMonth.split('-').map(Number);
+    pendingYear  = y;
+    pendingMonth = m - 1;
+    renderGrid();
+    overlay.classList.add('visible');
+    sheet.classList.add('open');
+  }
+
+  function closeSheet() {
+    overlay.classList.remove('visible');
+    sheet.classList.remove('open');
+  }
+
+  function confirmSelection() {
+    const ym = `${pendingYear}-${String(pendingMonth + 1).padStart(2,'0')}`;
+    closeSheet();
+    if (_onConfirm) _onConfirm(ym);
+  }
+
+  overlay.addEventListener('click', closeSheet);
+  btnClose.addEventListener('click', closeSheet);
+  btnConfirm.addEventListener('click', confirmSelection);
+  btnPrev.addEventListener('click', () => {
+    const minYear = Math.min(...Object.keys(buildAvailableMonths()).map(Number));
+    if (pendingYear > minYear) { pendingYear--; renderGrid(); }
+  });
+  btnNext.addEventListener('click', () => {
+    const maxYear = Math.max(...Object.keys(buildAvailableMonths()).map(Number));
+    if (pendingYear < maxYear) { pendingYear++; renderGrid(); }
+  });
+
+  document.getElementById('monthTriggerChip')?.addEventListener('click', () =>
+    openSheet(ym => { state.currentMonth = ym; saveState(); renderDashboard(); })
+  );
+  document.getElementById('monthTriggerChipBuch')?.addEventListener('click', () =>
+    openSheet(ym => { state.currentMonth = ym; saveState(); renderBuchungen(); })
+  );
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Drag & drop
   const zone = document.getElementById('upload-zone');
@@ -817,6 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
+  initMonthPicker();
 
   // Search input (not global in ES module, so register via JS)
   document.getElementById('search-input')?.addEventListener('input', renderBuchungen);
