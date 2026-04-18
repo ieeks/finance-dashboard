@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v1.0.1 — 2026-04-18
+
+### Fixed
+- **Parser: Jahresangabe bei alten Auszügen** — Fallback `new Date().getFullYear()` lieferte 2026 für Dezember-2025-PDFs; Extraktion sucht jetzt zusätzlich nach beliebigem `20XX`-Jahr in den ersten 500 Zeichen und clippt zukunftsdaten
+- **UI: Zahnrad-Icon als SVG** — ⚙️ Emoji in der Buchungen-Topbar durch stroke-basiertes SVG-Icon (gleicher Stil wie Nav-Icons) ersetzt
+
 ## v1.0.0 — 2026-04-18
 
 ### Fixed

@@ -12,6 +12,8 @@
 - [x] **Familientransfer fehlt im AI-Prompt**: Kategorie + Hinweise hinzugefügt (2026-04-18)
       → DANKT-Zeile erscheint durch Y-Sortierung teils als Orphan-Zeile vor dem Header → Backward Lookup
       → Wenn DANKT komplett fehlt (PDF verliert die Zeile bei Seitenumbruch) → Terminal Cache Fallback
+- [x] **Gutschrift Olga Forward-Lookup**: BAWAATWWXXX + Name durch Y-Merge mit nächster TX verloren → lines[j..j+3] als Fallback (2026-04-18)
+- [x] **Dezember 2025 → 2026**: Jahres-Fallback auf getFullYear() lieferte falsches Jahr; erweiterte Extraktion aus PDF-Header (2026-04-18)
 
 ### Concierge / PDF-Rechnungen
 - [x] Tesla-Rechnung: subcategory-Feldname-Bug behoben + "Mobilität / Auto" als Subkategorie ergänzt
