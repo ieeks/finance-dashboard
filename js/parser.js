@@ -355,7 +355,7 @@ function _extractDesc(rawDesc, contLines, amount) {
     for (const cl of contLines) {
       // BIC/IBAN aus der Zeile entfernen und prüfen ob ein Name übrig bleibt
       const cleaned = cl
-        .replace(/\b[A-Z]{6}[A-Z0-9]{2,3}\b/g, '')  // BICs entfernen (inkl. BAWAATWW)
+        .replace(/\b[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?\b/g, '')  // BICs entfernen (8 oder 11 Zeichen)
         .replace(/\bAT\d{16,22}\b/g, '')              // IBANs entfernen
         .replace(/^(OG|BG|MC)\//i, '')
         .replace(/\s+/g, ' ').trim();
@@ -581,7 +581,7 @@ export function guessCategory(desc) {
   if (/dm-fil|dm fil|\bdm\b|bipa|müller|mueller|rossmann|schlecker/.test(d))                       return 'Drogerie';
   if (/apotheke|arzt|krankenhaus/.test(d))                                                          return 'Gesundheit';
   if (/amazon|zalando|ebay|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon|\bobi\b|hornbach|libro/.test(d)) return 'Online Shopping';
-  if (/olga zelenina|zelenina|\bolga\b|manuel koblischek|\bmanuel\b|familientransfer|gutschrift olga|gutschrift manuel/.test(d)) return 'Familientransfer';
+  if (/olga zelenina|zelenina|\bolga\b|manuel koblischek|\bmanuel\b|familientransfer|gutschrift olga|gutschrift manuel|^gutschrift$/.test(d)) return 'Familientransfer';
   if (/gehalt|lohn|salary/.test(d))                                                                return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
   if (/t-mobile|magenta|\ba1\b|\bdrei\b|telekom|hutchison/.test(d))                                return 'Telekommunikation';
