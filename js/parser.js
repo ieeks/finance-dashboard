@@ -195,7 +195,18 @@ function parseEasybankStatement(text) {
           j++;
         }
 
-        const description = extractEasybankDescription(rawDesc, contLines, amount);
+        let description = extractEasybankDescription(rawDesc, contLines, amount);
+        // Backward-Lookup: BAWAATWWXXX + Name landet durch Y-Sortierung auf Seitenumbruch
+        // manchmal VOR dem Transaktionsheader → contLines leer → Name nicht gefunden
+        if (description === 'Gutschrift') {
+          for (let back = i - 1; back >= Math.max(0, i - 6); back--) {
+            const prevLine = lines[back];
+            if (/^\d{2}\.\d{2}\s/.test(prevLine)) break;
+            if (headerRe.test(prevLine)) continue;
+            if (/Olga|Zelenina/i.test(prevLine))   { description = 'Gutschrift Olga';   break; }
+            if (/Manuel|Koblischek/i.test(prevLine)) { description = 'Gutschrift Manuel'; break; }
+          }
+        }
         if (Math.abs(amount) >= 0.01 && description.length > 0) {
           transactions.push(_makeTx(bookingDate, description, amount, 'easybank'));
         }
