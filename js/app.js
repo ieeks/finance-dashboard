@@ -947,6 +947,12 @@ function initBuchFilters() {
     else if (!monthSheet.classList.contains('open')) closeFilterSheet();
   });
 
+  // Expose globally so onclick attributes and external callers can reach them
+  window.openBuchFilterSheet  = openFilterSheet;
+  window.closeBuchFilterSheet = closeFilterSheet;
+  window.openBuchMonthSheet   = (fromFilter = false) => openMonthSheet(fromFilter);
+  window.closeBuchMonthSheet  = closeMonthSheet;
+
   // Init labels
   updateMonthLabels();
   updateFilterBadge();
