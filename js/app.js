@@ -286,7 +286,8 @@ function renderTxItem(tx) {
   const isIn     = tx.amount > 0;
   const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
   const aiTag    = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
-  const bonTag   = tx.bon ? '<span style="font-size:0.7rem;">🧾</span>' : '';
+  const bonTag   = tx.bon  ? '<span style="font-size:0.7rem;">🧾</span>' : '';
+  const noteTag  = tx.note ? '<span style="font-size:0.7rem;">💬</span>' : '';
   const avatar   = tx.cardHolder === 'manuel' ? '<span class="avatar-chip avatar-m">M</span>'
                  : tx.cardHolder === 'olga'   ? '<span class="avatar-chip avatar-o">O</span>'
                  : '';
@@ -295,7 +296,7 @@ function renderTxItem(tx) {
     <div style="flex:1;min-width:0;">
       <div class="tx-name">${escHtml(tx.description)}</div>
       <div class="tx-meta">
-        ${aiTag}${bonTag}
+        ${aiTag}${bonTag}${noteTag}
         <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
         ${avatar}
         <span>${formatDate(tx.date)}</span>
@@ -379,7 +380,20 @@ window.openTxModal = function(id) {
         <span>Gesamt</span><span>${formatEur(tx.bon.total)}</span>
       </div>
     </div>` : ''}
-    <button class="btn-ghost" style="margin-top:8px;" onclick="closeTxModal()">Schließen</button>`;
+    <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
+      <div class="api-label" style="margin-bottom:8px;">Notiz</div>
+      <textarea
+        id="note-edit-${id}"
+        onblur="saveNote('${id}', this.value)"
+        placeholder="Kommentar hinzufügen…"
+        style="width:100%;min-height:72px;background:var(--surface-high);border:1.5px solid var(--outline-soft);
+               border-radius:var(--radius-sm);padding:10px 14px;font-family:var(--sans);font-size:0.85rem;
+               color:var(--text);outline:none;resize:none;box-sizing:border-box;transition:border-color 0.15s;"
+        onfocus="this.style.borderColor='var(--primary-container)'"
+        onblur="this.style.borderColor='var(--outline-soft)';saveNote('${id}', this.value)"
+      >${escHtml(tx.note || '')}</textarea>
+    </div>
+    <button class="btn-ghost" style="margin-top:4px;" onclick="closeTxModal()">Schließen</button>`;
   document.getElementById('tx-modal').classList.add('open');
 };
 
@@ -392,6 +406,16 @@ window.updateCategory = function(id, newCat) {
   window.closeTxModal();
   renderBuchungen();
   renderDashboard();
+};
+
+window.saveNote = function(id, value) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  const trimmed = value.trim();
+  if (tx.note === trimmed) return;
+  tx.note = trimmed;
+  saveState();
+  renderBuchungen();
 };
 
 // ── Clear / Settings Modal ──

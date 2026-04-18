@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v0.9.9 — 2026-04-18
+
+### Added
+- **Notiz / Kommentar**: Jede Buchung kann jetzt einen Kommentar erhalten (Textarea im Detail-Modal, auto-gespeichert bei Blur). In der Buchungsliste erscheint 💬 wenn ein Kommentar vorhanden ist.
+
 ## v0.9.8 — 2026-04-18
 
 ### Fixed
