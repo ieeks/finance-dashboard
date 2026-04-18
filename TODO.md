@@ -6,6 +6,10 @@
 
 ### PDF Parser — offene Bugs
 - [x] **POS 4350 → Billa**: Gelöst via Backward Lookup + Terminal Cache (v=28/29, 2026-04-17)
+- [x] **Helvetia AG → Miete** fälschlich als Familientransfer (Zelenina in Adresszeile) — Firmen vor Personennamen prüfen (2026-04-18)
+- [x] **Miete-Eingang → Familientransfer**: rawDesc "Miete" + positiver Betrag → Manuel Koblischek erkannt (2026-04-18)
+- [x] **Gutschrift → Gehalt/Einnahmen**: "gutschrift" aus guessCategory-Pattern entfernt (2026-04-18)
+- [x] **Familientransfer fehlt im AI-Prompt**: Kategorie + Hinweise hinzugefügt (2026-04-18)
       → DANKT-Zeile erscheint durch Y-Sortierung teils als Orphan-Zeile vor dem Header → Backward Lookup
       → Wenn DANKT komplett fehlt (PDF verliert die Zeile bei Seitenumbruch) → Terminal Cache Fallback
 

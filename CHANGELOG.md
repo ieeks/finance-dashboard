@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v0.9.8 — 2026-04-18
+
+### Fixed
+- **Parser: Helvetia AG → Miete / Hausverwaltung** — Zelenina-Check feuerte auf Adresszeile "Koblischek _ Zelenina, Rennweg 90" bevor Helvetia erkannt wurde; Firmen-Checks werden jetzt vor Personennamen geprüft
+- **Parser: Miete-Eingang (+€2200)** — rawDesc "Miete" mit positivem Betrag wird jetzt korrekt als Familientransfer (Manuel Koblischek) erkannt statt als "Miete / Hausverwaltung"
+- **Parser: Gutschrift → Familientransfer** — "gutschrift" aus guessCategory Gehalt/Einnahmen Pattern entfernt; "Gutschrift" ohne Firmennamen fällt jetzt auf "Sonstiges" (statt fälschlich "Gehalt / Einnahmen")
+- **Parser: Gutschrift Onlinebanking BIC-Filter** — Zeilen mit BAWAATWW-BIC wurden komplett übersprungen, auch wenn der Absendername dahinter stand; BIC/IBAN werden jetzt entfernt und der verbleibende Name extrahiert
+- **AI-Prompt: Familientransfer** — Kategorie fehlte im AI-Kategorisierungsprompt; jetzt inkl. Drogerie, Telekommunikation + Hinweis für Privatpersonen-Erkennung
+
+### Added
+- **Dashboard: Donut-Chart** — SVG-Kreisdiagramm für Top-5 Ausgabenkategorien im Dashboard (kein Canvas, keine externe Library)
+- **Buchungen: Gesamtsumme bei M/O-Filter** — Summary-Bar (Buchungen / Einnahmen / Ausgaben) erscheint jetzt auch beim Filtern nach Manuel oder Olga
+
 ## v0.9.7 — 2026-04-17
 
 ### Fixed

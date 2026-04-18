@@ -67,6 +67,27 @@ function renderDashboard() {
   renderInsight(txs);
 }
 
+const DONUT_COLORS = ['#5D1C34','#7B5723','#A0714A','#C49A6C','#D7C1C5'];
+
+function renderDonut(sorted, total) {
+  const cx = 80, cy = 80, r = 54, sw = 22;
+  const circ = 2 * Math.PI * r;
+  let deg = -90;
+  const slices = sorted.map(([, amt], i) => {
+    const frac = amt / total;
+    const dash = frac * circ;
+    const slice = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="${DONUT_COLORS[i] || '#ccc'}" stroke-width="${sw}"
+      stroke-dasharray="${dash.toFixed(2)} ${(circ - dash).toFixed(2)}"
+      transform="rotate(${deg} ${cx} ${cy})"/>`;
+    deg += frac * 360;
+    return slice;
+  }).join('');
+  return `<svg viewBox="0 0 160 160" width="120" height="120" style="display:block;flex-shrink:0;">
+    ${slices}
+  </svg>`;
+}
+
 function renderDashboardCategories(txs) {
   const el       = document.getElementById('db-categories');
   const expenses = txs.filter(t => t.amount < 0);
@@ -77,20 +98,37 @@ function renderDashboardCategories(txs) {
   const bycat  = {};
   expenses.forEach(t => { const c = t.category||'Sonstiges'; bycat[c]=(bycat[c]||0)+Math.abs(t.amount); });
   const sorted = Object.entries(bycat).sort((a,b) => b[1]-a[1]).slice(0,5);
+  const total  = sorted.reduce((s,[,v]) => s+v, 0);
   const max    = sorted[0][1];
-  const colors = ['var(--primary-container)','var(--secondary)','var(--secondary)','var(--outline)','var(--outline)'];
-  el.innerHTML = sorted.map(([cat, amt], i) => {
+
+  const legend = sorted.map(([cat, amt], i) => {
+    const pct = Math.round((amt / total) * 100);
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;">
+      <div style="width:8px;height:8px;border-radius:50%;background:${DONUT_COLORS[i]||'#ccc'};flex-shrink:0;"></div>
+      <div style="font-size:0.68rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cat}</div>
+      <div style="font-size:0.68rem;font-weight:700;color:var(--text);margin-left:auto;white-space:nowrap;">${pct}%</div>
+    </div>`;
+  }).join('');
+
+  const bars = sorted.map(([cat, amt], i) => {
     const cfg = CAT_CONFIG[cat] || CAT_CONFIG['Sonstiges'];
     const pct = Math.round((amt / max) * 100);
     return `<div class="cat-row">
       <div class="cat-icon-wrap">${cfg.icon}</div>
       <div style="flex:1;">
         <div class="cat-label">${cat}</div>
-        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${colors[i]||'var(--outline)'}"></div></div>
+        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${DONUT_COLORS[i]||'var(--outline)'}"></div></div>
       </div>
       <div class="cat-amount">${formatEur(amt)}</div>
     </div>`;
   }).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--outline-soft);">
+      ${renderDonut(sorted, total)}
+      <div style="flex:1;min-width:0;">${legend}</div>
+    </div>
+    ${bars}`;
 }
 
 function renderFixkosten(txs) {
@@ -196,7 +234,7 @@ function renderBuchungen() {
 
   // summary bar when filter or search active
   const summaryEl = document.getElementById('buchungen-summary');
-  if (summaryEl && (search || _filterCat)) {
+  if (summaryEl && (search || _filterCat || _filterCard)) {
     const total   = txs.reduce((s,t) => s + t.amount, 0);
     const expense = txs.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
     const income  = txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);

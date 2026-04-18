@@ -353,23 +353,34 @@ function _extractDesc(rawDesc, contLines, amount) {
   // 2. Benannte Vorgänge auf rawDesc — VOR allText-Checks damit Miete/Gutschrift nicht überschrieben werden
   if (/Gutschrift\s+Onlinebanking/i.test(raw)) {
     for (const cl of contLines) {
-      if (/^(BAWAATWW|OG\/|BG\/)/i.test(cl)) continue;
-      const name = cl.replace(/AT\d{18,}/g, '').trim();
-      if (name.length > 2) return `Gutschrift (${name.slice(0, 30)})`;
+      // BIC/IBAN aus der Zeile entfernen und prüfen ob ein Name übrig bleibt
+      const cleaned = cl
+        .replace(/\b[A-Z]{6}[A-Z0-9]{2,3}\b/g, '')  // BICs entfernen (inkl. BAWAATWW)
+        .replace(/\bAT\d{16,22}\b/g, '')              // IBANs entfernen
+        .replace(/^(OG|BG|MC)\//i, '')
+        .replace(/\s+/g, ' ').trim();
+      if (cleaned.length > 2 && !/^\d+$/.test(cleaned)) return `Gutschrift (${cleaned.slice(0, 30)})`;
     }
     return 'Gutschrift';
   }
-  if (/^Miete/i.test(raw))      return 'Miete / Hausverwaltung';
+  if (/^Miete/i.test(raw)) {
+    // Eingehende Mietzahlung (positiv) → kein Wohnen/Miete, Name aus contLines prüfen
+    if (amount > 0) {
+      if (/Olga\s*Zelenina|Zelenina/i.test(allText)) return 'Gutschrift (Olga Zelenina)';
+      if (/Manuel\s*Koblischek/i.test(allText))      return 'Gutschrift (Manuel Koblischek)';
+      // Unbekannter Absender — als generische Gutschrift weiter klassifizieren
+    } else {
+      return 'Miete / Hausverwaltung';
+    }
+  }
   if (/^Sollzinsen/i.test(raw)) return 'Sollzinsen';
 
   // 3. Bekannte Gegenstellen (allText-basiert)
+  // Firmen/Institutionen VOR Personennamen prüfen — Personennamen können in Adresszeilen vorkommen
   if (/Tesla/i.test(allText))                          return 'Tesla Supercharger';
   if (/T-Mobile|Magenta/i.test(allText))               return 'T-Mobile / Magenta';
   if (/WE\s+Vertrieb|Wien\s+Energie/i.test(allText))  return 'Wien Energie';
   if (/\bAMAZON\b/i.test(allText))                    return 'Amazon';
-  if (/Olga\s*Zelenina|Zelenina/i.test(allText))
-    return amount > 0 ? 'Gutschrift (Olga Zelenina)' : 'Olga Zelenina';
-  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift (Manuel Koblischek)';
   if (/PAYPAL|PPLX/i.test(allText))                   return 'PayPal';
   if (/Helvetia/i.test(allText)) {
     if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
@@ -381,6 +392,10 @@ function _extractDesc(rawDesc, contLines, amount) {
     if (/Elementar|AEV\d+|Kfz|KFZ/i.test(allText)) return 'Allianz KFZ-Versicherung';
     return 'Allianz Versicherung';
   }
+  // Personennamen erst nach Firmen-Checks — vermeidet False-Positives aus Adresszeilen
+  if (/Olga\s*Zelenina|Zelenina/i.test(allText))
+    return amount > 0 ? 'Gutschrift (Olga Zelenina)' : 'Olga Zelenina';
+  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift (Manuel Koblischek)';
 
   // 4. SEPA mit BIC → Gegenpartei aus Folgezeilen (kein i-Flag: BICs sind immer Großbuchstaben)
   if (/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}/.test(raw)) {
@@ -462,8 +477,9 @@ export async function categorizeWithAI(transactions, provider = 'anthropic') {
 
   const categories = [
     'Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
-    'Energie / Strom','Versicherung','Gesundheit','Online Shopping',
-    'Freizeit','Gehalt / Einnahmen','Gebühren / Bank','Sonstiges',
+    'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
+    'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank',
+    'Telekommunikation','Sonstiges',
   ].join(', ');
 
   const list = transactions
@@ -473,6 +489,11 @@ export async function categorizeWithAI(transactions, provider = 'anthropic') {
   const prompt = `Du bist ein österreichischer Finanz-Assistent. Kategorisiere diese Bankbuchungen.
 
 Verfügbare Kategorien: ${categories}
+
+Hinweise:
+- "Familientransfer": Gutschriften oder Überweisungen von/an Privatpersonen (Familie, Partner), erkennbar an Personennamen (z.B. Olga, Manuel, Zelenina, Koblischek) oder Beschreibungen wie "Gutschrift (Name)"
+- "Gehalt / Einnahmen": nur eindeutige Gehaltseingänge von Arbeitgebern (Firmen, GmbH, AG usw.)
+- Reine "Gutschrift" ohne Firmennamen → eher "Familientransfer" als "Gehalt / Einnahmen"
 
 Buchungen:
 ${list}
@@ -557,7 +578,7 @@ export function guessCategory(desc) {
   if (/apotheke|arzt|krankenhaus/.test(d))                                                          return 'Gesundheit';
   if (/amazon|zalando|ebay|shein|aliexpress|paypal|hartlauer|mediamarkt|saturn|\bikea\b|zara|\bh&m\b|deichmann|humanic|intersport|decathlon|\bobi\b|hornbach|libro/.test(d)) return 'Online Shopping';
   if (/olga zelenina|zelenina|manuel koblischek|familientransfer/.test(d))                          return 'Familientransfer';
-  if (/gehalt|lohn|salary|gutschrift/.test(d))                                                     return 'Gehalt / Einnahmen';
+  if (/gehalt|lohn|salary/.test(d))                                                                return 'Gehalt / Einnahmen';
   if (/kino|theater|concert|museum|netflix|spotify|disney|gaming|steam/.test(d))                   return 'Freizeit';
   if (/t-mobile|magenta|\ba1\b|\bdrei\b|telekom|hutchison/.test(d))                                return 'Telekommunikation';
   if (/sollzinsen|gebühr|kontoführung|provision|zinsen|bawag|easybank/.test(d))                    return 'Gebühren / Bank';
