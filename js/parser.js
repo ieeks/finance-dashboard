@@ -546,8 +546,8 @@ async function _callOpenAI(key, prompt) {
 // ── Regelbasierter Fallback ──
 export function guessCategory(desc) {
   const d = desc.toLowerCase();
-  if (/billa|interspar|eurospar|\bspar\b|hofer|lidl|penny|nah.frisch|mpreis|unimarkt|maximarkt|\badeg\b|julius meinl/.test(d)) return 'Supermarkt';
-  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|anker|felber|gasthaus|wirtshaus|beisl|der mann|pizza|kebab|coca.cola hbc/.test(d)) return 'Restaurant / Café';
+  if (/billa|interspar|eurospar|\bspar\b|hofer|lidl|penny|nah.frisch|mpreis|unimarkt|maximarkt|\badeg\b|julius meinl|coca.cola hbc/.test(d)) return 'Supermarkt';
+  if (/restaurant|café|cafe|mcdonald|burger king|\bkfc\b|subway|starbucks|pronto|anker|felber|gasthaus|wirtshaus|beisl|der mann|pizza|kebab/.test(d)) return 'Restaurant / Café';
   if (/^miete|wohnung|immobilien|hausverwaltung|betriebskosten|vorschreibung|miete \/ hausverwaltung/.test(d)) return 'Wohnen / Miete';
   if (/tesla|tankstelle|omv|avanti|turmöl|turmoel|circle k|\bbp\b|shell|\beni\b|agip|\bjet\b|öamtc|parken|parking|wiener linien|bim|bahn|öbb|uber|taxi|leasing/.test(d)) return 'Mobilität / Auto';
   if (/wien energie|we vertrieb|energie|strom|gas|verbund|e-control/.test(d))                      return 'Energie / Strom';
