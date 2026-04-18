@@ -23,10 +23,8 @@ const MONTH_NAMES_LONG = ['Jänner','Februar','März','April','Mai','Juni','Juli
 function updateMonthTriggers() {
   const [y, m] = state.currentMonth.split('-').map(Number);
   const label = `${MONTH_NAMES_LONG[m-1]} ${y}`;
-  const el1 = document.getElementById('monthTriggerLabel');
-  const el2 = document.getElementById('monthTriggerLabelBuch');
-  if (el1) el1.textContent = label;
-  if (el2) el2.textContent = label;
+  const el = document.getElementById('monthTriggerLabel');
+  if (el) el.textContent = label;
 }
 
 // ── Dashboard ──
@@ -158,45 +156,14 @@ function renderInsight(txs) {
 }
 
 // ── Buchungen ──
-let _filterCat  = null;
-let _filterCard = null;
-let _filterBon  = null;
-
-window.setCardFilter = function(who) {
-  _filterCard = who;
-  renderBuchungen();
-  _updateClearBtn();
+let _buchFilter = {
+  konto: 'alle', beleg: 'alle', typ: 'alle', cats: []
 };
-
-window.setBonFilter = function(val) {
-  _filterBon = val;
-  renderBuchungen();
-  _updateClearBtn();
-};
-
-window.clearAllFilters = function() {
-  _filterCat = null; _filterCard = null; _filterBon = null;
-  const searchEl = document.getElementById('search-input');
-  if (searchEl) searchEl.value = '';
-  renderBuchungen();
-};
-
-function _updateClearBtn() {
-  const hasFilter = _filterCat || _filterCard || _filterBon ||
-                    (document.getElementById('search-input')?.value || '');
-  const btn = document.getElementById('clear-filters-btn');
-  if (btn) btn.style.display = hasFilter ? 'flex' : 'none';
-}
 
 function renderBuchungen() {
-  _updateClearBtn();
-  updateMonthTriggers();
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
 
-  // when searching, span all months; otherwise only current month
-  let txs = search
-    ? state.transactions.slice()
-    : getTransactionsForMonth(state.currentMonth);
+  let txs = search ? state.transactions.slice() : getTransactionsForMonth(state.currentMonth);
 
   if (search) {
     txs = txs.filter(t =>
@@ -204,25 +171,18 @@ function renderBuchungen() {
       (t.category||'').toLowerCase().includes(search)
     );
   }
-  if (_filterCat)             txs = txs.filter(t => t.category === _filterCat);
-  if (_filterCard)            txs = txs.filter(t => t.cardHolder === _filterCard);
-  if (_filterBon === 'linked') txs = txs.filter(t => !!t.bon);
-  if (_filterBon === 'open')   txs = txs.filter(t => !t.bon && t.amount < 0);
-
-  // update filter active states
-  document.querySelectorAll('.filter-cat-chip').forEach(el => {
-    el.classList.toggle('active', el.dataset.cat === (_filterCat || ''));
-  });
-  document.querySelectorAll('.filter-card-chip').forEach(el => {
-    el.classList.toggle('active', el.dataset.card === (_filterCard || ''));
-  });
-  document.querySelectorAll('.filter-bon-chip').forEach(el => {
-    el.classList.toggle('active', el.dataset.bon === (_filterBon || ''));
-  });
+  if (_buchFilter.konto !== 'alle') txs = txs.filter(t => t.cardHolder === _buchFilter.konto);
+  if (_buchFilter.beleg === 'linked') txs = txs.filter(t => !!t.bon);
+  if (_buchFilter.beleg === 'open')   txs = txs.filter(t => !t.bon && t.amount < 0);
+  if (_buchFilter.typ === 'aus')      txs = txs.filter(t => t.amount < 0);
+  if (_buchFilter.typ === 'ein')      txs = txs.filter(t => t.amount > 0);
+  if (_buchFilter.cats.length)        txs = txs.filter(t => _buchFilter.cats.includes(t.category));
 
   // summary bar when filter or search active
+  const hasFilter = search || _buchFilter.konto !== 'alle' || _buchFilter.beleg !== 'alle' ||
+                    _buchFilter.typ !== 'alle' || _buchFilter.cats.length > 0;
   const summaryEl = document.getElementById('buchungen-summary');
-  if (summaryEl && (search || _filterCat || _filterCard)) {
+  if (summaryEl && hasFilter) {
     const total   = txs.reduce((s,t) => s + t.amount, 0);
     const expense = txs.filter(t=>t.amount<0).reduce((s,t)=>s+t.amount,0);
     const income  = txs.filter(t=>t.amount>0).reduce((s,t)=>s+t.amount,0);
@@ -293,38 +253,6 @@ function renderTxItem(tx) {
     <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '−'}${formatEur(Math.abs(tx.amount))}</div>
   </div>`;
 }
-
-window.toggleFilterPanel = function() {
-  const panel = document.getElementById('filter-panel');
-  if (!panel) return;
-  const open = panel.style.display !== 'none';
-  panel.style.display = open ? 'none' : 'block';
-  if (!open) {
-    const cats = ['Alle', ...Object.keys(CAT_CONFIG)];
-    panel.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px;">` +
-      cats.map(c => `<button class="filter-cat-chip${(_filterCat === null && c === 'Alle') || _filterCat === c ? ' active' : ''}"
-        data-cat="${c === 'Alle' ? '' : c}"
-        onclick="setFilterCat('${c === 'Alle' ? '' : c}')"
-        style="padding:6px 14px;border-radius:100px;border:1.5px solid var(--outline-soft);background:var(--surface-low);
-               font-size:0.72rem;font-weight:600;cursor:pointer;font-family:var(--sans);color:var(--text-muted);
-               transition:all 0.15s;">
-        ${c === 'Alle' ? '✕ Alle' : (CAT_CONFIG[c]?.icon || '') + ' ' + c}
-      </button>`).join('') +
-    `</div>`;
-  }
-};
-
-window.setFilterCat = function(cat) {
-  _filterCat = cat || null;
-  renderBuchungen();
-  _updateClearBtn();
-  document.querySelectorAll('.filter-cat-chip').forEach(el => {
-    const isActive = (cat === '' && el.dataset.cat === '') || el.dataset.cat === cat;
-    el.style.background    = isActive ? 'var(--primary-container)' : 'var(--surface-low)';
-    el.style.color         = isActive ? 'var(--on-primary)' : 'var(--text-muted)';
-    el.style.borderColor   = isActive ? 'var(--primary-container)' : 'var(--outline-soft)';
-  });
-};
 
 // ── TX Modal ──
 window.openTxModal = function(id) {
@@ -787,6 +715,243 @@ window.linkBon = function(txId) {
 };
 
 // ── DOMContentLoaded ──
+// ── Buchungen Filter Bottom Sheet ──
+function initBuchFilters() {
+  const MONTHS_S = ['Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const MONTHS_L = ['Jänner','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const CATS = Object.entries(CAT_CONFIG).map(([label, cfg]) => ({ emoji: cfg.icon, label }));
+
+  let monthSheetFromFilter = false;
+  let pendingMonth = { year: 2026, month: 0 };
+  let confirmedMonth = { year: 2026, month: 0 };
+  let pendingFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: new Set() };
+
+  const overlay    = document.getElementById('buchOverlay');
+  const filterSheet = document.getElementById('buchFilterSheet');
+  const monthSheet  = document.getElementById('buchMonthSheet');
+  if (!overlay || !filterSheet || !monthSheet) return;
+
+  // Init confirmed month from state
+  function syncConfirmedFromState() {
+    const [y, m] = state.currentMonth.split('-').map(Number);
+    confirmedMonth = { year: y, month: m - 1 };
+  }
+  syncConfirmedFromState();
+
+  function updateMonthLabels() {
+    const lbl = `${MONTHS_L[confirmedMonth.month]} ${confirmedMonth.year}`;
+    const el1 = document.getElementById('buchMonthLabel');
+    const el2 = document.getElementById('fsMonthLabel');
+    if (el1) el1.textContent = lbl;
+    if (el2) el2.textContent = lbl;
+  }
+
+  function buildAvailableMonths() {
+    const result = {};
+    getAvailableMonths().forEach(ym => {
+      const [y, m] = ym.split('-').map(Number);
+      if (!result[y]) result[y] = [];
+      result[y].push(m - 1);
+    });
+    return result;
+  }
+
+  // ── Category grid ──
+  function renderCatGrid() {
+    const grid = document.getElementById('buchCatGrid');
+    if (!grid) return;
+    grid.innerHTML = CATS.map((c, i) =>
+      `<button class="cat-chip-btn${pendingFilter.cats.has(i) ? ' active' : ''}" data-ci="${i}">
+        <span>${c.emoji}</span><span>${c.label}</span>
+      </button>`
+    ).join('');
+    grid.querySelectorAll('.cat-chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.ci);
+        if (pendingFilter.cats.has(i)) pendingFilter.cats.delete(i);
+        else pendingFilter.cats.add(i);
+        renderCatGrid();
+      });
+    });
+  }
+
+  // ── Chip group toggles ──
+  filterSheet.querySelectorAll('.bs-chips').forEach(row => {
+    row.querySelectorAll('.bs-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const group = row.dataset.group;
+        const val   = chip.dataset.val;
+        row.querySelectorAll('.bs-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        pendingFilter[group] = val;
+      });
+    });
+  });
+
+  // ── Filter sheet open/close ──
+  function openFilterSheet() {
+    pendingFilter = {
+      konto: _buchFilter.konto, beleg: _buchFilter.beleg,
+      typ: _buchFilter.typ, cats: new Set(_buchFilter.cats.map(l => CATS.findIndex(c => c.label === l)))
+    };
+    // sync chip active states
+    filterSheet.querySelectorAll('.bs-chips').forEach(row => {
+      const group = row.dataset.group;
+      row.querySelectorAll('.bs-chip').forEach(c => {
+        c.classList.toggle('active', c.dataset.val === pendingFilter[group]);
+      });
+    });
+    renderCatGrid();
+    overlay.classList.add('visible');
+    filterSheet.classList.add('open');
+  }
+
+  function closeFilterSheet() {
+    filterSheet.classList.remove('open');
+    overlay.classList.remove('visible');
+  }
+
+  // ── Filter badge + active pills ──
+  function updateFilterBadge() {
+    let n = 0;
+    if (_buchFilter.konto !== 'alle') n++;
+    if (_buchFilter.beleg !== 'alle') n++;
+    if (_buchFilter.typ   !== 'alle') n++;
+    n += _buchFilter.cats.length;
+    const badge = document.getElementById('buchFilterBadge');
+    const btn   = document.getElementById('buchFilterBtn');
+    if (badge) { badge.textContent = n; badge.classList.toggle('show', n > 0); }
+    if (btn)   btn.classList.toggle('has-active', n > 0);
+  }
+
+  function renderActivePills() {
+    const bar = document.getElementById('activePills');
+    if (!bar) return;
+    const items = [];
+    if (_buchFilter.konto !== 'alle') items.push({ label: _buchFilter.konto === 'manuel' ? '👤 Manuel' : '👤 Olga', key: 'konto' });
+    if (_buchFilter.beleg !== 'alle') items.push({ label: _buchFilter.beleg === 'linked' ? '✅ Verknüpft' : '◻ Offen', key: 'beleg' });
+    if (_buchFilter.typ   !== 'alle') items.push({ label: _buchFilter.typ === 'aus' ? '↑ Ausgaben' : '↓ Einnahmen', key: 'typ' });
+    _buchFilter.cats.forEach(l => items.push({ label: (CATS.find(c => c.label === l)?.emoji || '') + ' ' + l, key: 'cat:' + l }));
+    bar.innerHTML = items.map(it =>
+      `<div class="ap-pill">${it.label}<span class="px" data-key="${it.key}">✕</span></div>`
+    ).join('');
+    bar.querySelectorAll('.px').forEach(x => {
+      x.addEventListener('click', () => removePill(x.dataset.key));
+    });
+  }
+
+  function removePill(key) {
+    if (key.startsWith('cat:')) {
+      _buchFilter.cats = _buchFilter.cats.filter(l => l !== key.slice(4));
+    } else {
+      _buchFilter[key] = 'alle';
+    }
+    renderActivePills();
+    updateFilterBadge();
+    renderBuchungen();
+  }
+
+  // ── Reset & Apply ──
+  document.getElementById('buchFilterReset')?.addEventListener('click', () => {
+    _buchFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: [] };
+    syncConfirmedFromState();
+    updateMonthLabels();
+    closeFilterSheet();
+    renderActivePills();
+    updateFilterBadge();
+    renderBuchungen();
+  });
+
+  document.getElementById('buchFilterApply')?.addEventListener('click', () => {
+    confirmedMonth = { ...pendingMonth };
+    const ym = `${confirmedMonth.year}-${String(confirmedMonth.month + 1).padStart(2,'0')}`;
+    state.currentMonth = ym;
+    saveState();
+    _buchFilter = {
+      konto: pendingFilter.konto, beleg: pendingFilter.beleg, typ: pendingFilter.typ,
+      cats: [...pendingFilter.cats].map(i => CATS[i]?.label).filter(Boolean)
+    };
+    updateMonthLabels();
+    closeFilterSheet();
+    renderActivePills();
+    updateFilterBadge();
+    renderBuchungen();
+  });
+
+  document.getElementById('buchFilterClose')?.addEventListener('click', closeFilterSheet);
+  document.getElementById('buchFilterBtn')?.addEventListener('click', openFilterSheet);
+
+  // ── Month sheet ──
+  function openMonthSheet(fromFilter = false) {
+    monthSheetFromFilter = fromFilter;
+    pendingMonth = { ...confirmedMonth };
+    renderMonthGrid();
+    monthSheet.classList.add('open');
+    if (!fromFilter) overlay.classList.add('visible');
+  }
+
+  function closeMonthSheet() {
+    monthSheet.classList.remove('open');
+    if (!monthSheetFromFilter) overlay.classList.remove('visible');
+  }
+
+  function renderMonthGrid() {
+    const available = buildAvailableMonths();
+    const avail = available[pendingMonth.year] || [];
+    const allYears = Object.keys(available).map(Number);
+    const minY = allYears.length ? Math.min(...allYears) : pendingMonth.year;
+    const maxY = allYears.length ? Math.max(...allYears) : pendingMonth.year;
+    document.getElementById('buchYearLabel').textContent = pendingMonth.year;
+    const btnPrev = document.getElementById('buchYearPrev');
+    const btnNext = document.getElementById('buchYearNext');
+    if (btnPrev) btnPrev.disabled = pendingMonth.year <= minY;
+    if (btnNext) btnNext.disabled = pendingMonth.year >= maxY;
+    const grid = document.getElementById('buchMonthGrid');
+    if (!grid) return;
+    grid.innerHTML = MONTHS_S.map((name, i) => {
+      const ok = avail.includes(i);
+      const active = i === pendingMonth.month;
+      return `<button class="mgb-btn${active ? ' active' : ''}" ${ok ? '' : 'disabled'} data-mi="${i}">${name}</button>`;
+    }).join('');
+    grid.querySelectorAll('.mgb-btn:not(:disabled)').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingMonth.month = parseInt(btn.dataset.mi);
+        renderMonthGrid();
+      });
+    });
+  }
+
+  document.getElementById('buchMsClose')?.addEventListener('click', closeMonthSheet);
+  document.getElementById('buchMsConfirm')?.addEventListener('click', () => {
+    confirmedMonth = { ...pendingMonth };
+    const ym = `${confirmedMonth.year}-${String(confirmedMonth.month + 1).padStart(2,'0')}`;
+    state.currentMonth = ym;
+    saveState();
+    updateMonthLabels();
+    closeMonthSheet();
+    if (!monthSheetFromFilter) renderBuchungen();
+  });
+  document.getElementById('buchYearPrev')?.addEventListener('click', () => {
+    const minY = Math.min(...Object.keys(buildAvailableMonths()).map(Number));
+    if (pendingMonth.year > minY) { pendingMonth.year--; renderMonthGrid(); }
+  });
+  document.getElementById('buchYearNext')?.addEventListener('click', () => {
+    const maxY = Math.max(...Object.keys(buildAvailableMonths()).map(Number));
+    if (pendingMonth.year < maxY) { pendingMonth.year++; renderMonthGrid(); }
+  });
+  document.getElementById('fsMonthBtn')?.addEventListener('click', () => openMonthSheet(true));
+  document.getElementById('buchMonthTrigger')?.addEventListener('click', () => openMonthSheet(false));
+
+  overlay.addEventListener('click', () => {
+    if (monthSheet.classList.contains('open') && !monthSheetFromFilter) closeMonthSheet();
+    else if (!monthSheet.classList.contains('open')) closeFilterSheet();
+  });
+
+  // Init labels
+  updateMonthLabels();
+  updateFilterBadge();
+}
+
 // ── Month Picker Bottom Sheet ──
 function initMonthPicker() {
   const MONTH_NAMES_SHORT = ['Jän','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
@@ -882,9 +1047,6 @@ function initMonthPicker() {
   document.getElementById('monthTriggerChip')?.addEventListener('click', () =>
     openSheet(ym => { state.currentMonth = ym; saveState(); renderDashboard(); })
   );
-  document.getElementById('monthTriggerChipBuch')?.addEventListener('click', () =>
-    openSheet(ym => { state.currentMonth = ym; saveState(); renderBuchungen(); })
-  );
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -906,6 +1068,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  initBuchFilters();
   initMonthPicker();
 
   // Search input (not global in ES module, so register via JS)
