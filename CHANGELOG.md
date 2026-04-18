@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v1.0.0 — 2026-04-18
+
+### Fixed
+- **Parser: Gutschrift Olga Forward-Lookup** — BAWAATWWXXX + Name-Zeile verschmilzt durch Y-Koordinaten-Merge mit der nächsten Transaktion (z.B. PayPal) und verschwindet aus contLines; Forward-Lookup scannt `lines[j..j+3]` nach dem contLines-Abbruch und findet den Namen dort (löst BG/000004339 €200 + BG/000004367 €1600)
+
 ## v0.9.9 — 2026-04-18
 
 ### Added

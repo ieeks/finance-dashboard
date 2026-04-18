@@ -207,6 +207,15 @@ function parseEasybankStatement(text) {
             if (/Manuel|Koblischek/i.test(prevLine)) { description = 'Gutschrift Manuel'; break; }
           }
         }
+        // Forward-Lookup: BAWAATWWXXX + Name kann durch Y-Koordinaten-Merge mit der nächsten
+        // Transaktion verschmelzen → taucht als contLine der nächsten TX auf, nicht als eigene Zeile
+        if (description === 'Gutschrift') {
+          for (let fwd = j; fwd < Math.min(j + 4, lines.length); fwd++) {
+            const fwdLine = lines[fwd];
+            if (/Olga|Zelenina/i.test(fwdLine))    { description = 'Gutschrift Olga';   break; }
+            if (/Manuel|Koblischek/i.test(fwdLine)) { description = 'Gutschrift Manuel'; break; }
+          }
+        }
         if (Math.abs(amount) >= 0.01 && description.length > 0) {
           transactions.push(_makeTx(bookingDate, description, amount, 'easybank'));
         }
