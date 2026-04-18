@@ -901,7 +901,8 @@ function initBuchFilters() {
     const allYears = Object.keys(available).map(Number);
     const minY = allYears.length ? Math.min(...allYears) : pendingMonth.year;
     const maxY = allYears.length ? Math.max(...allYears) : pendingMonth.year;
-    document.getElementById('buchYearLabel').textContent = pendingMonth.year;
+    const yearLbl = document.getElementById('buchYearLabel');
+    if (yearLbl) yearLbl.textContent = pendingMonth.year;
     const btnPrev = document.getElementById('buchYearPrev');
     const btnNext = document.getElementById('buchYearNext');
     if (btnPrev) btnPrev.disabled = pendingMonth.year <= minY;
@@ -1055,7 +1056,7 @@ function initMonthPicker() {
   );
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function _initApp() {
   // Drag & drop
   const zone = document.getElementById('upload-zone');
   if (zone) {
@@ -1104,4 +1105,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderDashboard();
   renderKonten();
   window.showScreen('dashboard');
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initApp);
+} else {
+  _initApp();
+}
