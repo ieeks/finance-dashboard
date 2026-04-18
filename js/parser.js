@@ -75,9 +75,17 @@ function parseEasybankStatement(text) {
   // Wird bei jedem erfolgreichen Match befüllt und als Fallback genutzt.
   const terminalCache = new Map();
 
-  // Extract year from "vom DD.MM.YYYY"
-  const yearMatch = text.match(/vom\s+\d{2}\.\d{2}\.(\d{4})/);
-  const year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+  // Extract year — try "vom DD.MM.YYYY", then any 4-digit year in first 500 chars,
+  // then fall back to current year but correct forward-dating: if all parsed months
+  // would be in the future, subtract 1 year.
+  const headerText  = text.slice(0, 500);
+  const yearMatch   = headerText.match(/vom\s+\d{2}\.\d{2}\.(\d{4})/)
+                   || headerText.match(/\b(20\d{2})\b/);
+  let year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
+  // Sanity-check: if the extracted year is ahead of today by more than 0 years, step back
+  if (parseInt(year) > new Date().getFullYear()) {
+    year = String(new Date().getFullYear());
+  }
 
   const lines    = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const headerRe = /^KONTOAUSZUG|^IBAN\s|^Buch\.-Tag|^Währung|^Manuel Koblischek\s+AT\d|^D04MMK|^Bei Rückfragen|^Reklamationen|^BIC:|^Dieses Konto|^Ihre aktuelle|^Summe Ein|^Summe Aus|^Neuer Kontostand|^Beilagen/;
