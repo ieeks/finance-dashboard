@@ -22,13 +22,137 @@
 - [x] API Key von Import → Bon-Screen verschoben
 - [ ] Fehlerfall: Was wenn KI kein valid JSON zurückgibt? bessere Fallback-Meldung statt crash
 
-## Phase 2 — Firebase Integration
+---
 
 ## Phase 2 — Firebase Integration
-- [ ] Firebase Firestore Setup (Config auslagern)
-- [ ] Transaktionen persistent speichern (kein Re-Import nötig)
-- [ ] Duplikat-Erkennung beim Import (gleiche Buchung nicht zweimal)
-- [ ] Import-History: welche PDFs wurden bereits importiert?
+
+> **Voraussetzung:** Parser ist stabil + Transaktions-Datenstruktur ändert sich nicht mehr wesentlich.
+> Firebase erst integrieren wenn Phase 1 (Bugs/Parser) abgeschlossen ist — sonst drohen Firestore-Migrationen.
+
+### Entscheidungen (bereits getroffen)
+
+- **Auth:** Google Login (`signInWithPopup`) mit E-Mail-Whitelist
+  - Zugelassene Accounts: `manuel.koblischek@gmail.com`, `zolguita@gmail.com`
+  - Doppelte Absicherung: JS-seitig (UX) + Firestore Security Rules (tatsächliche Sicherheit)
+- **Datensilo:** Gemeinsamer Haushalt-Pool — beide sehen alle Transaktionen
+- **Firebase-Projekt:** Eigenes Projekt `finance-dashboard` (getrennt vom LEGO-Tracker)
+- **Config:** `firebase-config.js` in `.gitignore` + API Keys als GitHub Secret für GH Actions
+
+---
+
+### Datenmodell (Firestore)
+
+```
+household/main/
+  transactions/{txId}
+    date:         "2026-03-15"          ← ISO-String
+    amount:       -84.30                ← negativ = Ausgabe, positiv = Einnahme
+    rawDesc:      "BILLA DANKT 1020 WIEN"
+    description:  "Billa"              ← bereinigter Name
+    category:     "Lebensmittel"
+    subcategory:  null                  ← Phase 3: gefüllt durch Bon-Matching
+    account:      "AT12BAWAG...8821"   ← IBAN aus PDF-Header (maskiert für Anzeige)
+    source:       "bawag-pdf"          ← später: "finanzguru-csv", "easybank-pdf" etc.
+    importId:     "8821_2026_04"       ← Referenz auf imports-Dokument (Duplikat-Check)
+    bonId:        null                  ← Referenz auf verknüpften Bon (Phase 3)
+    createdAt:    Timestamp
+    createdBy:    "manuel.koblischek@gmail.com"
+
+  imports/{importId}                   ← importId = {IBAN_last4}_{year}_{month}
+    filename:     "Kontoauszug_2026_04.pdf"
+    importedAt:   Timestamp
+    importedBy:   "manuel.koblischek@gmail.com"
+    txCount:      47
+    account:      "AT12BAWAG...8821"
+    dateRange:    { from: "2026-04-01", to: "2026-04-30" }
+
+  bons/{bonId}                         ← Phase 3
+    matchedTxId:  "..."
+    vendor:       "Billa"
+    total:        84.30
+    date:         "2026-03-15"
+    items:        [ { name, qty, price, subcategory } ]
+    source:       "photo" | "pdf"
+    createdAt:    Timestamp
+    createdBy:    "zolguita@gmail.com"
+```
+
+---
+
+### Auth — Implementierung
+
+```javascript
+// auth.js
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+
+const ALLOWED_EMAILS = [
+  "manuel.koblischek@gmail.com",
+  "zolguita@gmail.com"
+];
+
+export async function login() {
+  const auth = getAuth();
+  const result = await signInWithPopup(auth, new GoogleAuthProvider());
+  if (!ALLOWED_EMAILS.includes(result.user.email)) {
+    await signOut(auth);
+    throw new Error("Kein Zugang für dieses Konto.");
+  }
+  return result.user;
+}
+```
+
+---
+
+### Firestore Security Rules
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /household/{document=**} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email in [
+          "manuel.koblischek@gmail.com",
+          "zolguita@gmail.com"
+        ];
+    }
+  }
+}
+```
+
+---
+
+### Duplikat-Erkennung
+
+**Strategie: Composite Key** `importId = {IBAN_last4}_{year}_{month}`
+Beispiel: `8821_2026_04`
+
+Import-Flow:
+1. IBAN + Zeitraum aus PDF-Header extrahieren → `importId` bauen
+2. `imports/{importId}` in Firestore prüfen — existiert bereits? → Abbruch mit Toast "Bereits importiert (April 2026 · BAWAG ••8821)"
+3. Wenn neu: alle Transaktionen als Batch in `transactions/` schreiben + `imports/{importId}` anlegen
+
+Optional für feineres Deduplizieren (z.B. Teilimporte):
+`txId = hash(date + amount + rawDesc)` → jede TX einzeln prüfbar, unabhängig vom Import-Dokument.
+
+---
+
+### Implementierungs-Reihenfolge
+
+1. **Firebase-Projekt anlegen** — Console, Firestore aktivieren, Auth (Google Provider) aktivieren
+2. **`firebase-config.js`** erstellen (gitignored), Werte als GH Secret für Actions hinterlegen
+3. **`firebaseService.js`** Modul bauen:
+   - `login()` / `logout()` / `onAuthChange(callback)`
+   - `checkImportExists(importId)` → boolean
+   - `saveImport(importId, meta)` → schreibt Import-Dokument
+   - `saveTxBatch(transactions)` → Firestore `writeBatch`
+   - `loadTxs()` → alle Transaktionen laden, nach Datum sortiert
+4. **Login-Screen** einbauen — minimales UI, Google-Button, Fehlermeldung bei unerlaubtem Account
+5. **Import-Flow erweitern** — nach erfolgreichem Parse: `checkImportExists` → `saveTxBatch` → `saveImport`
+6. **App-Start** — `loadTxs()` statt leerem State; Spinner während Laden
+7. **Import-History Screen** — Liste aller `imports/`-Dokumente (Datum, Dateiname, Anzahl TX)
+
+---
 
 ## Phase 3 — Rechnungs-Matching & Einzelpositionen
 
@@ -54,10 +178,14 @@
 - [ ] Top-Produkte Ranking (was kaufe ich am häufigsten?)
 - [ ] Filter: nur Buchungen mit / ohne Bon anzeigen
 
+---
+
 ## Phase 4 — Visualisierung
 - [ ] Monatsvergleich-Chart (Balken: Einnahmen vs. Ausgaben)
 - [ ] Kategorien-Trend über Monate
 - [ ] Jahresübersicht
+
+---
 
 ## Phase 5 — Datenquellen & Multi-Konto
 - [ ] Finanzguru CSV-Export Import
@@ -68,6 +196,8 @@
       → Gesamtvermögens-Karte mit Trend-Kurve (alle Konten summiert)
 - [ ] "Neues Konto verknüpfen" Flow (PDF-Upload einem Konto zuordnen)
 - [ ] YNAB-Export-Format (optional)
+
+---
 
 ## Phase 6 — Gmail Invoice Matcher (gmail-invoice-matcher.md)
 
@@ -83,6 +213,8 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 
 **Gedanken dazu (siehe unten im Abschnitt "Notizen")**
 
+---
+
 ## AI Provider — Dual Support
 - [x] Anthropic: Claude Haiku (PDF-Parsing) + Claude Vision (Bon-Extraktion)
 - [x] OpenAI: gpt-4o-mini (PDF-Parsing + Bon-PDF) + gpt-4o Vision (Bon-Bild)
@@ -90,11 +222,15 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 - [ ] Abstraktions-Layer `aiProvider.js` für saubere Trennung
 - [ ] Fallback: wenn Provider A fehlschlägt → Hinweis, nicht automatischer Wechsel
 
+---
+
 ## Bugs / Verbesserungen
 - [ ] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
 - [ ] Lernfunktion: geänderte Kategorien für zukünftige Importe merken
 - [ ] Bessere Fehlerbehandlung für passwortgeschützte PDFs
 - [ ] Ladeindikator beim Demo-Button
+
+---
 
 ## Infrastruktur
 - [ ] GitHub Actions: Automatischer Deploy auf GitHub Pages
