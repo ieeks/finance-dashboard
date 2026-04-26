@@ -291,6 +291,20 @@ window.openTxModal = function(id) {
     <div style="margin-bottom:16px;">
       <div class="api-label" style="margin-bottom:8px;">Kategorie</div>
       <select class="cat-select" id="cat-edit-${id}" onchange="updateCategory('${id}', this.value)">${catOptions}</select>
+      ${(function() {
+        const key = tx.description.toLowerCase().trim();
+        const overrides = state.categoryOverrides || {};
+        if (overrides[key]) {
+          return `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+            <span style="font-size:0.68rem;color:var(--green);">✅ Wird für diesen Händler gemerkt</span>
+            <button onclick="deleteOverride('${escHtml(key)}')" style="font-size:0.65rem;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px 6px;text-decoration:underline;">Vergessen</button>
+          </div>`;
+        }
+        return `<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;">
+          <input type="checkbox" id="remember-cat-${id}" checked style="width:15px;height:15px;cursor:pointer;accent-color:var(--primary);flex-shrink:0;">
+          <span style="font-size:0.7rem;color:var(--text-muted);">Für nächstes Mal merken</span>
+        </label>`;
+      })()}
     </div>
     ${tx.aiCategorized ? '<div style="display:flex;align-items:center;gap:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:16px;"><span class="chip chip-ai" style="padding:2px 8px;">✦ KI kategorisiert</span></div>' : ''}
     ${tx.bon ? `
@@ -331,11 +345,33 @@ window.closeTxModal = function() { document.getElementById('tx-modal').classList
 
 window.updateCategory = function(id, newCat) {
   const tx = state.transactions.find(t => t.id === id);
-  if (tx) { tx.category = newCat; tx.aiCategorized = false; saveState(); }
-  showToast('Kategorie gespeichert');
+  if (!tx) return;
+  tx.category = newCat;
+  tx.aiCategorized = false;
+
+  const rememberCb = document.getElementById(`remember-cat-${id}`);
+  const key = tx.description.toLowerCase().trim();
+  if (rememberCb?.checked) {
+    if (!state.categoryOverrides) state.categoryOverrides = {};
+    state.categoryOverrides[key] = newCat;
+    showToast(`✅ Kategorie gespeichert — "${tx.description}" wird beim nächsten Import automatisch als "${newCat}" erkannt`);
+  } else if (state.categoryOverrides?.[key]) {
+    showToast('Kategorie gespeichert');
+  } else {
+    showToast('Kategorie gespeichert');
+  }
+
+  saveState();
   window.closeTxModal();
   renderBuchungen();
   renderDashboard();
+};
+
+window.deleteOverride = function(key) {
+  if (state.categoryOverrides) delete state.categoryOverrides[key];
+  saveState();
+  showToast('Gespeicherte Kategorie entfernt');
+  window.closeTxModal();
 };
 
 window.saveNote = function(id, value) {
@@ -435,7 +471,7 @@ window.runImport = async function() {
 
   let categorized;
   try {
-    categorized = await categorizeWithAI(parsed, state.aiProvider);
+    categorized = await categorizeWithAI(parsed, state.aiProvider, state.categoryOverrides || {});
     setStep(2, 100, true);
   } catch(e) {
     categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));

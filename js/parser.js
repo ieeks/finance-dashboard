@@ -508,12 +508,21 @@ function _dedup(txs) {
 }
 
 // ── AI Kategorisierung ──
-export async function categorizeWithAI(transactions, provider = 'anthropic') {
+export async function categorizeWithAI(transactions, provider = 'anthropic', overrides = {}) {
   const keys = loadKeys();
   const key  = provider === 'anthropic' ? keys.anthropic : keys.openai;
 
+  function _applyOverrides(txs) {
+    return txs.map(t => {
+      const cat = overrides[t.description.toLowerCase().trim()];
+      return cat ? { ...t, category: cat, aiCategorized: false } : t;
+    });
+  }
+
   if (!key) {
-    return _applyRecurringFlags(_applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))));
+    return _applyOverrides(_applyRecurringFlags(_applySubscriptionRules(
+      transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))
+    )));
   }
 
   const categories = [
@@ -550,17 +559,20 @@ Keine anderen Texte, kein Markdown, nur reines JSON.`;
       result = await _callOpenAI(key, prompt);
     }
   } catch(e) {
-    return _applyRecurringFlags(_applySubscriptionRules(transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))));
+    return _applyOverrides(_applyRecurringFlags(_applySubscriptionRules(
+      transactions.map(t => ({ ...t, category: guessCategory(t.description), aiCategorized: false }))
+    )));
   }
 
-  return _applyRecurringFlags(_applySubscriptionRules(transactions.map((t, i) => {
+  const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
+    'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
+    'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Telekommunikation','Sonstiges'];
+
+  return _applyOverrides(_applyRecurringFlags(_applySubscriptionRules(transactions.map((t, i) => {
     const found = result.find(r => r.index === i);
-    const validCats = ['Supermarkt','Restaurant / Café','Mobilität / Auto','Wohnen / Miete',
-      'Energie / Strom','Versicherung','Drogerie','Gesundheit','Online Shopping',
-      'Freizeit','Gehalt / Einnahmen','Familientransfer','Gebühren / Bank','Telekommunikation','Sonstiges'];
-    const cat = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
+    const cat   = found && validCats.includes(found.category) ? found.category : guessCategory(t.description);
     return { ...t, category: cat, aiCategorized: !!found };
-  })));
+  }))));
 }
 
 async function _callAnthropic(key, prompt) {
