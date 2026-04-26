@@ -5,6 +5,12 @@ import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoadi
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 
+function _addDays(dateStr, days) {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // ── Navigation ──
 window.showScreen = function(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -12,9 +18,10 @@ window.showScreen = function(name) {
   document.getElementById('screen-' + name)?.classList.add('active');
   document.getElementById('nav-' + name)?.classList.add('active');
   window.scrollTo(0, 0);
-  if (name === 'dashboard') renderDashboard();
-  if (name === 'buchungen') renderBuchungen();
-  if (name === 'konten')    renderKonten();
+  if (name === 'dashboard')  renderDashboard();
+  if (name === 'buchungen')  renderBuchungen();
+  if (name === 'konten')     renderKonten();
+  if (name === 'concierge')  renderPendingBons();
 };
 
 // ── Month Trigger ──
@@ -51,6 +58,13 @@ function renderDashboard() {
   renderDashboardCategories(txs);
   renderFixkosten(txs);
   renderInsight(txs);
+
+  const pendingCount = (state.pendingBons || []).length;
+  const badgeEl = document.getElementById('concierge-badge');
+  if (badgeEl) {
+    badgeEl.textContent = `${pendingCount} offen`;
+    badgeEl.style.display = pendingCount > 0 ? 'inline-block' : 'none';
+  }
 }
 
 const DONUT_COLORS = ['#5D1C34','#7B5723','#A0714A','#C49A6C','#D7C1C5'];
@@ -442,11 +456,34 @@ window.runImport = async function() {
   if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
 
   state.currentMonth = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0] || state.currentMonth;
+
+  // Auto-match pending bons against newly imported transactions
+  let autoLinked = 0;
+  if ((state.pendingBons || []).length) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - 60);
+    const linked = [];
+    (state.pendingBons).forEach(bon => {
+      const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
+      if (bonDate < cutoffDate) return;
+      const bonDateStr = bon.date || bon.savedAt?.slice(0,10);
+      const match = state.transactions.find(t =>
+        t.amount < 0 &&
+        !t.bon &&
+        Math.abs(Math.abs(t.amount) - bon.total) < 0.015 &&
+        t.date >= bonDateStr &&
+        t.date <= _addDays(bonDateStr, 60)
+      );
+      if (match) { match.bon = bon; linked.push(bon.id); autoLinked++; }
+    });
+    if (linked.length) state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
+  }
+
   saveState();
   setStep(3, 100, true);
   hideLoading();
   updateImportStatus('Import abgeschlossen', `${added} neue Buchungen importiert (${categorized.length - added} Duplikate übersprungen).`);
-  showToast(`✓ ${added} Buchungen importiert`);
+  showToast(`✓ ${added} Buchungen importiert${autoLinked ? ` · 🧾 ${autoLinked} Bon${autoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
 
   selectedPdfFile = null;
   document.getElementById('pdf-input').value = '';
@@ -573,6 +610,7 @@ window.resetConcierge = function() {
   document.getElementById('concierge-upload').style.display = 'block';
   document.getElementById('concierge-result').style.display = 'none';
   document.getElementById('bon-input').value = '';
+  renderPendingBons();
 };
 
 function fileToBase64(file) {
@@ -703,7 +741,10 @@ function renderConciergeResult(bon) {
           </div>
         </div>`).join('')}`;
   } else {
-    matchSection.innerHTML = `<div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px;">Keine passende Buchung gefunden.</div>`;
+    matchSection.innerHTML = `
+      <div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px 0 10px;">Keine passende Buchung gefunden.</div>
+      <button onclick="savePendingBon()" style="width:100%;padding:14px;border-radius:12px;border:1.5px dashed var(--outline-variant);background:transparent;color:var(--on-surface-variant);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--sans);line-height:1.4;">⏳ Als offen speichern<br><span style="font-weight:400;font-size:0.7rem;">Wird automatisch verknüpft sobald der Kontoauszug importiert wird</span></button>
+    `;
   }
 
   document.getElementById('bon-link-btn').style.display = 'none';
@@ -720,6 +761,43 @@ window.linkBon = function(txId) {
   showToast(`✅ Verknüpft mit "${tx.description}"`);
   renderConciergeResult(_currentBon);
 };
+
+window.savePendingBon = function() {
+  if (!_currentBon) return;
+  if (!state.pendingBons) state.pendingBons = [];
+  const id = 'bon_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  state.pendingBons.push({ ..._currentBon, id, savedAt: new Date().toISOString() });
+  saveState();
+  showToast('⏳ Bon gespeichert — wird beim nächsten Import automatisch verknüpft');
+  resetConcierge();
+};
+
+window.deletePendingBon = function(id) {
+  if (!state.pendingBons) return;
+  state.pendingBons = state.pendingBons.filter(b => b.id !== id);
+  saveState();
+  renderPendingBons();
+};
+
+function renderPendingBons() {
+  const list = document.getElementById('pending-bons-list');
+  if (!list) return;
+  const bons = state.pendingBons || [];
+  if (!bons.length) { list.innerHTML = ''; return; }
+  list.innerHTML = `
+    <div class="section-label" style="margin:20px 0 10px;">Offene Bons (${bons.length})</div>
+    ${bons.map(b => `
+      <div class="card" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+        <div style="font-size:1.4rem;">🧾</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.store || 'Unbekannt')}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${b.date ? formatDate(b.date) : '—'} · ${formatEur(b.total)}</div>
+        </div>
+        <button onclick="deletePendingBon('${b.id}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.68rem;cursor:pointer;">✕</button>
+      </div>
+    `).join('')}
+  `;
+}
 
 // ── DOMContentLoaded ──
 // ── Buchungen Filter Bottom Sheet ──
