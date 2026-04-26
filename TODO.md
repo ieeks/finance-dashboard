@@ -28,8 +28,8 @@
 
 ## Phase 2 — Firebase Integration
 
-> **Voraussetzung:** Parser ist stabil + Transaktions-Datenstruktur ändert sich nicht mehr wesentlich.
-> Firebase erst integrieren wenn Phase 1 (Bugs/Parser) abgeschlossen ist — sonst drohen Firestore-Migrationen.
+> Parser ist stabil. Datenstruktur hat sich eingeschwungen (transactions, pendingBons, categoryOverrides).
+> **Bereit zur Implementierung** — einzige manuelle Voraussetzung: Firebase-Projekt in der Console anlegen.
 
 ### Entscheidungen (bereits getroffen)
 
@@ -54,9 +54,10 @@ household/main/
     category:     "Lebensmittel"
     subcategory:  null                  ← Phase 3: gefüllt durch Bon-Matching
     account:      "AT12BAWAG...8821"   ← IBAN aus PDF-Header (maskiert für Anzeige)
-    source:       "bawag-pdf"          ← später: "finanzguru-csv", "easybank-pdf" etc.
+    source:       "bawag-pdf"
     importId:     "8821_2026_04"       ← Referenz auf imports-Dokument (Duplikat-Check)
-    bonId:        null                  ← Referenz auf verknüpften Bon (Phase 3)
+    bon:          null | { store, date, total, items[] }  ← eingebetteter Bon (Phase 3)
+    note:         null | "Kommentar"
     createdAt:    Timestamp
     createdBy:    "manuel.koblischek@gmail.com"
 
@@ -68,15 +69,16 @@ household/main/
     account:      "AT12BAWAG...8821"
     dateRange:    { from: "2026-04-01", to: "2026-04-30" }
 
-  bons/{bonId}                         ← Phase 3
-    matchedTxId:  "..."
-    vendor:       "Billa"
-    total:        84.30
-    date:         "2026-03-15"
-    items:        [ { name, qty, price, subcategory } ]
-    source:       "photo" | "pdf"
-    createdAt:    Timestamp
-    createdBy:    "zolguita@gmail.com"
+  pendingBons/{bonId}                  ← Bons ohne passende Buchung (bereits in localStorage)
+    store:        "Billa"
+    date:         "2026-04-26"
+    total:        43.20
+    items:        [ { name, price, subcategory } ]
+    savedAt:      Timestamp
+    savedBy:      "manuel.koblischek@gmail.com"
+
+  config/categoryOverrides             ← Händler-Lernfunktion (bereits in localStorage)
+    overrides:    { "mochi restaurant": "Restaurant / Café", ... }
 ```
 
 ---
@@ -141,18 +143,21 @@ Optional für feineres Deduplizieren (z.B. Teilimporte):
 
 ### Implementierungs-Reihenfolge
 
-1. **Firebase-Projekt anlegen** — Console, Firestore aktivieren, Auth (Google Provider) aktivieren
-2. **`firebase-config.js`** erstellen (gitignored), Werte als GH Secret für Actions hinterlegen
+1. **Firebase-Projekt anlegen** ← du (manuell: Console, Firestore + Auth aktivieren, Google Provider)
+2. **`firebase-config.js`** erstellen (gitignored) + API Keys (Anthropic/OpenAI) dort ablegen
 3. **`firebaseService.js`** Modul bauen:
    - `login()` / `logout()` / `onAuthChange(callback)`
    - `checkImportExists(importId)` → boolean
-   - `saveImport(importId, meta)` → schreibt Import-Dokument
+   - `saveImport(importId, meta)`
    - `saveTxBatch(transactions)` → Firestore `writeBatch`
-   - `loadTxs()` → alle Transaktionen laden, nach Datum sortiert
-4. **Login-Screen** einbauen — minimales UI, Google-Button, Fehlermeldung bei unerlaubtem Account
-5. **Import-Flow erweitern** — nach erfolgreichem Parse: `checkImportExists` → `saveTxBatch` → `saveImport`
-6. **App-Start** — `loadTxs()` statt leerem State; Spinner während Laden
-7. **Import-History Screen** — Liste aller `imports/`-Dokumente (Datum, Dateiname, Anzahl TX)
+   - `savePendingBon(bon)` / `deletePendingBon(id)` / `loadPendingBons()`
+   - `saveCategoryOverrides(map)` / `loadCategoryOverrides()`
+   - `loadTxs()` → alle Transaktionen, nach Datum sortiert
+4. **Login-Screen** — Google-Button, E-Mail-Whitelist-Check, Fehlermeldung
+5. **localStorage → Firestore Migration** — beim ersten Login: vorhandene Daten hochladen, localStorage leeren
+6. **Import-Flow** — `checkImportExists` → `saveTxBatch` → `saveImport`
+7. **App-Start** — `loadTxs()` + `loadPendingBons()` + `loadCategoryOverrides()` statt leerem State
+8. **API Key Input-Felder entfernen** — Keys kommen aus `firebase-config.js`
 
 ---
 
@@ -223,6 +228,7 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 - [x] Anthropic: Claude Haiku (PDF-Parsing) + Claude Vision (Bon-Extraktion)
 - [x] OpenAI: gpt-4o-mini (PDF-Parsing + Bon-PDF) + gpt-4o Vision (Bon-Bild)
 - [x] Beide API Keys separat in localStorage (im Bon-Screen eingebbar)
+- [ ] **API Keys in `firebase-config.js` hardcoden** — Input-Felder entfernen, Key lädt automatisch beim Start (sinnvoll sobald App hinter Firebase Auth liegt)
 - [ ] Abstraktions-Layer `aiProvider.js` für saubere Trennung
 - [ ] Fallback: wenn Provider A fehlschlägt → Hinweis, nicht automatischer Wechsel
 
