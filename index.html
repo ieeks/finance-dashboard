@@ -1053,7 +1053,10 @@ html, body {
     <div class="card" style="margin-top:12px;padding:20px;display:flex;align-items:center;gap:14px;margin-bottom:8px;cursor:pointer;" onclick="showScreen('concierge')">
       <div style="font-size:2rem;">🧾</div>
       <div style="flex:1;">
-        <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;margin-bottom:4px;">Bon scannen</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;">Bon scannen</div>
+          <span class="chip chip-gold" id="concierge-badge" style="display:none;font-size:0.6rem;padding:2px 8px;"></span>
+        </div>
         <div style="font-size:0.72rem;color:var(--text-muted);line-height:1.4;">Kassenbon mit Buchung verknüpfen — inkl. Einzelpositionen</div>
       </div>
       <span style="color:var(--text-muted);font-size:1.2rem;">›</span>
@@ -1114,6 +1117,8 @@ html, body {
         <span>🔒</span>
         <span>Das Bild wird für die Analyse kurz an die KI-API gesendet. Kein Speichern auf unseren Servern.</span>
       </div>
+
+      <div id="pending-bons-list"></div>
     </div>
 
     <!-- State: result (hidden until scan) -->

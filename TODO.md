@@ -20,6 +20,8 @@
 - [x] Match cent-genau (< 0,015 € Toleranz)
 - [x] OpenAI PDF-Support (Text-Extraktion → GPT-4o-mini)
 - [x] API Key von Import → Bon-Screen verschoben
+- [x] Kamera-Upload TypeError (leerer MIME-Type Android + HEIC iOS) behoben (2026-04-26)
+- [x] Pending-Queue: Bons ohne passende Buchung speichern + Auto-Match beim Import (2026-04-26)
 - [ ] Fehlerfall: Was wenn KI kein valid JSON zurückgibt? bessere Fallback-Meldung statt crash
 
 ---
@@ -165,9 +167,11 @@ Optional für feineres Deduplizieren (z.B. Teilimporte):
 - [ ] Gesamtbetrag + Datum + Händler aus Bon extrahieren
 
 ### 3b — Matching Bon ↔ Buchung
-- [ ] Auto-Matching: Bon-Gesamtbetrag ± 2 € + Datum ± 3 Tage = Buchung
-- [ ] Manuelle Zuweisung wenn kein Auto-Match möglich
-- [ ] Status-Anzeige pro Buchung: matched ✅ / unmatched ⚠️ / kein Bon ❓
+- [x] Auto-Matching bei sofort vorhandener Buchung (Betrag ±0,015 €) — lokal in localStorage
+- [x] Pending-Queue: Bon speichern wenn keine Buchung → Auto-Match beim nächsten Import (60-Tage-Fenster)
+- [x] Manuelle Zuweisung wenn kein Auto-Match möglich ("Als offen speichern" + manuell verknüpfen)
+- [ ] Status-Anzeige pro Buchung: matched ✅ / unmatched ⚠️ / kein Bon ❓ (in Buchungsliste)
+- [ ] Matching via matcher.js (Score Betrag + Datum + Händlername) statt nur Betragsvergleich
 - [ ] Basis: receipt-scanner Code aus bestehendem Repo wiederverwenden
 
 ### 3c — Sub-Kategorie Dashboard
