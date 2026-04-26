@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.1.2 — 2026-04-26
+
+### Added
+- **Kategorie-Lernfunktion (Override-Map)** — Beim manuellen Ändern einer Kategorie erscheint die Checkbox "Für nächstes Mal merken" (Standard: aktiv). Gespeicherte Händler landen in `state.categoryOverrides` und überschreiben beim nächsten Import KI- und Regex-Kategorisierung. Override lässt sich im Modal per "Vergessen"-Button entfernen.
+
+### Fixed
+- **Parser: Jahres-Rollover bei Jänner-Auszügen** — Kontoauszüge datiert auf z.B. `02.01.2026` enthielten Dezember-Buchungen, die als `2026-12-xx` statt `2025-12-xx` gespeichert wurden. `_resolveDate()` prüft jetzt: liegt `DD.MM.Jahr` nach dem Statement-Datum? → Vorjahr verwenden. Funktioniert für alle Monatsübergänge korrekt.
+
 ## v1.1.0 — 2026-04-26
 
 ### Added

@@ -229,8 +229,8 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 ---
 
 ## Bugs / Verbesserungen
-- [ ] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
-- [ ] Lernfunktion: geänderte Kategorien für zukünftige Importe merken
+- [x] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
+- [x] Lernfunktion: geänderte Kategorien für zukünftige Importe merken — Override-Map in state (2026-04-26)
 - [ ] Bessere Fehlerbehandlung für passwortgeschützte PDFs
 - [ ] Ladeindikator beim Demo-Button
 
