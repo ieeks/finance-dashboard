@@ -1210,6 +1210,53 @@ function _initApp() {
     if (e.target === document.getElementById('clear-modal')) window.closeClearModal();
   });
 
+  // Swipe-to-close for tx-modal bottom sheet
+  (function() {
+    const overlay = document.getElementById('tx-modal');
+    const sheet   = overlay?.querySelector('.modal-sheet');
+    if (!sheet) return;
+    let startY = 0, currentY = 0, dragging = false;
+
+    sheet.addEventListener('touchstart', e => {
+      // Only start swipe if touch begins on the handle or near the top of the sheet
+      const touchY = e.touches[0].clientY;
+      const sheetTop = sheet.getBoundingClientRect().top;
+      if (touchY - sheetTop > 60) return; // only top 60px triggers swipe
+      startY = touchY;
+      currentY = 0;
+      dragging = true;
+      sheet.style.transition = 'none';
+    }, { passive: true });
+
+    sheet.addEventListener('touchmove', e => {
+      if (!dragging) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy < 0) return; // no upward drag
+      currentY = dy;
+      sheet.style.transform = `translateY(${dy}px)`;
+      overlay.style.backgroundColor = `rgba(0,0,0,${Math.max(0, 0.4 - dy / 400)})`;
+    }, { passive: true });
+
+    sheet.addEventListener('touchend', () => {
+      if (!dragging) return;
+      dragging = false;
+      sheet.style.transition = 'transform 0.3s ease';
+      if (currentY > 120) {
+        sheet.style.transform = 'translateY(100%)';
+        setTimeout(() => {
+          window.closeTxModal();
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+          overlay.style.backgroundColor = '';
+        }, 280);
+      } else {
+        sheet.style.transform = '';
+        overlay.style.backgroundColor = '';
+        setTimeout(() => { sheet.style.transition = ''; }, 300);
+      }
+    });
+  })();
+
   // Load saved keys into inputs
   const keys = loadKeys();
   const akEl = document.getElementById('anthropic-key-input');
