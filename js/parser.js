@@ -75,16 +75,25 @@ function parseEasybankStatement(text) {
   // Wird bei jedem erfolgreichen Match befüllt und als Fallback genutzt.
   const terminalCache = new Map();
 
-  // Extract year — try "vom DD.MM.YYYY", then any 4-digit year in first 500 chars,
-  // then fall back to current year but correct forward-dating: if all parsed months
-  // would be in the future, subtract 1 year.
+  // Extract the "vom DD.MM.YYYY" statement date from the header.
+  // This is the upper bound for all transactions — any transaction date that
+  // falls after this date belongs to the previous year (year-rollover statements,
+  // e.g. statement dated 02.01.2026 containing December 2025 transactions).
   const headerText  = text.slice(0, 500);
-  const yearMatch   = headerText.match(/vom\s+\d{2}\.\d{2}\.(\d{4})/)
-                   || headerText.match(/\b(20\d{2})\b/);
-  let year = yearMatch ? yearMatch[1] : String(new Date().getFullYear());
-  // Sanity-check: if the extracted year is ahead of today by more than 0 years, step back
-  if (parseInt(year) > new Date().getFullYear()) {
-    year = String(new Date().getFullYear());
+  const vomMatch    = headerText.match(/vom\s+(\d{2})\.(\d{2})\.(\d{4})/);
+  let year          = vomMatch ? vomMatch[3] : String(new Date().getFullYear());
+  // statementDate as YYYY-MM-DD upper bound; fallback: today
+  const statementDate = vomMatch
+    ? `${vomMatch[3]}-${vomMatch[2]}-${vomMatch[1]}`
+    : new Date().toISOString().slice(0, 10);
+
+  // Helper: assign correct year to a DD.MM transaction — if DD.MM.year > statementDate
+  // the transaction belongs to the previous year (e.g. Dec in a Jan statement).
+  function _resolveDate(day, month) {
+    const mm = String(month).padStart(2,'0');
+    const dd = String(day).padStart(2,'0');
+    const d  = `${year}-${mm}-${dd}`;
+    return d > statementDate ? `${parseInt(year) - 1}-${mm}-${dd}` : d;
   }
 
   const lines    = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
@@ -102,7 +111,7 @@ function parseEasybankStatement(text) {
       const day   = parseInt(m[1]);
       const month = parseInt(m[2]);
       if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
-        const bookingDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const bookingDate = _resolveDate(day, month);
         const rawDesc     = m[3];
         const isExpense   = m[6] === '-';
         const amount      = _parseEasyAmount(m[5]) * (isExpense ? -1 : 1);
@@ -156,7 +165,7 @@ function parseEasybankStatement(text) {
           // Kaufdatum aus Terminalzeile: "POS 4350 D001 27.03. 18:05" → 27.03
           const posDateMatch = terminalLine.match(/(\d{2})\.(\d{2})\./);
           const txDate = posDateMatch
-            ? `${year}-${posDateMatch[2].padStart(2,'0')}-${posDateMatch[1].padStart(2,'0')}`
+            ? _resolveDate(parseInt(posDateMatch[1]), parseInt(posDateMatch[2]))
             : bookingDate;
 
           let description = _extractMerchant(merchantLine, terminalLine, rawDesc);
