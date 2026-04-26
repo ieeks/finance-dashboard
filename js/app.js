@@ -30,8 +30,10 @@ const MONTH_NAMES_LONG = ['Jänner','Februar','März','April','Mai','Juni','Juli
 function updateMonthTriggers() {
   const [y, m] = state.currentMonth.split('-').map(Number);
   const label = `${MONTH_NAMES_LONG[m-1]} ${y}`;
-  const el = document.getElementById('monthTriggerLabel');
-  if (el) el.textContent = label;
+  ['monthTriggerLabel', 'buchMonthLabel', 'fsMonthLabel'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = label;
+  });
 }
 
 // ── Dashboard ──
@@ -175,6 +177,7 @@ let _buchFilter = {
 };
 
 function renderBuchungen() {
+  updateMonthTriggers();
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
 
   let txs = search ? state.transactions.slice() : getTransactionsForMonth(state.currentMonth);
@@ -1005,6 +1008,7 @@ function initBuchFilters() {
   // ── Month sheet ──
   function openMonthSheet(fromFilter = false) {
     monthSheetFromFilter = fromFilter;
+    syncConfirmedFromState();
     pendingMonth = { ...confirmedMonth };
     renderMonthGrid();
     monthSheet.classList.add('open');
