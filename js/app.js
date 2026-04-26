@@ -592,32 +592,39 @@ window.handleBonUpload = async function(input) {
   const key  = _bonProvider === 'anthropic' ? keys.anthropic : keys.openai;
   if (!key) { showToast('Bitte zuerst API Key eingeben'); return; }
 
+  // Normalize MIME type: empty string (Android camera) → jpeg, HEIC → unsupported
+  let mimeType = file.type || 'image/jpeg';
+  if (mimeType === 'image/heic' || mimeType === 'image/heif') {
+    showToast('HEIC-Format nicht unterstützt — bitte Kamera auf JPEG umstellen (Einstellungen → Kamera → Format → Hohe Effizienz deaktivieren)');
+    return;
+  }
+
+  const isImage = mimeType.startsWith('image/');
+  const isPdf   = mimeType === 'application/pdf' || file.name?.endsWith('.pdf');
+
+  if (!isImage && !isPdf) {
+    showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
+    return;
+  }
+
   showLoading('Bon wird analysiert…');
   try {
     let bonData;
     if (_bonProvider === 'anthropic') {
-      if (file.type.startsWith('image/')) {
+      if (isImage) {
         const base64 = await fileToBase64(file);
-        bonData = await analyzeBonImage(base64, file.type);
-      } else if (file.type === 'application/pdf') {
+        bonData = await analyzeBonImage(base64, mimeType);
+      } else {
         const pdfText = await extractPdfText(file);
         bonData = await analyzeBonPdf(pdfText);
-      } else {
-        hideLoading();
-        showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
-        return;
       }
     } else {
-      if (file.type.startsWith('image/')) {
+      if (isImage) {
         const base64 = await fileToBase64(file);
-        bonData = await analyzeBonOpenAI(base64, file.type);
-      } else if (file.type === 'application/pdf') {
+        bonData = await analyzeBonOpenAI(base64, mimeType);
+      } else {
         const pdfText = await extractPdfText(file);
         bonData = await analyzeBonPdfOpenAI(pdfText);
-      } else {
-        hideLoading();
-        showToast('Dateiformat nicht unterstützt — bitte JPG, PNG oder PDF');
-        return;
       }
     }
     hideLoading();
