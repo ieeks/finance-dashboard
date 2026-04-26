@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v1.1.0 — 2026-04-26
+
+### Added
+- **Concierge: Pending-Queue für Bons ohne passende Buchung** — Scannt man einen Bon bevor der Kontoauszug importiert wurde, kann er jetzt als "offen" gespeichert werden (`state.pendingBons[]`, localStorage). Beim nächsten PDF-Import werden alle offenen Bons automatisch gegen neue Buchungen gematcht (60-Tage-Fenster, ±0,015 € Toleranz) und verknüpft.
+- **Concierge: "Als offen speichern"-Button** — Erscheint wenn kein Match gefunden wird, statt nur "Keine passende Buchung gefunden"
+- **Concierge: Liste offener Bons** — Im Upload-Bereich erscheint eine Liste aller pendingBons mit Datum, Betrag und Lösch-Button
+- **Dashboard: Badge "X offen"** — Concierge-Teaser auf dem Dashboard zeigt goldenes Badge wenn Bons ausstehend sind
+- **Import: Auto-Match Toast** — Nach PDF-Import erscheint "✓ 47 Buchungen importiert · 🧾 3 Bons automatisch verknüpft"
+
+### Fixed
+- **Concierge: Kamera-Upload TypeError** — Auf Android-Geräten liefert die Kamera manchmal `file.type = ""` (leerer String); führte zu "Dateiformat nicht unterstützt". Leerer MIME-Type wird jetzt als `image/jpeg` behandelt.
+- **Concierge: HEIC-Format (iOS)** — HEIC/HEIF-Dateien werden jetzt mit klarer Fehlermeldung abgelehnt (Claude API unterstützt kein HEIC) inkl. Anleitung zur Kamera-Umstellung
+
 ## v1.0.1 — 2026-04-18
 
 ### Fixed
