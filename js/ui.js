@@ -50,3 +50,33 @@ export function showLoading(msg = 'Verarbeite…') {
 export function hideLoading() {
   document.getElementById('loading-overlay')?.classList.remove('active');
 }
+
+// ── Onboarding ──
+export function initOnboarding() {
+  const modal   = document.getElementById('onboarding-modal');
+  const closeBtn = document.getElementById('ob-close');
+  const nextBtn  = document.getElementById('ob-next');
+  const backBtn  = document.getElementById('ob-back');
+  const dots     = document.querySelectorAll('[data-ob-dot]');
+  const steps    = document.querySelectorAll('[data-ob-step]');
+  const TOTAL    = 4;
+  let current    = 1;
+
+  function show(step) {
+    current = step;
+    steps.forEach(el => { el.hidden = parseInt(el.dataset.obStep) !== step; });
+    dots.forEach(d  => { d.classList.toggle('active', parseInt(d.dataset.obDot) === step); });
+    backBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
+    nextBtn.textContent = step === TOTAL ? 'Los geht\'s' : 'Weiter';
+  }
+
+  window.openOnboarding = function() {
+    modal.classList.add('open');
+    show(1);
+  };
+
+  closeBtn.addEventListener('click', () => modal.classList.remove('open'));
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+  nextBtn.addEventListener('click', () => { if (current < TOTAL) show(current + 1); else modal.classList.remove('open'); });
+  backBtn.addEventListener('click', () => { if (current > 1) show(current - 1); });
+}

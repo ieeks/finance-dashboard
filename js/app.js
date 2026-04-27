@@ -1,7 +1,7 @@
 // app.js — Entry Point
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading, initOnboarding } from './ui.js';
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 import { login, logout, onAuthChange, currentEmail,
@@ -1471,6 +1471,7 @@ function _initApp() {
     });
   })();
 
+  initOnboarding();
   setProviderUI(state.aiProvider);
   renderDashboard();
   renderKonten();

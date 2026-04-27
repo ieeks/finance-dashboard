@@ -822,6 +822,45 @@ html, body {
   transition: all 0.2s; background: var(--surface-low);
 }
 .concierge-scan-area:hover { border-color: var(--primary-container); background: var(--surface-mid); }
+
+/* ── ONBOARDING MODAL ── */
+.ob-modal-sheet { padding: 20px 24px 32px; display: flex; flex-direction: column; }
+.ob-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.ob-close {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--surface-mid); border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); flex-shrink: 0;
+}
+.ob-close:hover { background: var(--surface-high); }
+.ob-step { display: flex; flex-direction: column; gap: 16px; animation: ob-fade 0.22s ease; }
+@keyframes ob-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.ob-icon {
+  width: 54px; height: 54px; background: var(--primary-soft);
+  border-radius: 16px; display: flex; align-items: center; justify-content: center;
+  font-size: 26px; flex-shrink: 0;
+}
+.ob-headline { font-family: var(--serif); font-size: 1.3rem; font-weight: 700; color: var(--primary); margin: 0; line-height: 1.3; }
+.ob-body { font-family: var(--sans); font-size: 0.9rem; color: var(--text); line-height: 1.65; margin: 0; }
+.ob-hint {
+  background: var(--surface-low); border-left: 3px solid var(--secondary);
+  border-radius: 8px; padding: 12px 14px;
+  font-family: var(--sans); font-size: 0.82rem; color: var(--text-muted); line-height: 1.55;
+}
+.ob-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+.ob-list li { display: flex; gap: 12px; align-items: flex-start; font-family: var(--sans); font-size: 0.9rem; color: var(--text); line-height: 1.5; }
+.ob-num {
+  background: var(--primary); color: var(--on-primary);
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+}
+.ob-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; }
+.ob-dots { display: flex; gap: 6px; align-items: center; }
+.ob-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--outline-soft); transition: background 0.2s, width 0.2s, border-radius 0.2s; }
+.ob-dot.active { background: var(--primary); width: 18px; border-radius: 4px; }
+.ob-footer .btn-primary,
+.ob-footer .btn-ghost { width: auto; padding: 11px 20px; font-size: 0.85rem; }
 </style>
 </head>
 <body>
@@ -863,6 +902,13 @@ html, body {
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <span class="topbar-badge">PROTOTYP v1.2.5</span>
+      <button class="topbar-icon" onclick="window.openOnboarding()" aria-label="Hilfe &amp; Einrichtung" title="Hilfe &amp; Einrichtung">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="16" x2="12" y2="12"/>
+          <circle cx="12" cy="8" r="0.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
       <button onclick="window.firebaseLogout()" title="Abmelden"
         style="background:none;border:none;cursor:pointer;padding:4px;color:var(--text-muted);font-size:0.65rem;font-weight:700;letter-spacing:0.04em;">
         LOGOUT
@@ -1361,6 +1407,91 @@ html, body {
   </div>
   <div class="month-grid" id="monthPickerGrid"></div>
   <button class="sheet-confirm" id="monthPickerConfirm">Anwenden</button>
+</div>
+
+<!-- ════════════════════════════════════════ ONBOARDING MODAL ══ -->
+<div class="modal-overlay" id="onboarding-modal">
+  <div class="modal-sheet ob-modal-sheet">
+
+    <!-- Header: dots + close -->
+    <div class="ob-header">
+      <div class="ob-dots">
+        <div class="ob-dot active" data-ob-dot="1"></div>
+        <div class="ob-dot" data-ob-dot="2"></div>
+        <div class="ob-dot" data-ob-dot="3"></div>
+        <div class="ob-dot" data-ob-dot="4"></div>
+      </div>
+      <button class="ob-close" id="ob-close" aria-label="Schließen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Steps -->
+    <div id="ob-steps-container">
+
+      <!-- Step 1: Überblick -->
+      <div class="ob-step" data-ob-step="1">
+        <div class="ob-icon">📊</div>
+        <h2 class="ob-headline">Deine Finanzen,<br>auf einen Blick</h2>
+        <p class="ob-body">
+          Das Finance Dashboard bündelt all deine Ausgaben und Einnahmen an einem Ort.
+          Rechnungen landen automatisch aus deiner E-Mail im Dashboard,
+          Kontoauszüge kannst du als PDF hochladen —
+          alles übersichtlich nach Kategorien geordnet.
+        </p>
+      </div>
+
+      <!-- Step 2: E-Mail Rechnungen -->
+      <div class="ob-step" data-ob-step="2" hidden>
+        <div class="ob-icon">✉️</div>
+        <h2 class="ob-headline">Rechnungen per E-Mail — automatisch</h2>
+        <p class="ob-body">
+          Rechnungen die an <strong>manuel.rechnungen@gmail.com</strong> weitergeleitet werden,
+          landen täglich automatisch im Dashboard. Kein manuelles Eingreifen nötig.
+        </p>
+        <div class="ob-hint">
+          Damit das funktioniert, muss dein Name beim Rechnungssteller mit dieser E-Mail-Adresse hinterlegt sein.
+        </div>
+      </div>
+
+      <!-- Step 3: PDF Import -->
+      <div class="ob-step" data-ob-step="3" hidden>
+        <div class="ob-icon">📄</div>
+        <h2 class="ob-headline">Kontoauszug importieren — so geht's</h2>
+        <ol class="ob-list">
+          <li><span class="ob-num">1</span>Im easybank-Konto den Kontoauszug als PDF herunterladen</li>
+          <li><span class="ob-num">2</span>Im Dashboard auf „Importieren" tippen</li>
+          <li><span class="ob-num">3</span>PDF-Datei auswählen</li>
+          <li><span class="ob-num">4</span>Fertig — Buchungen erscheinen automatisch kategorisiert</li>
+        </ol>
+      </div>
+
+      <!-- Step 4: API Key -->
+      <div class="ob-step" data-ob-step="4" hidden>
+        <div class="ob-icon">🔑</div>
+        <h2 class="ob-headline">Einmalige Einrichtung</h2>
+        <p class="ob-body">
+          Für die automatische Kategorisierung via KI wird ein API Key benötigt.
+          Diesen bekommst du von Manuel — er wird sicher in der App gespeichert.
+        </p>
+        <ol class="ob-list">
+          <li><span class="ob-num">1</span>Oben rechts auf ⚙️ (Einstellungen) tippen</li>
+          <li><span class="ob-num">2</span>Den API Key von Manuel eingeben</li>
+          <li><span class="ob-num">3</span>Speichern — fertig!</li>
+        </ol>
+      </div>
+
+    </div>
+
+    <!-- Footer: back / next -->
+    <div class="ob-footer">
+      <button class="btn-ghost" id="ob-back" style="visibility:hidden;">Zurück</button>
+      <button class="btn-primary" id="ob-next">Weiter</button>
+    </div>
+
+  </div>
 </div>
 
 <!-- PDF.js -->
