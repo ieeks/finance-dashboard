@@ -487,9 +487,8 @@ let _obStep = 1;
 const _OB_TOTAL = 4;
 function _obShow(step) {
   _obStep = step;
-  document.querySelectorAll('[data-ob-step]').forEach(el => {
-    el.hidden = parseInt(el.dataset.obStep) !== step;
-  });
+  const slides = document.getElementById('ob-slides');
+  if (slides) slides.style.transform = `translateX(-${(step - 1) * 25}%)`;
   document.querySelectorAll('[data-ob-dot]').forEach(d => {
     d.classList.toggle('active', parseInt(d.dataset.obDot) === step);
   });
@@ -1494,14 +1493,14 @@ function _initApp() {
 
   // Swipe left/right to navigate onboarding steps
   (function() {
-    const sheet = document.querySelector('#onboarding-modal .modal-sheet');
-    if (!sheet || sheet._obSwipe) return;
-    sheet._obSwipe = true;
+    const container = document.getElementById('ob-steps-container');
+    if (!container || container._obSwipe) return;
+    container._obSwipe = true;
     let sx = 0;
-    sheet.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-    sheet.addEventListener('touchend',   e => {
+    container.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    container.addEventListener('touchend',   e => {
       const dx = e.changedTouches[0].clientX - sx;
-      if (Math.abs(dx) > 50) { if (dx < 0) window.obNext(); else window.obBack(); }
+      if (Math.abs(dx) > 40) { if (dx < 0) window.obNext(); else window.obBack(); }
     }, { passive: true });
   })();
 

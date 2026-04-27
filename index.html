@@ -833,8 +833,9 @@ html, body {
   color: var(--text-muted); flex-shrink: 0;
 }
 .ob-close:hover { background: var(--surface-high); }
-.ob-step { display: flex; flex-direction: column; gap: 16px; animation: ob-fade 0.22s ease; }
-@keyframes ob-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+#ob-steps-container { overflow: hidden; }
+#ob-slides { display: flex; width: 400%; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
+.ob-step { width: 25%; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; }
 .ob-icon {
   width: 54px; height: 54px; background: var(--primary-soft);
   border-radius: 16px; display: flex; align-items: center; justify-content: center;
@@ -1428,59 +1429,61 @@ html, body {
       </button>
     </div>
 
-    <!-- Steps -->
+    <!-- Steps (horizontal carousel) -->
     <div id="ob-steps-container">
+      <div id="ob-slides">
 
-      <!-- Step 1: Überblick -->
-      <div class="ob-step" data-ob-step="1">
-        <div class="ob-icon">📊</div>
-        <h2 class="ob-headline">Deine Finanzen,<br>auf einen Blick</h2>
-        <p class="ob-body">
-          Das Finance Dashboard bündelt all deine Ausgaben und Einnahmen an einem Ort.
-          Rechnungen landen automatisch aus deiner E-Mail im Dashboard,
-          Kontoauszüge kannst du als PDF hochladen —
-          alles übersichtlich nach Kategorien geordnet.
-        </p>
-      </div>
-
-      <!-- Step 2: E-Mail Rechnungen -->
-      <div class="ob-step" data-ob-step="2" hidden>
-        <div class="ob-icon">✉️</div>
-        <h2 class="ob-headline">Rechnungen per E-Mail — automatisch</h2>
-        <p class="ob-body">
-          Rechnungen die an <strong>manuel.rechnungen@gmail.com</strong> weitergeleitet werden,
-          landen täglich automatisch im Dashboard. Kein manuelles Eingreifen nötig.
-        </p>
-        <div class="ob-hint">
-          Damit das funktioniert, muss dein Name beim Rechnungssteller mit dieser E-Mail-Adresse hinterlegt sein.
+        <!-- Step 1: Überblick -->
+        <div class="ob-step" data-ob-step="1">
+          <div class="ob-icon">📊</div>
+          <h2 class="ob-headline">Deine Finanzen,<br>auf einen Blick</h2>
+          <p class="ob-body">
+            Das Finance Dashboard bündelt all deine Ausgaben und Einnahmen an einem Ort.
+            Rechnungen landen automatisch aus deiner E-Mail im Dashboard,
+            Kontoauszüge kannst du als PDF hochladen —
+            alles übersichtlich nach Kategorien geordnet.
+          </p>
         </div>
-      </div>
 
-      <!-- Step 3: PDF Import -->
-      <div class="ob-step" data-ob-step="3" hidden>
-        <div class="ob-icon">📄</div>
-        <h2 class="ob-headline">Kontoauszug importieren — so geht's</h2>
-        <ol class="ob-list">
-          <li><span class="ob-num">1</span>Im easybank-Konto den Kontoauszug als PDF herunterladen</li>
-          <li><span class="ob-num">2</span>Im Dashboard auf „Importieren" tippen</li>
-          <li><span class="ob-num">3</span>PDF-Datei auswählen</li>
-          <li><span class="ob-num">4</span>Fertig — Buchungen erscheinen automatisch kategorisiert</li>
-        </ol>
-      </div>
-
-      <!-- Step 4: Alles bereit -->
-      <div class="ob-step" data-ob-step="4" hidden>
-        <div class="ob-icon">✅</div>
-        <h2 class="ob-headline">Alles bereit!</h2>
-        <p class="ob-body">
-          Du bist eingeloggt — damit ist alles erledigt.
-          KI-Kategorisierung, E-Mail-Import und Datensynchronisation laufen vollautomatisch im Hintergrund.
-        </p>
-        <div class="ob-hint">
-          Bei Fragen tippe jederzeit auf das ℹ-Icon oben rechts im Dashboard.
+        <!-- Step 2: E-Mail Rechnungen -->
+        <div class="ob-step" data-ob-step="2">
+          <div class="ob-icon">✉️</div>
+          <h2 class="ob-headline">Rechnungen per E-Mail — automatisch</h2>
+          <p class="ob-body">
+            Rechnungen die an <strong>manuel.rechnungen@gmail.com</strong> weitergeleitet werden,
+            landen täglich automatisch im Dashboard. Kein manuelles Eingreifen nötig.
+          </p>
+          <div class="ob-hint">
+            Damit das funktioniert, muss dein Name beim Rechnungssteller mit dieser E-Mail-Adresse hinterlegt sein.
+          </div>
         </div>
-      </div>
 
+        <!-- Step 3: PDF Import -->
+        <div class="ob-step" data-ob-step="3">
+          <div class="ob-icon">📄</div>
+          <h2 class="ob-headline">Kontoauszug importieren — so geht's</h2>
+          <ol class="ob-list">
+            <li><span class="ob-num">1</span>Im easybank-Konto den Kontoauszug als PDF herunterladen</li>
+            <li><span class="ob-num">2</span>Im Dashboard auf „Importieren" tippen</li>
+            <li><span class="ob-num">3</span>PDF-Datei auswählen</li>
+            <li><span class="ob-num">4</span>Fertig — Buchungen erscheinen automatisch kategorisiert</li>
+          </ol>
+        </div>
+
+        <!-- Step 4: Alles bereit -->
+        <div class="ob-step" data-ob-step="4">
+          <div class="ob-icon">✅</div>
+          <h2 class="ob-headline">Alles bereit!</h2>
+          <p class="ob-body">
+            Du bist eingeloggt — damit ist alles erledigt.
+            KI-Kategorisierung, E-Mail-Import und Datensynchronisation laufen vollautomatisch im Hintergrund.
+          </p>
+          <div class="ob-hint">
+            Bei Fragen tippe jederzeit auf das ℹ-Icon oben rechts im Dashboard.
+          </div>
+        </div>
+
+      </div>
     </div>
 
     <!-- Footer: back / next -->
