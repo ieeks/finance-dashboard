@@ -1,0 +1,28 @@
+name: Gmail Finance Sync
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # täglich 07:00 UTC
+  workflow_dispatch:        # manuell auslösbar
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install pdfplumber anthropic firebase-admin python-dotenv
+
+      - name: Run importer
+        env:
+          GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
+          OPENAI_API_KEY:           ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY:        ${{ secrets.ANTHROPIC_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: python gmail_finance_importer.py
