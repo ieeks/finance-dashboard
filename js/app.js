@@ -1,7 +1,7 @@
 // app.js — Entry Point
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading, initOnboarding } from './ui.js';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js';
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 import { login, logout, onAuthChange, currentEmail,
@@ -481,6 +481,27 @@ window.saveNote = function(id, value) {
 // ── Clear / Settings Modal ──
 window.openClearModal  = function() { document.getElementById('clear-modal').classList.add('open'); };
 window.closeClearModal = function() { document.getElementById('clear-modal').classList.remove('open'); };
+
+// ── Onboarding Modal ──
+let _obStep = 1;
+const _OB_TOTAL = 4;
+function _obShow(step) {
+  _obStep = step;
+  document.querySelectorAll('[data-ob-step]').forEach(el => {
+    el.hidden = parseInt(el.dataset.obStep) !== step;
+  });
+  document.querySelectorAll('[data-ob-dot]').forEach(d => {
+    d.classList.toggle('active', parseInt(d.dataset.obDot) === step);
+  });
+  const back = document.getElementById('ob-back');
+  const next = document.getElementById('ob-next');
+  if (back) back.style.visibility = step === 1 ? 'hidden' : 'visible';
+  if (next) next.textContent = step === _OB_TOTAL ? "Los geht's" : 'Weiter';
+}
+window.openOnboarding  = function() { document.getElementById('onboarding-modal')?.classList.add('open'); _obShow(1); };
+window.closeOnboarding = function() { document.getElementById('onboarding-modal')?.classList.remove('open'); };
+window.obNext = function() { if (_obStep < _OB_TOTAL) _obShow(_obStep + 1); else window.closeOnboarding(); };
+window.obBack = function() { if (_obStep > 1) _obShow(_obStep - 1); };
 window.clearTransactions = function() {
   state.transactions = [];
   saveState();
@@ -1471,7 +1492,19 @@ function _initApp() {
     });
   })();
 
-  initOnboarding();
+  // Swipe left/right to navigate onboarding steps
+  (function() {
+    const sheet = document.querySelector('#onboarding-modal .modal-sheet');
+    if (!sheet || sheet._obSwipe) return;
+    sheet._obSwipe = true;
+    let sx = 0;
+    sheet.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    sheet.addEventListener('touchend',   e => {
+      const dx = e.changedTouches[0].clientX - sx;
+      if (Math.abs(dx) > 50) { if (dx < 0) window.obNext(); else window.obBack(); }
+    }, { passive: true });
+  })();
+
   setProviderUI(state.aiProvider);
   renderDashboard();
   renderKonten();

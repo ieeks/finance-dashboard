@@ -1410,7 +1410,7 @@ html, body {
 </div>
 
 <!-- ════════════════════════════════════════ ONBOARDING MODAL ══ -->
-<div class="modal-overlay" id="onboarding-modal">
+<div class="modal-overlay" id="onboarding-modal" onclick="if(event.target===this)window.closeOnboarding()">
   <div class="modal-sheet ob-modal-sheet">
 
     <!-- Header: dots + close -->
@@ -1421,7 +1421,7 @@ html, body {
         <div class="ob-dot" data-ob-dot="3"></div>
         <div class="ob-dot" data-ob-dot="4"></div>
       </div>
-      <button class="ob-close" id="ob-close" aria-label="Schließen">
+      <button class="ob-close" onclick="window.closeOnboarding()" aria-label="Schließen">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -1468,27 +1468,25 @@ html, body {
         </ol>
       </div>
 
-      <!-- Step 4: API Key -->
+      <!-- Step 4: Alles bereit -->
       <div class="ob-step" data-ob-step="4" hidden>
-        <div class="ob-icon">🔑</div>
-        <h2 class="ob-headline">Einmalige Einrichtung</h2>
+        <div class="ob-icon">✅</div>
+        <h2 class="ob-headline">Alles bereit!</h2>
         <p class="ob-body">
-          Für die automatische Kategorisierung via KI wird ein API Key benötigt.
-          Diesen bekommst du von Manuel — er wird sicher in der App gespeichert.
+          Du bist eingeloggt — damit ist alles erledigt.
+          KI-Kategorisierung, E-Mail-Import und Datensynchronisation laufen vollautomatisch im Hintergrund.
         </p>
-        <ol class="ob-list">
-          <li><span class="ob-num">1</span>Oben rechts auf ⚙️ (Einstellungen) tippen</li>
-          <li><span class="ob-num">2</span>Den API Key von Manuel eingeben</li>
-          <li><span class="ob-num">3</span>Speichern — fertig!</li>
-        </ol>
+        <div class="ob-hint">
+          Bei Fragen tippe jederzeit auf das ℹ-Icon oben rechts im Dashboard.
+        </div>
       </div>
 
     </div>
 
     <!-- Footer: back / next -->
     <div class="ob-footer">
-      <button class="btn-ghost" id="ob-back" style="visibility:hidden;">Zurück</button>
-      <button class="btn-primary" id="ob-next">Weiter</button>
+      <button class="btn-ghost" id="ob-back" onclick="window.obBack()" style="visibility:hidden;">Zurück</button>
+      <button class="btn-primary" id="ob-next" onclick="window.obNext()">Weiter</button>
     </div>
 
   </div>
