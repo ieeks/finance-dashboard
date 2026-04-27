@@ -441,133 +441,152 @@ function renderKonten() {
 }
 
 // ── PDF Upload ──
-let selectedPdfFile = null;
+let selectedPdfFiles = [];
+
+function _setUploadUI(files) {
+  document.getElementById('upload-icon').textContent = '✅';
+  if (files.length === 1) {
+    document.getElementById('upload-title').textContent = files[0].name;
+    document.getElementById('upload-sub').textContent   = `${(files[0].size/1024).toFixed(1)} KB — bereit zum Import`;
+  } else {
+    document.getElementById('upload-title').textContent = `${files.length} PDFs ausgewählt`;
+    const totalKB = files.reduce((s, f) => s + f.size, 0) / 1024;
+    document.getElementById('upload-sub').textContent   = `${totalKB.toFixed(1)} KB gesamt — bereit zum Import`;
+  }
+  document.getElementById('import-btn').style.display = 'flex';
+}
 
 window.handlePdfUpload = function(input) {
-  const file = input.files[0];
-  if (!file) return;
-  selectedPdfFile = file;
-  document.getElementById('upload-icon').textContent  = '✅';
-  document.getElementById('upload-title').textContent = file.name;
-  document.getElementById('upload-sub').textContent   = `${(file.size/1024).toFixed(1)} KB — bereit zum Import`;
-  document.getElementById('import-btn').style.display = 'flex';
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  selectedPdfFiles = files;
+  _setUploadUI(files);
 };
 
 window.runImport = async function() {
-  if (!selectedPdfFile) return;
-  setStep(1,0,false); setStep(2,0,false); setStep(3,0,false);
-  showLoading('PDF wird gelesen…');
+  if (!selectedPdfFiles.length) return;
 
-  let rawText = '';
-  try {
-    rawText = await extractPdfText(selectedPdfFile);
-  } catch(e) {
-    hideLoading(); showToast('PDF konnte nicht gelesen werden'); return;
-  }
+  let totalAdded = 0;
+  let totalAutoLinked = 0;
+  let latestMonth = state.currentMonth;
+  const fileCount = selectedPdfFiles.length;
 
-  setStep(1, 100, true);
-  showLoading('Buchungen werden erkannt…');
-  const parsed = parseBankStatement(rawText);
-  if (!parsed.length) {
-    hideLoading(); setStep(1,100,false);
-    updateImportStatus('Keine Buchungen gefunden', 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
-    showToast('Keine Buchungen erkannt'); return;
-  }
+  for (let fileIdx = 0; fileIdx < fileCount; fileIdx++) {
+    const file = selectedPdfFiles[fileIdx];
+    const fileLabel = fileCount > 1 ? ` (${fileIdx + 1}/${fileCount})` : '';
 
-  updateImportStatus(`${parsed.length} Buchungen erkannt`, 'KI-Kategorisierung läuft…');
-  showLoading(`${parsed.length} Buchungen werden kategorisiert…`);
-  setStep(2, 50, false);
+    setStep(1,0,false); setStep(2,0,false); setStep(3,0,false);
+    showLoading(`PDF wird gelesen…${fileLabel}`);
 
-  let categorized;
-  try {
-    categorized = await categorizeWithAI(parsed, state.aiProvider, state.categoryOverrides || {});
-    setStep(2, 100, true);
-  } catch(e) {
-    categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));
-    setStep(2, 100, false);
-    showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
-  }
-
-  const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
-  let added = 0;
-  categorized.forEach(t => {
-    const key = `${t.date}|${t.amount}|${t.description}`;
-    if (!existing.has(key)) { state.transactions.push(t); existing.add(key); added++; }
-  });
-
-  const fileName  = selectedPdfFile.name.toLowerCase();
-  const accountId = fileName.includes('easy') ? 'easybank' : 'bawag';
-  const acc       = state.accounts.find(a => a.id === accountId);
-  if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
-
-  state.currentMonth = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0] || state.currentMonth;
-
-  // Auto-match pending bons against newly imported transactions
-  let autoLinked = 0;
-  if ((state.pendingBons || []).length) {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - 60);
-    const linked = [];
-    (state.pendingBons).forEach(bon => {
-      const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
-      if (bonDate < cutoffDate) return;
-      const bonDateStr = bon.date || bon.savedAt?.slice(0,10);
-      const match = state.transactions.find(t =>
-        t.amount < 0 &&
-        !t.bon &&
-        Math.abs(Math.abs(t.amount) - bon.total) < 0.015 &&
-        t.date >= bonDateStr &&
-        t.date <= _addDays(bonDateStr, 60)
-      );
-      if (match) { match.bon = bon; linked.push(bon.id); autoLinked++; }
-    });
-    if (linked.length) {
-      state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
-      // Delete matched bons from Firestore + update linked transactions
-      linked.forEach(bonId => fsDeletePendingBon(bonId).catch(() => {}));
-      state.transactions
-        .filter(t => linked.some(bid => t.bon?.id === bid))
-        .forEach(t => updateTx(t.id, { bon: t.bon }).catch(() => {}));
+    let rawText = '';
+    try {
+      rawText = await extractPdfText(file);
+    } catch(e) {
+      showToast(`${file.name}: PDF konnte nicht gelesen werden`);
+      continue;
     }
+
+    setStep(1, 100, true);
+    showLoading(`Buchungen werden erkannt…${fileLabel}`);
+    const parsed = parseBankStatement(rawText);
+    if (!parsed.length) {
+      updateImportStatus(`Keine Buchungen in ${file.name}`, 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
+      showToast(`${file.name}: Keine Buchungen erkannt`);
+      continue;
+    }
+
+    updateImportStatus(`${parsed.length} Buchungen erkannt`, `KI-Kategorisierung läuft…${fileLabel}`);
+    showLoading(`${parsed.length} Buchungen werden kategorisiert…${fileLabel}`);
+    setStep(2, 50, false);
+
+    let categorized;
+    try {
+      categorized = await categorizeWithAI(parsed, state.aiProvider, state.categoryOverrides || {});
+      setStep(2, 100, true);
+    } catch(e) {
+      categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));
+      setStep(2, 100, false);
+      showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
+    }
+
+    const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
+    let added = 0;
+    categorized.forEach(t => {
+      const key = `${t.date}|${t.amount}|${t.description}`;
+      if (!existing.has(key)) { state.transactions.push(t); existing.add(key); added++; }
+    });
+    totalAdded += added;
+
+    const fileName  = file.name.toLowerCase();
+    const accountId = fileName.includes('easy') ? 'easybank' : 'bawag';
+    const acc       = state.accounts.find(a => a.id === accountId);
+    if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
+
+    const fileMonth = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
+    if (fileMonth && fileMonth > latestMonth) latestMonth = fileMonth;
+
+    // Auto-match pending bons against newly imported transactions
+    if ((state.pendingBons || []).length) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 60);
+      const linked = [];
+      (state.pendingBons).forEach(bon => {
+        const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
+        if (bonDate < cutoffDate) return;
+        const bonDateStr = bon.date || bon.savedAt?.slice(0,10);
+        const match = state.transactions.find(t =>
+          t.amount < 0 &&
+          !t.bon &&
+          Math.abs(Math.abs(t.amount) - bon.total) < 0.015 &&
+          t.date >= bonDateStr &&
+          t.date <= _addDays(bonDateStr, 60)
+        );
+        if (match) { match.bon = bon; linked.push(bon.id); totalAutoLinked++; }
+      });
+      if (linked.length) {
+        state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
+        linked.forEach(bonId => fsDeletePendingBon(bonId).catch(() => {}));
+        state.transactions
+          .filter(t => linked.some(bid => t.bon?.id === bid))
+          .forEach(t => updateTx(t.id, { bon: t.bon }).catch(() => {}));
+      }
+    }
+
+    // Firestore: neue Buchungen speichern + Import-Dokument anlegen
+    const accountSlug = fileName.includes('easy') ? 'easybank' : 'bawag';
+    const importMonth = (fileMonth || state.currentMonth).replace('-','_');
+    const importId    = `${accountSlug}_${importMonth}`;
+
+    saveTxBatch(state.transactions.filter(t =>
+      categorized.some(c => c.id === t.id)
+    )).catch(() => {});
+
+    saveImport(importId, {
+      filename:  file.name,
+      txCount:   added,
+      account:   accountSlug,
+      dateRange: {
+        from: categorized.map(t=>t.date).sort()[0],
+        to:   categorized.map(t=>t.date).sort().reverse()[0],
+      },
+    }).catch(() => {});
   }
 
+  state.currentMonth = latestMonth;
   saveState();
-
-  // Firestore: neue Buchungen speichern + Import-Dokument anlegen
-  const newTxs = categorized.filter(t => {
-    const key = `${t.date}|${t.amount}|${t.description}`;
-    return true; // bereits durch existing-Set gefiltert oben
-  });
-  const fileName2   = selectedPdfFile?.name?.toLowerCase() || '';
-  const accountSlug = fileName2.includes('easy') ? 'easybank' : 'bawag';
-  const importMonth = (categorized.map(t => t.date.slice(0,7)).sort().reverse()[0] || state.currentMonth).replace('-','_');
-  const importId    = `${accountSlug}_${importMonth}`;
-
-  saveTxBatch(state.transactions.filter(t =>
-    categorized.some(c => c.id === t.id)
-  )).catch(() => {});
-
-  saveImport(importId, {
-    filename:  selectedPdfFile?.name || 'unknown',
-    txCount:   added,
-    account:   accountSlug,
-    dateRange: {
-      from: categorized.map(t=>t.date).sort()[0],
-      to:   categorized.map(t=>t.date).sort().reverse()[0],
-    },
-  }).catch(() => {});
 
   setStep(3, 100, true);
   hideLoading();
-  updateImportStatus('Import abgeschlossen', `${added} neue Buchungen importiert (${categorized.length - added} Duplikate übersprungen).`);
-  showToast(`✓ ${added} Buchungen importiert${autoLinked ? ` · 🧾 ${autoLinked} Bon${autoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
+  const multiLabel = fileCount > 1 ? ` aus ${fileCount} Dateien` : '';
+  updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
+  showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
 
-  selectedPdfFile = null;
+  selectedPdfFiles = [];
   document.getElementById('pdf-input').value = '';
   document.getElementById('import-btn').style.display = 'none';
   document.getElementById('upload-icon').textContent  = '📄';
   document.getElementById('upload-title').textContent = 'BAWAG / easybank PDF';
-  document.getElementById('upload-sub').innerHTML     = 'Per Klick oder Drag &amp; Drop<br><br><span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>';
+  document.getElementById('upload-sub').innerHTML     = 'Per Klick oder Drag &amp; Drop · Mehrere PDFs möglich<br><br><span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>';
   renderDashboard(); renderKonten();
 };
 
@@ -1300,13 +1319,10 @@ function _initApp() {
     zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
     zone.addEventListener('drop', e => {
       e.preventDefault(); zone.classList.remove('dragover');
-      const file = e.dataTransfer.files[0];
-      if (file && file.type === 'application/pdf') {
-        selectedPdfFile = file;
-        document.getElementById('upload-icon').textContent  = '✅';
-        document.getElementById('upload-title').textContent = file.name;
-        document.getElementById('upload-sub').textContent   = `${(file.size/1024).toFixed(1)} KB — bereit zum Import`;
-        document.getElementById('import-btn').style.display = 'flex';
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf' || f.name?.endsWith('.pdf'));
+      if (files.length) {
+        selectedPdfFiles = files;
+        _setUploadUI(files);
       }
     });
   }

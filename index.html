@@ -1032,11 +1032,11 @@ html, body {
       <div class="upload-zone" id="upload-zone" onclick="document.getElementById('pdf-input').click()">
         <div class="upload-icon-wrap" id="upload-icon">📄</div>
         <div class="upload-title" id="upload-title">BAWAG / easybank PDF</div>
-        <div class="upload-sub" id="upload-sub">Per Klick oder Drag &amp; Drop<br><br>
+        <div class="upload-sub" id="upload-sub">Per Klick oder Drag &amp; Drop · Mehrere PDFs möglich<br><br>
           <span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>
         </div>
       </div>
-      <input type="file" id="pdf-input" accept=".pdf" style="display:none;" onchange="handlePdfUpload(this)">
+      <input type="file" id="pdf-input" accept=".pdf" multiple style="display:none;" onchange="handlePdfUpload(this)">
       <div class="security-note">
         <span style="font-size:1rem;">🔒</span>
         <span>Verarbeitung erfolgt vollständig im Browser. Keine Finanzdaten werden an Server übermittelt.</span>
