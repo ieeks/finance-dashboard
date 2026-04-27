@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.2.5 — 2026-04-27
+
+### Fixed
+- **localStorage-Migration entfernt** — `migrateFromLocalStorage()` überschrieb beim Login korrekte Firestore-Daten mit alten localStorage-Inhalten (`savedBy: "migration"`). Migrations-Code komplett entfernt.
+- **localStorage-Cleanup beim Login** — `finance_v2_data` Key wird beim Login automatisch gelöscht, auch auf Geräten ohne DevTools-Zugang (iPhone).
+- **Subkat-Drill-Down** — Tippen auf Subkategorie-Zeile im Bon-Breakdown öffnet Modal mit allen Einzelpositionen (Name · Händler · Preis).
+- **Firestore immer überschreiben** — Gmail-Importer überschreibt existierende Docs statt bei Duplikat zu skippen, damit Prompt-Änderungen sofort wirken.
+
 ## v1.2.4 — 2026-04-27
 
 ### Fixed (gmail_finance_importer)

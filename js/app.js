@@ -1352,6 +1352,9 @@ async function _bootWithFirebase() {
     document.getElementById('login-screen')?.classList.remove('visible');
     showLoading('Daten werden geladen…');
 
+    // Alten localStorage-Key aus Pre-Firebase-Ära entfernen
+    localStorage.removeItem('finance_v2_data');
+
     try {
       const data = await loadAllData();
 
