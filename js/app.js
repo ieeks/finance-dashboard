@@ -146,11 +146,14 @@ function renderBonBreakdown(txs) {
   if (!bonTxs.length) { el.style.display = 'none'; return; }
 
   const bySubcat = {};
+  const itemsBySubcat = {};
   bonTxs.forEach(t => {
     (t.bon.items).forEach(item => {
       const sc    = item.subcategory || item.subkategorie || 'Sonstiges';
       const price = item.price ?? item.gesamt ?? 0;
       bySubcat[sc] = (bySubcat[sc] || 0) + price;
+      if (!itemsBySubcat[sc]) itemsBySubcat[sc] = [];
+      itemsBySubcat[sc].push({ name: item.name || '—', price, vendor: t.description || '' });
     });
   });
 
@@ -169,17 +172,53 @@ function renderBonBreakdown(txs) {
     <div class="card" style="padding:16px 20px;">
       ${sorted.map(([sc, amt]) => {
         const pct = Math.round((amt / max) * 100);
-        return `<div class="cat-row">
+        return `<div class="cat-row" onclick="openSubkatModal('${escHtml(sc)}')" style="cursor:pointer;">
           <div class="cat-icon-wrap" style="font-size:1rem;">${SUBCAT_ICONS[sc] || '📦'}</div>
           <div style="flex:1;">
             <div class="cat-label" style="font-size:0.82rem;">${escHtml(sc)}</div>
             <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:var(--secondary);"></div></div>
           </div>
-          <div class="cat-amount">${formatEur(amt)}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="cat-amount">${formatEur(amt)}</div>
+            <span style="font-size:0.65rem;color:var(--text-muted);">›</span>
+          </div>
         </div>`;
       }).join('')}
     </div>`;
+
+  window._bonItemsBySubcat = itemsBySubcat;
 }
+
+window.openSubkatModal = function(sc) {
+  const items = (window._bonItemsBySubcat || {})[sc];
+  if (!items?.length) return;
+  const total = items.reduce((s, i) => s + i.price, 0);
+  const icon  = SUBCAT_ICONS[sc] || '📦';
+  const sorted = [...items].sort((a, b) => b.price - a.price);
+  document.getElementById('subkat-modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <span style="font-size:1.4rem;">${icon}</span>
+      <div>
+        <div style="font-family:var(--serif);font-size:1.1rem;font-weight:700;">${escHtml(sc)}</div>
+        <div style="font-size:0.72rem;color:var(--text-muted);">${items.length} Position${items.length !== 1 ? 'en' : ''} · ${formatEur(total)}</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;display:flex;flex-direction:column;gap:2px;">
+      ${sorted.map(it => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--outline-variant);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.85rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(it.name)}</div>
+            <div style="font-size:0.68rem;color:var(--text-muted);">${escHtml(it.vendor)}</div>
+          </div>
+          <div style="font-size:0.9rem;font-weight:700;margin-left:12px;">${formatEur(it.price)}</div>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('subkat-modal').classList.add('open');
+};
+
+window.closeSubkatModal = function() {
+  document.getElementById('subkat-modal').classList.remove('open');
+};
 
 function renderFixkosten(txs) {
   const el = document.getElementById('db-fixkosten');
