@@ -1324,6 +1324,7 @@ async function _bootWithFirebase() {
       state.transactions      = data.transactions;
       state.pendingBons       = data.pendingBons;
       state.categoryOverrides = data.categoryOverrides;
+      state.currentMonth      = getCurrentMonth();
       setInMemoryKeys(data.apiKeys);
 
     } catch(e) {
