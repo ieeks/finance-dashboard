@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v1.2.1 — 2026-04-27
+
+### Added
+- **Multi-PDF Upload** — Mehrere Kontoauszugs-PDFs auf einmal auswählen oder per Drag & Drop einwerfen. Jede Datei wird sequenziell verarbeitet (eigene Fortschrittsanzeige "Datei X/N"). Fehlerhafte PDFs werden übersprungen, valide weiterverarbeitet. Abschluss-Toast zeigt Gesamtzahl: "✓ 127 Buchungen importiert aus 3 Dateien". Upload-Hinweis aktualisiert auf "Mehrere PDFs möglich".
+
+## v1.2.0 — 2026-04-27
+
+### Added
+- **Firebase Auth + Firestore Integration** — Vollständige Cloud-Synchronisation ersetzt localStorage als primären Datenspeicher. Google Sign-In mit E-Mail-Whitelist (manuel.koblischek@gmail.com, zolguita@gmail.com). Login-Screen mit Google-Button.
+- **Automatische localStorage-Migration** — Beim ersten Login werden vorhandene localStorage-Daten einmalig zu Firestore hochgeladen und lokal gelöscht.
+- **API Keys aus Firestore** — Anthropic- und OpenAI-Keys werden nach Login automatisch aus `config/apiKeys` geladen; manuelle Eingabe-Felder entfernt.
+- **Firestore Persistence** — Alle Mutationen (neue Transaktionen, Bon-Links, Kategorien-Overrides, pendingBons) werden automatisch in Firestore gespiegelt.
+- **Import-History** — Jeder PDF-Import legt ein `imports/{id}`-Dokument in Firestore an (Duplikat-Schutz über Dateiname + Monat).
+- **Logout** — LOGOUT-Button in der Dashboard-Topbar; löscht In-Memory-State vollständig.
+
 ## v1.1.2 — 2026-04-26
 
 ### Added

@@ -26,138 +26,16 @@
 
 ---
 
-## Phase 2 — Firebase Integration
+## Phase 2 — Firebase Integration ✅ (v1.2.0, 2026-04-27)
 
-> Parser ist stabil. Datenstruktur hat sich eingeschwungen (transactions, pendingBons, categoryOverrides).
-> **Bereit zur Implementierung** — einzige manuelle Voraussetzung: Firebase-Projekt in der Console anlegen.
-
-### Entscheidungen (bereits getroffen)
-
-- **Auth:** Google Login (`signInWithPopup`) mit E-Mail-Whitelist
-  - Zugelassene Accounts: `manuel.koblischek@gmail.com`, `zolguita@gmail.com`
-  - Doppelte Absicherung: JS-seitig (UX) + Firestore Security Rules (tatsächliche Sicherheit)
-- **Datensilo:** Gemeinsamer Haushalt-Pool — beide sehen alle Transaktionen
-- **Firebase-Projekt:** Eigenes Projekt `finance-dashboard` (getrennt vom LEGO-Tracker)
-- **Config:** `firebase-config.js` in `.gitignore` + API Keys als GitHub Secret für GH Actions
-
----
-
-### Datenmodell (Firestore)
-
-```
-household/main/
-  transactions/{txId}
-    date:         "2026-03-15"          ← ISO-String
-    amount:       -84.30                ← negativ = Ausgabe, positiv = Einnahme
-    rawDesc:      "BILLA DANKT 1020 WIEN"
-    description:  "Billa"              ← bereinigter Name
-    category:     "Lebensmittel"
-    subcategory:  null                  ← Phase 3: gefüllt durch Bon-Matching
-    account:      "AT12BAWAG...8821"   ← IBAN aus PDF-Header (maskiert für Anzeige)
-    source:       "bawag-pdf"
-    importId:     "8821_2026_04"       ← Referenz auf imports-Dokument (Duplikat-Check)
-    bon:          null | { store, date, total, items[] }  ← eingebetteter Bon (Phase 3)
-    note:         null | "Kommentar"
-    createdAt:    Timestamp
-    createdBy:    "manuel.koblischek@gmail.com"
-
-  imports/{importId}                   ← importId = {IBAN_last4}_{year}_{month}
-    filename:     "Kontoauszug_2026_04.pdf"
-    importedAt:   Timestamp
-    importedBy:   "manuel.koblischek@gmail.com"
-    txCount:      47
-    account:      "AT12BAWAG...8821"
-    dateRange:    { from: "2026-04-01", to: "2026-04-30" }
-
-  pendingBons/{bonId}                  ← Bons ohne passende Buchung (bereits in localStorage)
-    store:        "Billa"
-    date:         "2026-04-26"
-    total:        43.20
-    items:        [ { name, price, subcategory } ]
-    savedAt:      Timestamp
-    savedBy:      "manuel.koblischek@gmail.com"
-
-  config/categoryOverrides             ← Händler-Lernfunktion (bereits in localStorage)
-    overrides:    { "mochi restaurant": "Restaurant / Café", ... }
-```
-
----
-
-### Auth — Implementierung
-
-```javascript
-// auth.js
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
-
-const ALLOWED_EMAILS = [
-  "manuel.koblischek@gmail.com",
-  "zolguita@gmail.com"
-];
-
-export async function login() {
-  const auth = getAuth();
-  const result = await signInWithPopup(auth, new GoogleAuthProvider());
-  if (!ALLOWED_EMAILS.includes(result.user.email)) {
-    await signOut(auth);
-    throw new Error("Kein Zugang für dieses Konto.");
-  }
-  return result.user;
-}
-```
-
----
-
-### Firestore Security Rules
-
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /household/{document=**} {
-      allow read, write: if request.auth != null
-        && request.auth.token.email in [
-          "manuel.koblischek@gmail.com",
-          "zolguita@gmail.com"
-        ];
-    }
-  }
-}
-```
-
----
-
-### Duplikat-Erkennung
-
-**Strategie: Composite Key** `importId = {IBAN_last4}_{year}_{month}`
-Beispiel: `8821_2026_04`
-
-Import-Flow:
-1. IBAN + Zeitraum aus PDF-Header extrahieren → `importId` bauen
-2. `imports/{importId}` in Firestore prüfen — existiert bereits? → Abbruch mit Toast "Bereits importiert (April 2026 · BAWAG ••8821)"
-3. Wenn neu: alle Transaktionen als Batch in `transactions/` schreiben + `imports/{importId}` anlegen
-
-Optional für feineres Deduplizieren (z.B. Teilimporte):
-`txId = hash(date + amount + rawDesc)` → jede TX einzeln prüfbar, unabhängig vom Import-Dokument.
-
----
-
-### Implementierungs-Reihenfolge
-
-1. **Firebase-Projekt anlegen** ← du (manuell: Console, Firestore + Auth aktivieren, Google Provider)
-2. **`firebase-config.js`** erstellen (gitignored) + API Keys (Anthropic/OpenAI) dort ablegen
-3. **`firebaseService.js`** Modul bauen:
-   - `login()` / `logout()` / `onAuthChange(callback)`
-   - `checkImportExists(importId)` → boolean
-   - `saveImport(importId, meta)`
-   - `saveTxBatch(transactions)` → Firestore `writeBatch`
-   - `savePendingBon(bon)` / `deletePendingBon(id)` / `loadPendingBons()`
-   - `saveCategoryOverrides(map)` / `loadCategoryOverrides()`
-   - `loadTxs()` → alle Transaktionen, nach Datum sortiert
-4. **Login-Screen** — Google-Button, E-Mail-Whitelist-Check, Fehlermeldung
-5. **localStorage → Firestore Migration** — beim ersten Login: vorhandene Daten hochladen, localStorage leeren
-6. **Import-Flow** — `checkImportExists` → `saveTxBatch` → `saveImport`
-7. **App-Start** — `loadTxs()` + `loadPendingBons()` + `loadCategoryOverrides()` statt leerem State
-8. **API Key Input-Felder entfernen** — Keys kommen aus `firebase-config.js`
+- [x] Google Auth + E-Mail-Whitelist (`firebaseService.js`)
+- [x] Firestore als primärer Datenspeicher (Transaktionen, pendingBons, categoryOverrides)
+- [x] localStorage-Migration beim ersten Login
+- [x] API Keys (Anthropic/OpenAI) aus Firestore `config/apiKeys` — Eingabe-Felder entfernt
+- [x] Import-History in Firestore (`imports/{id}`)
+- [x] Login-Screen + Logout-Button
+- [x] `firebase-config.js` im Repo (öffentlich safe — Security via Firestore Rules + Auth)
+- [x] **API Keys in `firebase-config.js`** — Keys laden automatisch nach Login
 
 ---
 
@@ -228,7 +106,7 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 - [x] Anthropic: Claude Haiku (PDF-Parsing) + Claude Vision (Bon-Extraktion)
 - [x] OpenAI: gpt-4o-mini (PDF-Parsing + Bon-PDF) + gpt-4o Vision (Bon-Bild)
 - [x] Beide API Keys separat in localStorage (im Bon-Screen eingebbar)
-- [ ] **API Keys in `firebase-config.js` hardcoden** — Input-Felder entfernen, Key lädt automatisch beim Start (sinnvoll sobald App hinter Firebase Auth liegt)
+- [x] **API Keys aus Firestore** — Input-Felder entfernt, Keys laden automatisch nach Login (v1.2.0)
 - [ ] Abstraktions-Layer `aiProvider.js` für saubere Trennung
 - [ ] Fallback: wenn Provider A fehlschlägt → Hinweis, nicht automatischer Wechsel
 
@@ -237,6 +115,7 @@ Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzüb
 ## Bugs / Verbesserungen
 - [x] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
 - [x] Lernfunktion: geänderte Kategorien für zukünftige Importe merken — Override-Map in state (2026-04-26)
+- [x] Multi-PDF Upload — mehrere Kontoauszüge gleichzeitig importieren (v1.2.1, 2026-04-27)
 - [ ] Bessere Fehlerbehandlung für passwortgeschützte PDFs
 - [ ] Ladeindikator beim Demo-Button
 
