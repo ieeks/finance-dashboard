@@ -553,6 +553,19 @@ window.runImport = async function() {
       showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
     }
 
+    const fileName   = file.name.toLowerCase();
+    const accountSlug = fileName.includes('easy') ? 'easybank' : 'bawag';
+    const fileMonth  = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
+    const importMonth = (fileMonth || state.currentMonth).replace('-','_');
+    const importId    = `${accountSlug}_${importMonth}`;
+
+    // Dedup: selbe Konto+Monat-Kombi bereits importiert?
+    const alreadyImported = await checkImportExists(importId);
+    if (alreadyImported) {
+      showToast(`${file.name}: Bereits importiert — übersprungen`);
+      continue;
+    }
+
     const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
     let added = 0;
     categorized.forEach(t => {
@@ -561,12 +574,10 @@ window.runImport = async function() {
     });
     totalAdded += added;
 
-    const fileName  = file.name.toLowerCase();
     const accountId = fileName.includes('easy') ? 'easybank' : 'bawag';
     const acc       = state.accounts.find(a => a.id === accountId);
     if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
 
-    const fileMonth = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
     if (fileMonth && fileMonth > latestMonth) latestMonth = fileMonth;
 
     // Auto-match pending bons against newly imported transactions
@@ -597,10 +608,6 @@ window.runImport = async function() {
     }
 
     // Firestore: neue Buchungen speichern + Import-Dokument anlegen
-    const accountSlug = fileName.includes('easy') ? 'easybank' : 'bawag';
-    const importMonth = (fileMonth || state.currentMonth).replace('-','_');
-    const importId    = `${accountSlug}_${importMonth}`;
-
     saveTxBatch(state.transactions.filter(t =>
       categorized.some(c => c.id === t.id)
     )).catch(() => {});
