@@ -62,6 +62,7 @@ function renderDashboard() {
 
   document.getElementById('db-cta').style.display = txs.length ? 'none' : 'block';
   renderDashboardCategories(txs);
+  renderBonBreakdown(txs);
   renderFixkosten(txs);
   renderInsight(txs);
 
@@ -135,6 +136,49 @@ function renderDashboardCategories(txs) {
       <div style="flex:1;min-width:0;">${legend}</div>
     </div>
     ${bars}`;
+}
+
+function renderBonBreakdown(txs) {
+  const el = document.getElementById('db-bon-breakdown');
+  if (!el) return;
+
+  const bonTxs = txs.filter(t => t.bon?.items?.length);
+  if (!bonTxs.length) { el.style.display = 'none'; return; }
+
+  const bySubcat = {};
+  bonTxs.forEach(t => {
+    (t.bon.items).forEach(item => {
+      const sc    = item.subcategory || item.subkategorie || 'Sonstiges';
+      const price = item.price ?? item.gesamt ?? 0;
+      bySubcat[sc] = (bySubcat[sc] || 0) + price;
+    });
+  });
+
+  const sorted = Object.entries(bySubcat).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) { el.style.display = 'none'; return; }
+
+  const max      = sorted[0][1];
+  const bonCount = bonTxs.length;
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div class="section-label">Bon-Aufschlüsselung</div>
+      <span style="font-size:0.65rem;color:var(--text-muted);">${bonCount} Bon${bonCount !== 1 ? 's' : ''} verknüpft</span>
+    </div>
+    <div class="card" style="padding:16px 20px;">
+      ${sorted.map(([sc, amt]) => {
+        const pct = Math.round((amt / max) * 100);
+        return `<div class="cat-row">
+          <div class="cat-icon-wrap" style="font-size:1rem;">${SUBCAT_ICONS[sc] || '📦'}</div>
+          <div style="flex:1;">
+            <div class="cat-label" style="font-size:0.82rem;">${escHtml(sc)}</div>
+            <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:var(--secondary);"></div></div>
+          </div>
+          <div class="cat-amount">${formatEur(amt)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
 }
 
 function renderFixkosten(txs) {
