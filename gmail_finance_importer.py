@@ -287,28 +287,17 @@ def _tx_collection():
               .collection(FIRESTORE_TX_SUBCOL))
 
 
-def _make_doc_id(ai_data: dict, filename: str) -> str:
-    """Rechnungsnummer wenn vorhanden, sonst MD5-Hash."""
-    nr = (ai_data.get("rechnungsnummer") or "").strip()
-    if nr:
-        return re.sub(r'[^\w\-]', '_', nr)
-    key = f"{ai_data.get('rechnungsdatum','')}-{ai_data.get('betrag_brutto','')}-{filename}"
-    return "auto_" + hashlib.md5(key.encode()).hexdigest()[:12]
+def _pdf_doc_id(pdf_path: Path) -> str:
+    """SHA256 der PDF-Bytes als Firestore-Dokument-ID (AI-unabhängig, deterministisch)."""
+    return "pdf_" + hashlib.sha256(pdf_path.read_bytes()).hexdigest()[:20]
 
 
-def is_duplicate(doc_id: str, betrag: float, datum: str) -> bool:
+def is_duplicate(doc_id: str) -> bool:
     """Prüft ob Transaktion bereits in household/main/transactions existiert."""
     col = _tx_collection()
     if not col:
         return False
-    if col.document(doc_id).get().exists:
-        return True
-    results = (col
-               .where("date", "==", datum)
-               .where("amount", "==", -abs(betrag))
-               .limit(1)
-               .get())
-    return len(results) > 0
+    return col.document(doc_id).get().exists
 
 
 def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
@@ -364,10 +353,10 @@ def process_pdf(pdf_path: Path) -> bool:
     print(f"  Erkannt: {ai_data.get('absender','?')} — "
           f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}")
 
-    doc_id = _make_doc_id(ai_data, pdf_path.name)
+    doc_id = _pdf_doc_id(pdf_path)
 
-    if is_duplicate(doc_id, ai_data.get("betrag_brutto", 0), ai_data.get("rechnungsdatum", "")):
-        print("  Bereits vorhanden, übersprungen.")
+    if is_duplicate(doc_id):
+        print("  Bereits vorhanden (PDF-Hash), übersprungen.")
         return False
 
     return save_to_firestore(ai_data, pdf_path.name, doc_id)
