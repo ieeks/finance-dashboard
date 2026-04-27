@@ -43,8 +43,8 @@ GMAIL_USER               = "manuel.rechnungen@gmail.com"
 GMAIL_APP_PASSWORD       = os.getenv("GMAIL_APP_PASSWORD", "")
 GMAIL_LABEL              = "Rechnungen"
 PDF_TEMP_DIR             = Path(tempfile.mkdtemp())
-OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "")
-ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "")
+OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "").strip()
+ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "").strip()
 FIREBASE_SERVICE_ACCOUNT = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
 
 # Firestore-Pfad: household/main/transactions/{id}  ← gleich wie Browser-Parser
