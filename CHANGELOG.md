@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.2.3 — 2026-04-27
+
+### Added
+- **"✉ Rechnung" Badge** in der Buchungsliste für alle Transaktionen mit `source: "gmail_import"` — visuell unterscheidbar von PDF-importierten Buchungen.
+- **Quellen-Filter** im Filter-Sheet: "Alle" / "✉ Rechnungen" / "📄 Kontoauszug" — zeigt nur gmail-importierte oder nur PDF-importierte Transaktionen.
+
+### Fixed
+- **Import-Dedup aktiviert** — `checkImportExists()` wurde importiert aber nie aufgerufen; selbe Konto+Monat-Kombi konnte dadurch mehrfach importiert werden.
+- **API-Keys strippen** — `OPENAI_API_KEY` und `ANTHROPIC_API_KEY` werden jetzt mit `.strip()` gelesen; trailing Newline aus GitHub Secrets führte zu `Invalid header value`.
+
 ## v1.2.2 — 2026-04-27
 
 ### Added

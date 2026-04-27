@@ -221,7 +221,7 @@ function renderInsight(txs) {
 
 // ── Buchungen ──
 let _buchFilter = {
-  konto: 'alle', beleg: 'alle', typ: 'alle', cats: []
+  konto: 'alle', beleg: 'alle', typ: 'alle', cats: [], quelle: 'alle'
 };
 
 function renderBuchungen() {
@@ -242,10 +242,12 @@ function renderBuchungen() {
   if (_buchFilter.typ === 'aus')      txs = txs.filter(t => t.amount < 0);
   if (_buchFilter.typ === 'ein')      txs = txs.filter(t => t.amount > 0);
   if (_buchFilter.cats.length)        txs = txs.filter(t => _buchFilter.cats.includes(t.category));
+  if (_buchFilter.quelle === 'gmail') txs = txs.filter(t => t.source === 'gmail_import');
+  if (_buchFilter.quelle === 'pdf')   txs = txs.filter(t => t.source !== 'gmail_import');
 
   // summary bar when filter or search active
   const hasFilter = search || _buchFilter.konto !== 'alle' || _buchFilter.beleg !== 'alle' ||
-                    _buchFilter.typ !== 'alle' || _buchFilter.cats.length > 0;
+                    _buchFilter.typ !== 'alle' || _buchFilter.cats.length > 0 || _buchFilter.quelle !== 'alle';
   const summaryEl = document.getElementById('buchungen-summary');
   if (summaryEl && hasFilter) {
     const total   = txs.reduce((s,t) => s + t.amount, 0);
@@ -298,9 +300,10 @@ function renderTxItem(tx) {
   const cfg      = CAT_CONFIG[tx.category] || CAT_CONFIG['Sonstiges'];
   const isIn     = tx.amount > 0;
   const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
-  const aiTag    = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
-  const bonTag   = tx.bon  ? '<span style="font-size:0.7rem;">🧾</span>' : '';
-  const noteTag  = tx.note ? '<span style="font-size:0.7rem;">💬</span>' : '';
+  const aiTag     = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
+  const bonTag    = tx.bon  ? '<span style="font-size:0.7rem;">🧾</span>' : '';
+  const noteTag   = tx.note ? '<span style="font-size:0.7rem;">💬</span>' : '';
+  const gmailTag  = tx.source === 'gmail_import' ? '<span class="chip" style="padding:2px 6px;font-size:0.55rem;background:var(--surface-container);color:var(--secondary);">✉ Rechnung</span>' : '';
   const avatar   = tx.cardHolder === 'manuel' ? '<span class="avatar-chip avatar-m">M</span>'
                  : tx.cardHolder === 'olga'   ? '<span class="avatar-chip avatar-o">O</span>'
                  : '';
@@ -309,7 +312,7 @@ function renderTxItem(tx) {
     <div style="flex:1;min-width:0;">
       <div class="tx-name">${escHtml(tx.description)}</div>
       <div class="tx-meta">
-        ${aiTag}${bonTag}${noteTag}
+        ${gmailTag}${aiTag}${bonTag}${noteTag}
         <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
         ${avatar}
         <span>${formatDate(tx.date)}</span>
@@ -960,7 +963,7 @@ function initBuchFilters() {
   let monthSheetFromFilter = false;
   let pendingMonth = { year: 2026, month: 0 };
   let confirmedMonth = { year: 2026, month: 0 };
-  let pendingFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: new Set() };
+  let pendingFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: new Set(), quelle: 'alle' };
 
   const overlay    = document.getElementById('buchOverlay');
   const filterSheet = document.getElementById('buchFilterSheet');
@@ -1028,7 +1031,8 @@ function initBuchFilters() {
   function openFilterSheet() {
     pendingFilter = {
       konto: _buchFilter.konto, beleg: _buchFilter.beleg,
-      typ: _buchFilter.typ, cats: new Set(_buchFilter.cats.map(l => CATS.findIndex(c => c.label === l)))
+      typ: _buchFilter.typ, cats: new Set(_buchFilter.cats.map(l => CATS.findIndex(c => c.label === l))),
+      quelle: _buchFilter.quelle
     };
     // sync chip active states
     filterSheet.querySelectorAll('.bs-chips').forEach(row => {
@@ -1050,9 +1054,10 @@ function initBuchFilters() {
   // ── Filter badge + active pills ──
   function updateFilterBadge() {
     let n = 0;
-    if (_buchFilter.konto !== 'alle') n++;
-    if (_buchFilter.beleg !== 'alle') n++;
-    if (_buchFilter.typ   !== 'alle') n++;
+    if (_buchFilter.konto  !== 'alle') n++;
+    if (_buchFilter.beleg  !== 'alle') n++;
+    if (_buchFilter.typ    !== 'alle') n++;
+    if (_buchFilter.quelle !== 'alle') n++;
     n += _buchFilter.cats.length;
     const badge = document.getElementById('buchFilterBadge');
     const btn   = document.getElementById('buchFilterBtn');
@@ -1064,9 +1069,10 @@ function initBuchFilters() {
     const bar = document.getElementById('activePills');
     if (!bar) return;
     const items = [];
-    if (_buchFilter.konto !== 'alle') items.push({ label: _buchFilter.konto === 'manuel' ? '👤 Manuel' : '👤 Olga', key: 'konto' });
-    if (_buchFilter.beleg !== 'alle') items.push({ label: _buchFilter.beleg === 'linked' ? '✅ Verknüpft' : '◻ Offen', key: 'beleg' });
-    if (_buchFilter.typ   !== 'alle') items.push({ label: _buchFilter.typ === 'aus' ? '↑ Ausgaben' : '↓ Einnahmen', key: 'typ' });
+    if (_buchFilter.konto  !== 'alle') items.push({ label: _buchFilter.konto === 'manuel' ? '👤 Manuel' : '👤 Olga', key: 'konto' });
+    if (_buchFilter.beleg  !== 'alle') items.push({ label: _buchFilter.beleg === 'linked' ? '✅ Verknüpft' : '◻ Offen', key: 'beleg' });
+    if (_buchFilter.typ    !== 'alle') items.push({ label: _buchFilter.typ === 'aus' ? '↑ Ausgaben' : '↓ Einnahmen', key: 'typ' });
+    if (_buchFilter.quelle !== 'alle') items.push({ label: _buchFilter.quelle === 'gmail' ? '✉ Rechnungen' : '📄 Kontoauszug', key: 'quelle' });
     _buchFilter.cats.forEach(l => items.push({ label: (CATS.find(c => c.label === l)?.emoji || '') + ' ' + l, key: 'cat:' + l }));
     bar.innerHTML = items.map(it =>
       `<div class="ap-pill">${it.label}<span class="px" data-key="${it.key}">✕</span></div>`
@@ -1089,7 +1095,7 @@ function initBuchFilters() {
 
   // ── Reset & Apply ──
   document.getElementById('buchFilterReset')?.addEventListener('click', () => {
-    _buchFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: [] };
+    _buchFilter = { konto: 'alle', beleg: 'alle', typ: 'alle', cats: [], quelle: 'alle' };
     syncConfirmedFromState();
     updateMonthLabels();
     closeFilterSheet();
@@ -1105,7 +1111,8 @@ function initBuchFilters() {
     saveState();
     _buchFilter = {
       konto: pendingFilter.konto, beleg: pendingFilter.beleg, typ: pendingFilter.typ,
-      cats: [...pendingFilter.cats].map(i => CATS[i]?.label).filter(Boolean)
+      cats: [...pendingFilter.cats].map(i => CATS[i]?.label).filter(Boolean),
+      quelle: pendingFilter.quelle
     };
     updateMonthLabels();
     closeFilterSheet();
