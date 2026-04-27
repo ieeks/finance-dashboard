@@ -30,9 +30,10 @@
 
 - [x] Google Auth + E-Mail-Whitelist (`firebaseService.js`)
 - [x] Firestore als primärer Datenspeicher (Transaktionen, pendingBons, categoryOverrides)
-- [x] localStorage-Migration beim ersten Login
+- [x] ~~localStorage-Migration beim ersten Login~~ — entfernt (v1.2.5), Cleanup beim Login
 - [x] API Keys (Anthropic/OpenAI) aus Firestore `config/apiKeys` — Eingabe-Felder entfernt
 - [x] Import-History in Firestore (`imports/{id}`)
+- [x] Import-Dedup-Check aktiviert (`checkImportExists`) — verhindert Doppelimport (v1.2.3)
 - [x] Login-Screen + Logout-Button
 - [x] `firebase-config.js` im Repo (öffentlich safe — Security via Firestore Rules + Auth)
 - [x] **API Keys in `firebase-config.js`** — Keys laden automatisch nach Login
@@ -60,6 +61,7 @@
 ### 3c — Sub-Kategorie Dashboard
 - [x] Drill-Down: Buchung → Bon → Einzelpositionen — bereits im TX-Modal sichtbar
 - [x] Auswertung nach Sub-Kategorien (aktueller Monat) — Dashboard-Karte "Bon-Aufschlüsselung" (v1.2.1, 2026-04-27)
+- [x] Subkat-Drill-Down: Tippen auf Subkategorie-Zeile → Modal mit Einzelpositionen (v1.2.5, 2026-04-27)
 - [ ] Auswertung nach Sub-Kategorien **über Monate** (Trend: "Süßwaren Ø 18,40 € / Monat")
 - [ ] Top-Produkte Ranking (was kaufe ich am häufigsten?)
 - [ ] Filter: nur Buchungen mit / ohne Bon anzeigen
