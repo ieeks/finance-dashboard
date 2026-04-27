@@ -164,8 +164,8 @@ def extract_pdf_text(pdf_path: Path) -> str:
 # ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
 
 def _build_prompt(pdf_text: str, filename: str) -> str:
-    return f"""Du bist ein Rechnungs-Extraktor. Analysiere diesen PDF-Text einer Rechnung
-und extrahiere die wichtigsten Felder als JSON.
+    return f"""Du bist ein Kassenbon- und Rechnungs-Extraktor. Analysiere diesen PDF-Text
+und extrahiere alle relevanten Felder als JSON.
 
 PDF-Dateiname: {filename}
 PDF-Text:
@@ -178,12 +178,25 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach):
   "absender": "...",
   "betrag_brutto": 0.00,
   "beschreibung": "...",
-  "kategorie": "..."
+  "kategorie": "...",
+  "positionen": [
+    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subkategorie": "..."}}
+  ]
 }}
 
+Regeln:
+- "absender": NUR der Firmenname, KEINE Adresse, PLZ oder Stadt.
+  Richtig: "Billa" — Falsch: "Billa AG, 1030 Wien, Musterstraße 1"
+- "positionen": alle Einzelpositionen aus dem Kassenbon/Rechnung extrahieren.
+  Falls keine Einzelpositionen erkennbar sind → leeres Array [].
+- "positionen[].subkategorie" aus dieser Liste wählen:
+  Milchprodukte, Süßwaren / Naschen, Getränke, Brot & Backwaren,
+  Fleisch & Wurst, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges
+
 Für "kategorie" eine dieser Optionen wählen:
-Energie / Strom, Telekommunikation, Versicherung, Online Shopping,
-Mobilität / Auto, Wohnen / Miete, Gesundheit, Gebühren / Bank, Sonstiges"""
+Supermarkt, Restaurant / Café, Drogerie, Energie / Strom, Telekommunikation,
+Versicherung, Online Shopping, Mobilität / Auto, Wohnen / Miete, Gesundheit,
+Gebühren / Bank, Freizeit, Sonstiges"""
 
 
 def _parse_ai_response(text: str) -> dict | None:
@@ -311,11 +324,35 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
         print("  Firestore nicht verfügbar (FIREBASE_SERVICE_ACCOUNT fehlt).")
         return False
 
+    # Nur Firmennamen, keine Adresse (Fallback-Cleanup falls AI es ignoriert)
+    raw_absender = ai_data.get("absender", filename) or filename
+    description  = raw_absender.split(",")[0].split("\n")[0].strip()
+
+    # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
+    positionen = ai_data.get("positionen") or []
+    bon = None
+    if positionen:
+        bon = {
+            "source": "gmail_import",
+            "total":  abs(ai_data.get("betrag_brutto", 0)),
+            "date":   ai_data.get("rechnungsdatum", ""),
+            "vendor": description,
+            "items":  [
+                {
+                    "name":        p.get("name", ""),
+                    "menge":       p.get("menge", 1),
+                    "price":       float(p.get("gesamt") or p.get("einzelpreis") or 0),
+                    "subcategory": p.get("subkategorie", "Sonstiges"),
+                }
+                for p in positionen if p.get("name")
+            ],
+        }
+
     tx = {
         "id":            doc_id,
         "date":          ai_data.get("rechnungsdatum", ""),
         "amount":        -abs(ai_data.get("betrag_brutto", 0)),
-        "description":   ai_data.get("absender", filename),
+        "description":   description,
         "category":      ai_data.get("kategorie", "Sonstiges"),
         "account":       "easybank",
         "aiCategorized": True,
@@ -325,6 +362,8 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
         "savedBy":       "gmail_importer",
         "filename":      filename,
     }
+    if bon and bon["items"]:
+        tx["bon"] = bon
 
     try:
         col.document(doc_id).set(tx)
@@ -350,8 +389,10 @@ def process_pdf(pdf_path: Path) -> bool:
         print("  FEHLER: AI-Extraktion fehlgeschlagen.")
         return False
 
+    n_items = len(ai_data.get("positionen") or [])
+    items_info = f" · {n_items} Positionen" if n_items else ""
     print(f"  Erkannt: {ai_data.get('absender','?')} — "
-          f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}")
+          f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
 
     doc_id = _pdf_doc_id(pdf_path)
 

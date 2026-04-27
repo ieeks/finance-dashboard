@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v1.2.4 — 2026-04-27
+
+### Fixed (gmail_finance_importer)
+- **Beschreibung**: `absender` wird jetzt auf Firmennamen gekürzt (kein Komma/Adressteil mehr). Fallback-Cleanup auch falls AI die Regel ignoriert.
+- **Kategorien**: Prompt ergänzt um Supermarkt, Restaurant / Café, Drogerie, Freizeit — Billa/Hofer/Spar werden nicht mehr als "Sonstiges" abgelegt.
+- **Einzelposten**: Kassenbons mit Positionsliste werden als `bon.items` in Firestore gespeichert (gleiche Struktur wie Bon-Analyzer). Damit erscheinen die Items im Dashboard-Bon-Breakdown und im TX-Modal.
+
 ## v1.2.3 — 2026-04-27
 
 ### Added
