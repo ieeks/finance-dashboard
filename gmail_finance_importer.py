@@ -28,7 +28,7 @@ import re
 import sys
 import tempfile
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from email.header import decode_header
 from pathlib import Path
 
@@ -41,7 +41,7 @@ load_dotenv()
 
 GMAIL_USER               = "manuel.rechnungen@gmail.com"
 GMAIL_APP_PASSWORD       = os.getenv("GMAIL_APP_PASSWORD", "")
-GMAIL_LABEL              = "FinanceDashboard"
+GMAIL_LABEL              = "Rechnungen"
 PDF_TEMP_DIR             = Path(tempfile.mkdtemp())
 OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "")
@@ -397,16 +397,20 @@ def main() -> None:
         mail.logout()
         sys.exit(1)
 
-    # Ungelesene Mails suchen
-    _, msg_ids_raw = mail.search(None, "UNSEEN")
+    # Mails der letzten 30 Tage suchen (SEIT-Filter statt UNSEEN)
+    # Damit teilen sich beide Skripte (gmail-pdf-sync + dieses) dasselbe
+    # "Rechnungen"-Label ohne Konflikt — das Seen-Flag wird nicht verändert,
+    # Duplikate werden über Firestore-IDs verhindert.
+    since_date = (datetime.now() - timedelta(days=30)).strftime("%d-%b-%Y")
+    _, msg_ids_raw = mail.search(None, f"SINCE {since_date}")
     msg_ids = msg_ids_raw[0].split()
 
     if not msg_ids:
-        print("Keine neuen E-Mails gefunden.")
+        print("Keine E-Mails in den letzten 30 Tagen gefunden.")
         mail.logout()
         return
 
-    print(f"{len(msg_ids)} neue E-Mail(s) im Label '{GMAIL_LABEL}'.")
+    print(f"{len(msg_ids)} E-Mail(s) im Label '{GMAIL_LABEL}' (letzte 30 Tage).")
     processed = 0
     saved = 0
 
@@ -422,8 +426,7 @@ def main() -> None:
                 if process_pdf(pdf_path):
                     saved += 1
 
-        # Mail als gelesen markieren — auch wenn AI/Firestore fehlschlägt
-        mail.store(msg_id, "+FLAGS", "\\Seen")
+        # Seen-Flag absichtlich NICHT setzen — gmail-pdf-sync verwaltet das
 
     mail.logout()
     print(f"\nFertig: {processed} PDF(s) verarbeitet, {saved} in Firestore gespeichert.")
