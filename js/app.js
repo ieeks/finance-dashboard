@@ -6,8 +6,7 @@ import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.j
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
-         fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         migrateFromLocalStorage } from './firebaseService.js';
+         fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides } from './firebaseService.js';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -1354,23 +1353,6 @@ async function _bootWithFirebase() {
     showLoading('Daten werden geladen…');
 
     try {
-      // Migration: localStorage-Daten einmalig hochladen
-      const LOCAL_KEY = 'finance_v2_data';
-      const raw = localStorage.getItem(LOCAL_KEY);
-      if (raw) {
-        const local = JSON.parse(raw);
-        if (local.transactions?.length) {
-          showLoading('Lokale Daten werden migriert…');
-          await migrateFromLocalStorage({
-            transactions:      local.transactions      || [],
-            pendingBons:       local.pendingBons       || [],
-            categoryOverrides: local.categoryOverrides || {},
-          });
-          localStorage.removeItem(LOCAL_KEY);
-          showToast('✅ Lokale Daten wurden zu Firestore migriert');
-        }
-      }
-
       const data = await loadAllData();
 
       // State befüllen
