@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v1.2.6 — 2026-04-27
+
+### Added
+- **Onboarding-Modal** — 4-Schritte Carousel (horizontales Swipe) erreichbar über ℹ-Icon in der Dashboard-Topbar. Erscheint nicht automatisch beim Start. Schritte: Überblick · E-Mail-Rechnungen · PDF-Import · Alles bereit. SVG-Icons (Balkendiagramm · Briefumschlag · Dokument · Checkmark) im Quiet-Luxury-Stil.
+
+---
+
 ## v1.2.5 — 2026-04-27
 
 ### Fixed
