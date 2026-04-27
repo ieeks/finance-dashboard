@@ -58,10 +58,9 @@
 - [ ] Basis: receipt-scanner Code aus bestehendem Repo wiederverwenden
 
 ### 3c — Sub-Kategorie Dashboard
-- [ ] Drill-Down: Buchung → Bon → Einzelpositionen
-- [ ] Auswertung nach Sub-Kategorien über Monate
-      Beispiel: "Joghurt & Milch: Ø 18,40 € / Monat"
-                "Süßwaren / Naschen: 34,20 € im März"
+- [x] Drill-Down: Buchung → Bon → Einzelpositionen — bereits im TX-Modal sichtbar
+- [x] Auswertung nach Sub-Kategorien (aktueller Monat) — Dashboard-Karte "Bon-Aufschlüsselung" (v1.2.1, 2026-04-27)
+- [ ] Auswertung nach Sub-Kategorien **über Monate** (Trend: "Süßwaren Ø 18,40 € / Monat")
 - [ ] Top-Produkte Ranking (was kaufe ich am häufigsten?)
 - [ ] Filter: nur Buchungen mit / ohne Bon anzeigen
 
