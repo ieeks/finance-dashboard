@@ -85,17 +85,17 @@
 
 ---
 
-## Phase 6 — Gmail Invoice Matcher (gmail-invoice-matcher.md)
+## Phase 6 — Gmail Invoice Matcher ✅ Infrastruktur fertig (v1.2.2, 2026-04-27)
 
-Vollständiges Feature-Dokument existiert in `gmail-invoice-matcher.md`. Kurzübersicht:
-
-- [ ] Gmail OAuth2 Login (kein Backend — direkt im Browser via fetch)
-- [ ] PDF-Anhänge aus `manuel.rechnungen@gmail.com` abrufen (Gmail API)
-- [ ] Claude Vision analysiert Rechnung → JSON mit Positionen + Sub-Kategorien
-- [ ] Matching: Rechnung ↔ Kontoauszug-Buchung (Betrag ± Datum, Score 0–100)
+- [x] PDF-Anhänge aus `manuel.rechnungen@gmail.com` via IMAP abrufen (`gmail_finance_importer.py`)
+- [x] AI-Extraktion: OpenAI gpt-4o-mini primär, Claude Haiku Fallback
+- [x] Firestore-Speicherung unter `household/main/transactions` (kompatibel mit Browser-App)
+- [x] PDF-Hash-Dedup (SHA256, AI-unabhängig)
+- [x] GitHub Actions: täglich 07:00 UTC + manuell (`.github/workflows/gmail_finance_sync.yml`)
+- [x] Single-Label "Rechnungen" — kein Konflikt mit gmail-pdf-sync
+- [ ] Gmail OAuth2 im Browser (statt IMAP/App-Passwort) — erst Phase 6b
 - [ ] Neuer "Rechnungen" Screen im Dashboard
-- [ ] Firestore Collection `invoices/{userId}/items/{invoiceId}`
-- [ ] Dashboard Drill-Down: Supermarkt → Sub-Kategorien (🍫 Süßwaren, 🥛 Milch)
+- [ ] Matching: importierte Rechnung ↔ Kontoauszug-Buchung (Betrag ± Datum, Score 0–100)
 
 **Gedanken dazu (siehe unten im Abschnitt "Notizen")**
 

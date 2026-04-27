@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.2.2 — 2026-04-27
+
+### Added
+- **Gmail Finance Importer** (`gmail_finance_importer.py`) — Python-Skript liest PDF-Rechnungen aus Gmail-Label "Rechnungen" (IMAP), extrahiert Text via pdfplumber, analysiert via OpenAI gpt-4o-mini (primär) / Claude Haiku (Fallback) und speichert Transaktionen direkt in Firestore `household/main/transactions`. Feldnamen auf Browser-App-Format gemappt (date, amount negativ, description, category, aiCategorized).
+- **GitHub Actions Workflow** (`.github/workflows/gmail_finance_sync.yml`) — Läuft täglich 07:00 UTC + manuell auslösbar. Secrets: GMAIL_APP_PASSWORD, OPENAI_API_KEY, ANTHROPIC_API_KEY, FIREBASE_SERVICE_ACCOUNT.
+- **PDF-Hash Dedup** — Firestore-Dokument-ID basiert auf SHA256 der PDF-Bytes (erste 20 Zeichen, Prefix `pdf_`). AI-unabhängig und deterministisch — kein Duplikat-Import auch bei mehrfachen Workflow-Läufen oder AI-Nicht-Determinismus.
+- **Single-Label Modus** — Importer teilt sich das Gmail-Label "Rechnungen" mit `gmail-pdf-sync` ohne Konflikt: SINCE-30-Tage-Suche statt UNSEEN, Seen-Flag wird nicht verändert.
+
 ## v1.2.1 — 2026-04-27
 
 ### Added
