@@ -18,18 +18,15 @@ export function escHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
-// ── API Keys ──
-export function loadKeys() {
-  try {
-    return {
-      anthropic: localStorage.getItem('api_key_anthropic') || '',
-      openai:    localStorage.getItem('api_key_openai')    || '',
-    };
-  } catch(e) { return { anthropic: '', openai: '' }; }
+// ── API Keys — In-Memory (gesetzt nach Firebase-Login aus Firestore) ──
+let _memKeys = { anthropic: '', openai: '' };
+
+export function setInMemoryKeys(keys) {
+  _memKeys = { anthropic: keys.anthropic || '', openai: keys.openai || '' };
 }
 
-export function saveKey(provider, value) {
-  if (value) localStorage.setItem(`api_key_${provider}`, value);
+export function loadKeys() {
+  return { ..._memKeys };
 }
 
 // ── Toast ──

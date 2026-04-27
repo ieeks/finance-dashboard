@@ -1,9 +1,13 @@
 // app.js — Entry Point
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
 import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
-import { formatEur, formatDate, escHtml, loadKeys, saveKey, showToast, showLoading, hideLoading } from './ui.js';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js';
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
+import { login, logout, onAuthChange, currentEmail,
+         loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
+         fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
+         migrateFromLocalStorage } from './firebaseService.js';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -357,14 +361,14 @@ window.updateCategory = function(id, newCat) {
   if (rememberCb?.checked) {
     if (!state.categoryOverrides) state.categoryOverrides = {};
     state.categoryOverrides[key] = newCat;
-    showToast(`✅ Kategorie gespeichert — "${tx.description}" wird beim nächsten Import automatisch als "${newCat}" erkannt`);
-  } else if (state.categoryOverrides?.[key]) {
-    showToast('Kategorie gespeichert');
+    fsSaveCategoryOverrides(state.categoryOverrides).catch(() => {});
+    showToast(`✅ "${tx.description}" wird künftig als "${newCat}" erkannt`);
   } else {
     showToast('Kategorie gespeichert');
   }
 
   saveState();
+  updateTx(id, { category: newCat, aiCategorized: false }).catch(() => {});
   window.closeTxModal();
   renderBuchungen();
   renderDashboard();
@@ -373,6 +377,7 @@ window.updateCategory = function(id, newCat) {
 window.deleteOverride = function(key) {
   if (state.categoryOverrides) delete state.categoryOverrides[key];
   saveState();
+  fsSaveCategoryOverrides(state.categoryOverrides || {}).catch(() => {});
   showToast('Gespeicherte Kategorie entfernt');
   window.closeTxModal();
 };
@@ -384,6 +389,7 @@ window.saveNote = function(id, value) {
   if (tx.note === trimmed) return;
   tx.note = trimmed;
   saveState();
+  updateTx(id, { note: trimmed }).catch(() => {});
   renderBuchungen();
 };
 
@@ -515,10 +521,42 @@ window.runImport = async function() {
       );
       if (match) { match.bon = bon; linked.push(bon.id); autoLinked++; }
     });
-    if (linked.length) state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
+    if (linked.length) {
+      state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
+      // Delete matched bons from Firestore + update linked transactions
+      linked.forEach(bonId => fsDeletePendingBon(bonId).catch(() => {}));
+      state.transactions
+        .filter(t => linked.some(bid => t.bon?.id === bid))
+        .forEach(t => updateTx(t.id, { bon: t.bon }).catch(() => {}));
+    }
   }
 
   saveState();
+
+  // Firestore: neue Buchungen speichern + Import-Dokument anlegen
+  const newTxs = categorized.filter(t => {
+    const key = `${t.date}|${t.amount}|${t.description}`;
+    return true; // bereits durch existing-Set gefiltert oben
+  });
+  const fileName2   = selectedPdfFile?.name?.toLowerCase() || '';
+  const accountSlug = fileName2.includes('easy') ? 'easybank' : 'bawag';
+  const importMonth = (categorized.map(t => t.date.slice(0,7)).sort().reverse()[0] || state.currentMonth).replace('-','_');
+  const importId    = `${accountSlug}_${importMonth}`;
+
+  saveTxBatch(state.transactions.filter(t =>
+    categorized.some(c => c.id === t.id)
+  )).catch(() => {});
+
+  saveImport(importId, {
+    filename:  selectedPdfFile?.name || 'unknown',
+    txCount:   added,
+    account:   accountSlug,
+    dateRange: {
+      from: categorized.map(t=>t.date).sort()[0],
+      to:   categorized.map(t=>t.date).sort().reverse()[0],
+    },
+  }).catch(() => {});
+
   setStep(3, 100, true);
   hideLoading();
   updateImportStatus('Import abgeschlossen', `${added} neue Buchungen importiert (${categorized.length - added} Duplikate übersprungen).`);
@@ -797,6 +835,7 @@ window.linkBon = function(txId) {
   if (!tx) return;
   tx.bon = _currentBon;
   saveState();
+  updateTx(txId, { bon: _currentBon }).catch(() => {});
   showToast(`✅ Verknüpft mit "${tx.description}"`);
   renderConciergeResult(_currentBon);
 };
@@ -804,9 +843,11 @@ window.linkBon = function(txId) {
 window.savePendingBon = function() {
   if (!_currentBon) return;
   if (!state.pendingBons) state.pendingBons = [];
-  const id = 'bon_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
-  state.pendingBons.push({ ..._currentBon, id, savedAt: new Date().toISOString() });
+  const id  = 'bon_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  const bon = { ..._currentBon, id, savedAt: new Date().toISOString() };
+  state.pendingBons.push(bon);
   saveState();
+  fsAddPendingBon(bon).catch(() => {});
   showToast('⏳ Bon gespeichert — wird beim nächsten Import automatisch verknüpft');
   resetConcierge();
 };
@@ -815,6 +856,7 @@ window.deletePendingBon = function(id) {
   if (!state.pendingBons) return;
   state.pendingBons = state.pendingBons.filter(b => b.id !== id);
   saveState();
+  fsDeletePendingBon(id).catch(() => {});
   renderPendingBons();
 };
 
@@ -1181,6 +1223,75 @@ function initMonthPicker() {
   );
 }
 
+async function _bootWithFirebase() {
+  showLoading('Verbinde…');
+
+  onAuthChange(async user => {
+    if (!user) {
+      hideLoading();
+      document.getElementById('login-screen')?.classList.add('visible');
+      return;
+    }
+
+    // Eingeloggt — Daten laden
+    document.getElementById('login-screen')?.classList.remove('visible');
+    showLoading('Daten werden geladen…');
+
+    try {
+      // Migration: localStorage-Daten einmalig hochladen
+      const LOCAL_KEY = 'finance_v2_data';
+      const raw = localStorage.getItem(LOCAL_KEY);
+      if (raw) {
+        const local = JSON.parse(raw);
+        if (local.transactions?.length) {
+          showLoading('Lokale Daten werden migriert…');
+          await migrateFromLocalStorage({
+            transactions:      local.transactions      || [],
+            pendingBons:       local.pendingBons       || [],
+            categoryOverrides: local.categoryOverrides || {},
+          });
+          localStorage.removeItem(LOCAL_KEY);
+          showToast('✅ Lokale Daten wurden zu Firestore migriert');
+        }
+      }
+
+      const data = await loadAllData();
+
+      // State befüllen
+      state.transactions      = data.transactions;
+      state.pendingBons       = data.pendingBons;
+      state.categoryOverrides = data.categoryOverrides;
+      setInMemoryKeys(data.apiKeys);
+
+    } catch(e) {
+      console.warn('Firestore load error:', e);
+      showToast('⚠️ Firestore nicht erreichbar — lokale Daten werden verwendet');
+    }
+
+    hideLoading();
+    _initApp();
+  });
+}
+
+window.firebaseLogin = async function() {
+  const errEl = document.getElementById('login-error');
+  if (errEl) errEl.textContent = '';
+  try {
+    await login();
+  } catch(e) {
+    if (errEl) errEl.textContent = e.message;
+  }
+};
+
+window.firebaseLogout = async function() {
+  await logout();
+  state.transactions      = [];
+  state.pendingBons       = [];
+  state.categoryOverrides = {};
+  setInMemoryKeys({ anthropic: '', openai: '' });
+  document.getElementById('login-screen')?.classList.add('visible');
+};
+
 function _initApp() {
   // Drag & drop
   const zone = document.getElementById('upload-zone');
@@ -1261,18 +1372,6 @@ function _initApp() {
     });
   })();
 
-  // Load saved keys into inputs
-  const keys = loadKeys();
-  const akEl = document.getElementById('anthropic-key-input');
-  const okEl = document.getElementById('openai-key-input');
-  if (akEl) akEl.value = keys.anthropic;
-  if (okEl) okEl.value = keys.openai;
-  // Bon screen keys
-  const bak = document.getElementById('bon-anthropic-key');
-  const bok = document.getElementById('bon-openai-key');
-  if (bak) bak.value = keys.anthropic;
-  if (bok) bok.value = keys.openai;
-
   setProviderUI(state.aiProvider);
   renderDashboard();
   renderKonten();
@@ -1280,7 +1379,7 @@ function _initApp() {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', _initApp);
+  document.addEventListener('DOMContentLoaded', _bootWithFirebase);
 } else {
-  _initApp();
+  _bootWithFirebase();
 }
