@@ -313,7 +313,7 @@ def is_duplicate(doc_id: str) -> bool:
     return col.document(doc_id).get().exists
 
 
-def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
+def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = True) -> bool:
     """
     Transaktion unter household/main/transactions/{doc_id} speichern.
     Feldnamen auf Browser-App-Format gemappt:
@@ -367,8 +367,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
 
     try:
         col.document(doc_id).set(tx)
-        print(f"  Firestore: household/main/transactions/{doc_id} geschrieben.")
-        return True
+        action = "geschrieben" if is_new else "aktualisiert"
+        print(f"  Firestore: household/main/transactions/{doc_id} {action}.")
+        return is_new
     except Exception as exc:
         print(f"  Firestore-Fehler: {exc}")
         return False
@@ -394,13 +395,10 @@ def process_pdf(pdf_path: Path) -> bool:
     print(f"  Erkannt: {ai_data.get('absender','?')} — "
           f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
 
-    doc_id = _pdf_doc_id(pdf_path)
+    doc_id   = _pdf_doc_id(pdf_path)
+    is_new   = not is_duplicate(doc_id)
 
-    if is_duplicate(doc_id):
-        print("  Bereits vorhanden (PDF-Hash), übersprungen.")
-        return False
-
-    return save_to_firestore(ai_data, pdf_path.name, doc_id)
+    return save_to_firestore(ai_data, pdf_path.name, doc_id, is_new)
 
 
 def main() -> None:
