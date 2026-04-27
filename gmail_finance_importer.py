@@ -1,14 +1,17 @@
+#!/usr/bin/env python3
 """
 gmail_finance_importer.py — PDF-Rechnungen aus Gmail → Firestore (finance-dashboard)
 
 Ablauf:
   1. IMAP: UNSEEN-Mails im Label "Finance" abholen, PDF-Anhänge speichern
+     (IMAP-Logik direkt aus gmail_invoices.py übernommen)
   2. pdfplumber: Text aus PDF extrahieren
   3. AI: OpenAI gpt-4o-mini (primär) → Claude Haiku (Fallback)
   4. Firestore: Transaktion unter household/main/transactions/{id} speichern
+     (get_firestore_db() direkt aus extract_verbund.py übernommen)
 
-Felder werden auf das Format des Browser-Parsers gemappt, damit das
-Dashboard die Transaktionen ohne Änderungen anzeigen kann.
+Felder werden auf das Format des Browser-Parsers gemappt:
+  date, amount (negativ), description, category, account, aiCategorized
 
 Ausführen:
   pip install pdfplumber anthropic firebase-admin python-dotenv
@@ -16,11 +19,13 @@ Ausführen:
 """
 
 import email
+import email.utils
 import hashlib
 import imaplib
 import json
 import os
 import re
+import sys
 import tempfile
 import urllib.request
 from datetime import datetime
@@ -34,26 +39,33 @@ load_dotenv()
 
 # ── Konfiguration ──────────────────────────────────────────────────────────────
 
-GMAIL_USER              = "manuel.rechnungen@gmail.com"
-GMAIL_APP_PASSWORD      = os.getenv("GMAIL_APP_PASSWORD", "")
-GMAIL_LABEL             = "Finance"
-OPENAI_API_KEY          = os.getenv("OPENAI_API_KEY", "")
-ANTHROPIC_API_KEY       = os.getenv("ANTHROPIC_API_KEY", "")
+GMAIL_USER               = "manuel.rechnungen@gmail.com"
+GMAIL_APP_PASSWORD       = os.getenv("GMAIL_APP_PASSWORD", "")
+GMAIL_LABEL              = "Finance"
+PDF_TEMP_DIR             = Path(tempfile.mkdtemp())
+OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "")
 FIREBASE_SERVICE_ACCOUNT = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
 
-# Firestore-Pfad: household/main/transactions/{id}  ← muss mit Browser-App übereinstimmen
+# Firestore-Pfad: household/main/transactions/{id}  ← gleich wie Browser-Parser
 FIRESTORE_HH_DOC    = ("household", "main")
 FIRESTORE_TX_SUBCOL = "transactions"
 
-# ── IMAP Helpers ───────────────────────────────────────────────────────────────
+MONTH_NAMES = {
+    1: "01_Januar",   2: "02_Februar", 3: "03_März",      4: "04_April",
+    5: "05_Mai",      6: "06_Juni",    7: "07_Juli",       8: "08_August",
+    9: "09_September",10: "10_Oktober",11: "11_November",  12: "12_Dezember",
+}
 
-def decode_str(value) -> str:
-    """E-Mail-Header dekodieren (UTF-8, latin-1, etc.)."""
-    parts = decode_header(value or "")
+# ── IMAP Helpers (aus gmail_invoices.py) ───────────────────────────────────────
+
+def decode_str(value: str) -> str:
+    """E-Mail-Header dekodieren (z.B. encoded UTF-8 oder Latin-1)."""
+    parts = decode_header(value)
     result = []
-    for part, enc in parts:
+    for part, charset in parts:
         if isinstance(part, bytes):
-            result.append(part.decode(enc or "utf-8", errors="replace"))
+            result.append(part.decode(charset or "utf-8", errors="replace"))
         else:
             result.append(part)
     return "".join(result)
@@ -61,29 +73,83 @@ def decode_str(value) -> str:
 
 def safe_filename(name: str) -> str:
     """Sonderzeichen aus Dateinamen entfernen."""
-    return re.sub(r'[^\w\-.]', '_', name)
+    keep = " ._-"
+    return "".join(c if (c.isalnum() or c in keep) else "_" for c in name).strip()
 
 
-def download_pdfs(mail: imaplib.IMAP4_SSL, msg_id: bytes, dest_dir: Path) -> list[Path]:
-    """PDF-Anhänge einer Mail in dest_dir speichern. Gibt Pfade zurück."""
-    _, data = mail.fetch(msg_id, "(RFC822)")
-    msg = email.message_from_bytes(data[0][1])
-    paths = []
+def list_labels(mail: imaplib.IMAP4_SSL) -> None:
+    """Alle Gmail-Labels ausgeben (zum Debuggen)."""
+    _, labels = mail.list()
+    print("Verfügbare Labels:")
+    for label in labels:
+        print(" ", label.decode())
+
+
+def download_pdfs(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
+    """
+    Alle PDF-Anhänge einer E-Mail in PDF_TEMP_DIR speichern.
+    Dateiname: {datum}_{absender}_{original}.pdf
+    Gibt Liste der gespeicherten Pfade zurück (bereits vorhandene inklusive).
+    """
+    _, msg_data = mail.fetch(msg_id, "(RFC822)")
+    raw = msg_data[0][1]
+    msg = email.message_from_bytes(raw)
+
+    # Datum + Absender aus Header
+    date_str = msg.get("Date", "")
+    try:
+        date_obj = email.utils.parsedate_to_datetime(date_str)
+    except Exception:
+        date_obj = datetime.now()
+
+    sender_full = decode_str(msg.get("From", "unknown"))
+    sender = sender_full.split("<")[0].strip() or sender_full.split("@")[0].strip("\"'")
+    sender = safe_filename(sender)[:40]
+
+    year        = date_obj.year
+    month       = date_obj.month
+    date_prefix = date_obj.strftime("%Y-%m-%d")
+
+    target_dir = PDF_TEMP_DIR / str(year) / MONTH_NAMES[month]
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_paths: list[Path] = []
+
     for part in msg.walk():
-        if part.get_content_maintype() == "multipart":
+        content_type = part.get_content_type()
+        disposition  = str(part.get("Content-Disposition", ""))
+
+        is_pdf = (
+            content_type == "application/pdf"
+            or (content_type == "application/octet-stream" and "pdf" in disposition.lower())
+            or ("attachment" in disposition.lower() and disposition.lower().endswith(".pdf"))
+        )
+        if not is_pdf:
+            filename = part.get_filename()
+            if filename and filename.lower().endswith(".pdf"):
+                is_pdf = True
+        if not is_pdf:
             continue
-        filename = part.get_filename()
-        if not filename:
+
+        raw_filename = part.get_filename() or "attachment.pdf"
+        orig_name    = safe_filename(decode_str(raw_filename))
+        new_name     = f"{date_prefix}_{sender}_{orig_name}"
+        dest         = target_dir / new_name
+
+        if dest.exists():
+            print(f"  Bereits vorhanden, übersprungen: {dest.name}")
+            saved_paths.append(dest)
             continue
-        filename = decode_str(filename)
-        if not filename.lower().endswith(".pdf"):
+
+        payload = part.get_payload(decode=True)
+        if not payload:
             continue
-        safe_name = safe_filename(filename)
-        dest = dest_dir / safe_name
-        dest.write_bytes(part.get_payload(decode=True))
-        print(f"  PDF gespeichert: {safe_name}")
-        paths.append(dest)
-    return paths
+
+        dest.write_bytes(payload)
+        print(f"  PDF gespeichert: {dest.name}")
+        saved_paths.append(dest)
+
+    return saved_paths
 
 # ── PDF Text-Extraktion ────────────────────────────────────────────────────────
 
@@ -95,7 +161,7 @@ def extract_pdf_text(pdf_path: Path) -> str:
             text += (page.extract_text() or "") + "\n"
     return text
 
-# ── AI-Extraktion ──────────────────────────────────────────────────────────────
+# ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
 
 def _build_prompt(pdf_text: str, filename: str) -> str:
     return f"""Du bist ein Rechnungs-Extraktor. Analysiere diesen PDF-Text einer Rechnung
@@ -186,37 +252,48 @@ def extract_with_ai(pdf_text: str, filename: str) -> dict | None:
     print("  FEHLER: Beide AI-Provider fehlgeschlagen.")
     return None
 
-# ── Firestore ──────────────────────────────────────────────────────────────────
+# ── Firestore (get_firestore_db aus extract_verbund.py) ───────────────────────
 
-_db = None
+_firestore_db = None
 
 def get_firestore_db():
-    """Firebase Admin initialisieren (einmalig, danach gecacht)."""
-    global _db
-    if _db is not None:
-        return _db
-    if not FIREBASE_SERVICE_ACCOUNT:
+    global _firestore_db
+    if _firestore_db is not None:
+        return _firestore_db
+    sa_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT", "")
+    if not sa_json:
         return None
     try:
         import firebase_admin
-        from firebase_admin import credentials, firestore
-        sa = json.loads(FIREBASE_SERVICE_ACCOUNT)
-        cred = credentials.Certificate(sa)
+        from firebase_admin import credentials, firestore as fs
+        sa_dict = json.loads(sa_json)
+        cred = credentials.Certificate(sa_dict)
         if not firebase_admin._apps:
             firebase_admin.initialize_app(cred)
-        _db = firestore.client()
-        return _db
+        _firestore_db = fs.client()
+        return _firestore_db
     except Exception as exc:
-        print(f"  Firebase-Init fehlgeschlagen: {exc}")
+        print(f"  Firebase Admin init fehlgeschlagen: {exc}")
         return None
 
 
 def _tx_collection():
-    """Gibt die Subcollection household/main/transactions zurück."""
+    """Gibt household/main/transactions zurück."""
     db = get_firestore_db()
     if not db:
         return None
-    return db.collection(FIRESTORE_HH_DOC[0]).document(FIRESTORE_HH_DOC[1]).collection(FIRESTORE_TX_SUBCOL)
+    return (db.collection(FIRESTORE_HH_DOC[0])
+              .document(FIRESTORE_HH_DOC[1])
+              .collection(FIRESTORE_TX_SUBCOL))
+
+
+def _make_doc_id(ai_data: dict, filename: str) -> str:
+    """Rechnungsnummer wenn vorhanden, sonst MD5-Hash."""
+    nr = (ai_data.get("rechnungsnummer") or "").strip()
+    if nr:
+        return re.sub(r'[^\w\-]', '_', nr)
+    key = f"{ai_data.get('rechnungsdatum','')}-{ai_data.get('betrag_brutto','')}-{filename}"
+    return "auto_" + hashlib.md5(key.encode()).hexdigest()[:12]
 
 
 def is_duplicate(doc_id: str, betrag: float, datum: str) -> bool:
@@ -224,10 +301,8 @@ def is_duplicate(doc_id: str, betrag: float, datum: str) -> bool:
     col = _tx_collection()
     if not col:
         return False
-    # Direkter Lookup über doc_id
     if col.document(doc_id).get().exists:
         return True
-    # Fallback: Query auf date + amount
     results = (col
                .where("date", "==", datum)
                .where("amount", "==", -abs(betrag))
@@ -239,19 +314,18 @@ def is_duplicate(doc_id: str, betrag: float, datum: str) -> bool:
 def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
     """
     Transaktion unter household/main/transactions/{doc_id} speichern.
-    Felder werden auf das Browser-App-Format gemappt:
-      date, amount (negativ), description, category, account, aiCategorized, ...
+    Feldnamen auf Browser-App-Format gemappt:
+      date, amount (negativ = Ausgabe), description, category, account, aiCategorized
     """
     col = _tx_collection()
     if not col:
         print("  Firestore nicht verfügbar (FIREBASE_SERVICE_ACCOUNT fehlt).")
         return False
 
-    # Felder auf Browser-App-Format mappen
     tx = {
         "id":            doc_id,
         "date":          ai_data.get("rechnungsdatum", ""),
-        "amount":        -abs(ai_data.get("betrag_brutto", 0)),   # negativ = Ausgabe
+        "amount":        -abs(ai_data.get("betrag_brutto", 0)),
         "description":   ai_data.get("absender", filename),
         "category":      ai_data.get("kategorie", "Sonstiges"),
         "account":       "easybank",
@@ -272,15 +346,6 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str) -> bool:
         return False
 
 # ── Haupt-Orchestrierung ───────────────────────────────────────────────────────
-
-def _make_doc_id(ai_data: dict, filename: str) -> str:
-    """Document-ID: Rechnungsnummer wenn vorhanden, sonst Hash."""
-    nr = (ai_data.get("rechnungsnummer") or "").strip()
-    if nr:
-        return re.sub(r'[^\w\-]', '_', nr)
-    key = f"{ai_data.get('rechnungsdatum','')}-{ai_data.get('betrag_brutto','')}-{filename}"
-    return "auto_" + hashlib.md5(key.encode()).hexdigest()[:12]
-
 
 def process_pdf(pdf_path: Path) -> bool:
     """PDF verarbeiten: Text → AI → Duplikat-Check → Firestore."""
@@ -308,31 +373,46 @@ def process_pdf(pdf_path: Path) -> bool:
     return save_to_firestore(ai_data, pdf_path.name, doc_id)
 
 
-def main():
+def main() -> None:
+    print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] gmail_finance_importer.py gestartet")
+
     if not GMAIL_APP_PASSWORD:
         print("FEHLER: GMAIL_APP_PASSWORD nicht gesetzt.")
-        return
+        sys.exit(1)
 
-    print(f"Verbinde mit Gmail ({GMAIL_USER})…")
-    mail = imaplib.IMAP4_SSL("imap.gmail.com")
-    mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-    mail.select(f'"{GMAIL_LABEL}"')
+    # IMAP-Verbindung
+    try:
+        mail = imaplib.IMAP4_SSL("imap.gmail.com")
+        mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+    except imaplib.IMAP4.error as exc:
+        print(f"FEHLER: Anmeldung fehlgeschlagen — {exc}")
+        print("Tipp: App-Passwort prüfen und IMAP in Gmail aktivieren.")
+        sys.exit(1)
 
-    _, msg_ids = mail.search(None, "UNSEEN")
-    ids = msg_ids[0].split()
-    print(f"{len(ids)} ungelesene Mail(s) im Label '{GMAIL_LABEL}'.")
+    # Label auswählen
+    status, _ = mail.select(f'"{GMAIL_LABEL}"')
+    if status != "OK":
+        print(f"FEHLER: Label '{GMAIL_LABEL}' nicht gefunden.")
+        list_labels(mail)
+        mail.logout()
+        sys.exit(1)
 
-    if not ids:
+    # Ungelesene Mails suchen
+    _, msg_ids_raw = mail.search(None, "UNSEEN")
+    msg_ids = msg_ids_raw[0].split()
+
+    if not msg_ids:
+        print("Keine neuen E-Mails gefunden.")
         mail.logout()
         return
 
-    pdf_temp_dir = Path(tempfile.mkdtemp())
+    print(f"{len(msg_ids)} neue E-Mail(s) im Label '{GMAIL_LABEL}'.")
     processed = 0
     saved = 0
 
-    for msg_id in ids:
-        print(f"\nMail {msg_id.decode()}:")
-        pdfs = download_pdfs(mail, msg_id, pdf_temp_dir)
+    for msg_id in msg_ids:
+        print(f"\nVerarbeite E-Mail ID {msg_id.decode()} …")
+        pdfs = download_pdfs(mail, msg_id)
 
         if not pdfs:
             print("  Keine PDF-Anhänge.")
@@ -346,8 +426,8 @@ def main():
         mail.store(msg_id, "+FLAGS", "\\Seen")
 
     mail.logout()
-    print(f"\nFertig: {processed} PDFs verarbeitet, {saved} in Firestore gespeichert.")
-    print(f"Temp-Verzeichnis: {pdf_temp_dir}  (für Debugging behalten)")
+    print(f"\nFertig: {processed} PDF(s) verarbeitet, {saved} in Firestore gespeichert.")
+    print(f"Temp-Verzeichnis: {PDF_TEMP_DIR}  (für Debugging behalten)")
 
 
 if __name__ == "__main__":
