@@ -1274,13 +1274,16 @@ html, body {
     </svg>
     Konten
   </button>
-  <button class="nav-item" id="nav-concierge" onclick="showScreen('concierge')">
-    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 2h13l3 4v16H4z"/>
-      <line x1="8" y1="10" x2="16" y2="10"/>
-      <line x1="8" y1="14" x2="16" y2="14"/>
-      <line x1="8" y1="18" x2="12" y2="18"/>
-    </svg>
+  <button class="nav-item" id="nav-concierge" onclick="showScreen('concierge')" style="position:relative;">
+    <div style="position:relative;display:inline-block;">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 2h13l3 4v16H4z"/>
+        <line x1="8" y1="10" x2="16" y2="10"/>
+        <line x1="8" y1="14" x2="16" y2="14"/>
+        <line x1="8" y1="18" x2="12" y2="18"/>
+      </svg>
+      <span id="nav-concierge-badge" style="display:none;position:absolute;top:-4px;right:-6px;background:var(--primary);color:#fff;font-size:0.5rem;font-weight:700;min-width:14px;height:14px;border-radius:7px;padding:0 3px;align-items:center;justify-content:center;line-height:1;"></span>
+    </div>
     Bon
   </button>
 </nav>

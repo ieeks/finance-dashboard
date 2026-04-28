@@ -71,6 +71,7 @@ function renderDashboard() {
     badgeEl.textContent = `${pendingCount} offen`;
     badgeEl.style.display = pendingCount > 0 ? 'inline-block' : 'none';
   }
+  updateConciergeNavBadge();
 }
 
 const DONUT_COLORS = ['#5D1C34','#7B5723','#A0714A','#C49A6C','#D7C1C5'];
@@ -1009,23 +1010,38 @@ window.deletePendingBon = function(id) {
   renderPendingBons();
 };
 
+function updateConciergeNavBadge() {
+  const count = (state.pendingBons || []).length;
+  const badge = document.getElementById('nav-concierge-badge');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? 'flex' : 'none';
+}
+
 function renderPendingBons() {
   const list = document.getElementById('pending-bons-list');
   if (!list) return;
+  updateConciergeNavBadge();
   const bons = state.pendingBons || [];
   if (!bons.length) { list.innerHTML = ''; return; }
   list.innerHTML = `
-    <div class="section-label" style="margin:20px 0 10px;">Offene Bons (${bons.length})</div>
-    ${bons.map(b => `
-      <div class="card" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
-        <div style="font-size:1.4rem;">🧾</div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.store || 'Unbekannt')}</div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${b.date ? formatDate(b.date) : '—'} · ${formatEur(b.total)}</div>
-        </div>
-        <button onclick="deletePendingBon('${b.id}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.68rem;cursor:pointer;">✕</button>
+    <div style="margin-top:24px;border-top:1px solid var(--outline-soft);padding-top:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="section-label" style="margin:0;">Offene Belege</div>
+        <span class="chip chip-gold" style="font-size:0.6rem;padding:2px 8px;">${bons.length} unverknüpft</span>
       </div>
-    `).join('')}
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:14px;">Importiert oder gescannt — noch keiner Buchung zugeordnet.</div>
+      ${bons.map(b => `
+        <div class="card" style="padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;">
+          <div style="font-size:1.4rem;">🧾</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:0.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.store || 'Unbekannt')}</div>
+            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${b.date ? formatDate(b.date) : '—'} · ${formatEur(b.total)}</div>
+          </div>
+          <button onclick="deletePendingBon('${b.id}')" style="padding:5px 10px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.68rem;cursor:pointer;">✕</button>
+        </div>
+      `).join('')}
+    </div>
   `;
 }
 
