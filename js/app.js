@@ -402,12 +402,18 @@ window.openTxModal = function(id) {
     ${tx.bon ? `
     <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
       <div class="section-label" style="margin-bottom:10px;">🧾 ${escHtml(tx.bon.store || 'Kassenbon')}</div>
-      ${(tx.bon.items||[]).map(item => {
-        const sc = item.subcategory || item.subkategorie || '';
+      ${(tx.bon.items||[]).map((item, idx) => {
+        const sc = item.subcategory || item.subkategorie || 'Sonstiges';
+        const opts = Object.keys(SUBCAT_ICONS).map(s =>
+          `<option value="${escHtml(s)}"${s === sc ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
+        ).join('');
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-soft);">
           <div style="flex:1;min-width:0;">
             <div style="font-size:0.82rem;font-weight:600;">${escHtml(item.name)}</div>
-            ${sc ? `<div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${SUBCAT_ICONS[sc]||'📦'} ${escHtml(sc)}</div>` : ''}
+            <select onchange="updateBonItemSubcat('${id}', ${idx}, this.value)"
+              style="font-size:0.65rem;color:var(--text-muted);background:transparent;border:none;outline:none;cursor:pointer;padding:2px 0;margin-top:2px;max-width:180px;-webkit-appearance:auto;">
+              ${opts}
+            </select>
           </div>
           <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;margin-left:12px;">${formatEur(item.gesamt ?? item.price ?? 0)}</div>
         </div>`;
@@ -476,6 +482,18 @@ window.saveNote = function(id, value) {
   saveState();
   updateTx(id, { note: trimmed }).catch(() => {});
   renderBuchungen();
+};
+
+window.updateBonItemSubcat = function(txId, itemIdx, newSubcat) {
+  const tx = state.transactions.find(t => t.id === txId);
+  if (!tx?.bon?.items?.[itemIdx]) return;
+  const item = tx.bon.items[itemIdx];
+  item.subcategory = newSubcat;
+  if ('subkategorie' in item) item.subkategorie = newSubcat;
+  saveState();
+  updateTx(txId, { bon: tx.bon }).catch(() => {});
+  renderDashboard();
+  showToast('Subkategorie geändert');
 };
 
 // ── Clear / Settings Modal ──

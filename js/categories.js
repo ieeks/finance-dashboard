@@ -23,6 +23,7 @@ export const SUBCAT_ICONS = {
   'Süßwaren':           '🍫',
   'Süßwaren / Naschen': '🍫',
   'Backwaren':          '🍞',
+  'Brot & Backwaren':   '🍞',
   'Getränke':           '🥤',
   'Fleisch':            '🥩',
   'Fleisch & Wurst':    '🥩',
