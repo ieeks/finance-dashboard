@@ -1,6 +1,6 @@
 // app.js — Entry Point
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
-import { CAT_CONFIG, SUBCAT_ICONS } from './categories.js';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js';
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
@@ -142,7 +142,10 @@ function renderBonBreakdown(txs) {
   const el = document.getElementById('db-bon-breakdown');
   if (!el) return;
 
-  const bonTxs = txs.filter(t => t.bon?.items?.length);
+  const bonTxs = txs.filter(t =>
+    t.bon?.items?.length &&
+    !BON_EXCLUDED_COMPANIES.some(exc => (t.description || '').includes(exc))
+  );
   if (!bonTxs.length) { el.style.display = 'none'; return; }
 
   const bySubcat = {};

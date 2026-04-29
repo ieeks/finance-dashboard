@@ -53,6 +53,12 @@ export const RECURRING_RULES = [
   { pattern: /Spotify/i,                           label: 'Spotify' },
 ];
 
+export const BON_EXCLUDED_COMPANIES = [
+  'T-Mobile Austria GmbH',
+  'Helvetia Versicherungen AG',
+  'Tesla',
+];
+
 export const SUBSCRIPTION_RULES = [
   { pattern: /paypal/i, amount: 19.99, name: 'Netflix',          category: 'Freizeit' },
   { pattern: /paypal/i, amount: 16.99, name: 'Spotify',          category: 'Freizeit' },
