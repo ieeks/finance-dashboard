@@ -519,7 +519,15 @@ function _obShow(step) {
   if (back) back.style.visibility = step === 1 ? 'hidden' : 'visible';
   if (next) next.textContent = step === _OB_TOTAL ? "Los geht's" : 'Weiter';
 }
-window.openOnboarding  = function() { document.getElementById('onboarding-modal')?.classList.add('open'); _obShow(1); };
+window.openOnboarding  = function() {
+  document.getElementById('onboarding-modal')?.classList.add('open');
+  _obShow(1);
+  document.getElementById('onboarding-btn')?.classList.remove('topbar-icon--pulse');
+  localStorage.setItem('onboarding_seen', '1');
+};
+if (localStorage.getItem('onboarding_seen')) {
+  document.getElementById('onboarding-btn')?.classList.remove('topbar-icon--pulse');
+}
 window.closeOnboarding = function() { document.getElementById('onboarding-modal')?.classList.remove('open'); };
 window.obNext = function() { if (_obStep < _OB_TOTAL) _obShow(_obStep + 1); else window.closeOnboarding(); };
 window.obBack = function() { if (_obStep > 1) _obShow(_obStep - 1); };
