@@ -19,7 +19,8 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
 
 Erlaubte subcategory-Werte:
 Milchprodukte | Süßwaren / Naschen | Backwaren | Getränke |
-Fleisch & Wurst | Obst & Gemüse | Tiefkühl | Hygiene & Drogerie |
+Fleisch & Wurst | Obst & Gemüse | Nudeln & Reis | Aufstriche & Butter |
+Pfand | Tiefkühl | Hygiene & Drogerie |
 Putzmittel | Elektronik | Mobilität / Auto | Dienstleistung | Sonstiges
 
 Hinweise:
