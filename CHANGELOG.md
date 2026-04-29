@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v1.2.7 — 2026-04-29
+
+### Added
+- **Bon-Ausschluss-Liste** (`BON_EXCLUDED_COMPANIES` in `categories.js`) — T-Mobile Austria GmbH, Helvetia Versicherungen AG und Tesla werden aus der Bon-Aufschlüsselung ausgeblendet (auch wenn ein Bon verknüpft ist). Neue Firmen einfach zur Liste hinzufügen.
+- **Neue Subkategorien** — Nudeln & Reis 🍝, Aufstriche & Butter 🧈, Pfand ♻️ in `categories.js` + Bon-Analyse-Prompt aktualisiert.
+- **Pulse-Ring Animation** am Onboarding-ℹ-Icon — dunkelroter Halo-Ring (1.8s, `--primary`), stoppt beim ersten Öffnen via `localStorage`.
+
+### Removed
+- **PROTOTYP-Badge** aus der Dashboard-Topbar entfernt.
+
+---
+
 ## v1.2.6 — 2026-04-27
 
 ### Added

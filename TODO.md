@@ -47,7 +47,8 @@
 - [ ] Claude Vision extrahiert alle Einzelpositionen (Produkt, Menge, Einzelpreis, Gesamtpreis)
 - [ ] Claude weist jeder Position eine Sub-Kategorie zu:
       Milchprodukte · Süßwaren / Naschen · Getränke · Brot & Backwaren ·
-      Fleisch & Wurst · Obst & Gemüse · Tiefkühl · Hygiene · Putzmittel · Sonstiges
+      Fleisch & Wurst · Obst & Gemüse · Nudeln & Reis · Aufstriche & Butter ·
+      Pfand · Tiefkühl · Hygiene · Putzmittel · Sonstiges
 - [ ] Gesamtbetrag + Datum + Händler aus Bon extrahieren
 
 ### 3b — Matching Bon ↔ Buchung
