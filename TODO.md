@@ -63,6 +63,7 @@
 - [x] Drill-Down: Buchung → Bon → Einzelpositionen — bereits im TX-Modal sichtbar
 - [x] Auswertung nach Sub-Kategorien (aktueller Monat) — Dashboard-Karte "Bon-Aufschlüsselung" (v1.2.1, 2026-04-27)
 - [x] Subkat-Drill-Down: Tippen auf Subkategorie-Zeile → Modal mit Einzelpositionen (v1.2.5, 2026-04-27)
+- [x] Subkat-Overrides: manuelle Änderung wird in Firestore gemerkt + beim nächsten Scan angewendet (v1.2.8, 2026-04-29)
 - [ ] Auswertung nach Sub-Kategorien **über Monate** (Trend: "Süßwaren Ø 18,40 € / Monat")
 - [ ] Top-Produkte Ranking (was kaufe ich am häufigsten?)
 - [ ] Filter: nur Buchungen mit / ohne Bon anzeigen

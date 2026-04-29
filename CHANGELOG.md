@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.2.8 — 2026-04-29
+
+### Added
+- **Subkategorie-Overrides** — manuelle Subkat-Änderung im TX-Modal wird in Firestore (`config/subcategoryOverrides`) gespeichert. Beim nächsten Scan desselben Produkts (normalisierter Name) wird die gemerkte Subkategorie automatisch angewendet. Toast-Bestätigung: "Subkategorie geändert & gemerkt".
+
+### Fixed
+- **Pfand-Erkennung** — Hinweis im Bon-Prompt ergänzt: "PFAND EINWEG / PFAND MEHRWEG / DPG → Pfand". Wurde zuvor als "Sonstiges" kategorisiert.
+
+---
+
 ## v1.2.7 — 2026-04-29
 
 ### Added
