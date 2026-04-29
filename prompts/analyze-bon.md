@@ -24,6 +24,7 @@ Pfand | Tiefkühl | Hygiene & Drogerie |
 Putzmittel | Elektronik | Mobilität / Auto | Dienstleistung | Sonstiges
 
 Hinweise:
+- Pfand, Pfand Einweg, Pfand Mehrweg, DPG → "Pfand"
 - Tesla Supercharger, Tanken, Parken → "Mobilität / Auto"
 - Apotheke, Drogerie → "Hygiene & Drogerie"
 - Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
