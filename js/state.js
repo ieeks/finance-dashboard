@@ -16,6 +16,7 @@ function _loadFromStorage() {
     transactions: [],
     pendingBons: [],
     categoryOverrides: {},
+    subcategoryOverrides: {},
     accounts: [
       { id: 'easybank', name: 'easybank / BAWAG', iban: '', balance: null, lastImport: null, color: '#41051F', initial: 'e' },
     ],

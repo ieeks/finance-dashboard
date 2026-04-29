@@ -6,7 +6,8 @@ import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.j
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
-         fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides } from './firebaseService.js';
+         fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
+         fsSaveSubcategoryOverrides } from './firebaseService.js';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -496,8 +497,16 @@ window.updateBonItemSubcat = function(txId, itemIdx, newSubcat) {
   if ('subkategorie' in item) item.subkategorie = newSubcat;
   saveState();
   updateTx(txId, { bon: tx.bon }).catch(() => {});
+
+  const key = (item.name || '').toLowerCase().trim();
+  if (key) {
+    const ov = { ...(state.subcategoryOverrides || {}), [key]: newSubcat };
+    state.subcategoryOverrides = ov;
+    fsSaveSubcategoryOverrides(ov).catch(() => {});
+  }
+
   renderDashboard();
-  showToast('Subkategorie geändert');
+  showToast('Subkategorie geändert & gemerkt');
 };
 
 // ── Clear / Settings Modal ──
@@ -911,7 +920,16 @@ window.handleBonUpload = async function(input) {
   }
 };
 
+function applySubcatOverrides(items) {
+  const ov = state.subcategoryOverrides || {};
+  return items.map(item => {
+    const key = (item.name || '').toLowerCase().trim();
+    return ov[key] ? { ...item, subcategory: ov[key] } : item;
+  });
+}
+
 function renderConciergeResult(bon) {
+  if (bon.items?.length) bon.items = applySubcatOverrides(bon.items);
   _currentBon = bon;
   document.getElementById('concierge-upload').style.display = 'none';
   document.getElementById('concierge-result').style.display = 'block';
@@ -1424,9 +1442,10 @@ async function _bootWithFirebase() {
       const data = await loadAllData();
 
       // State befüllen
-      state.transactions      = data.transactions;
-      state.pendingBons       = data.pendingBons;
-      state.categoryOverrides = data.categoryOverrides;
+      state.transactions         = data.transactions;
+      state.pendingBons          = data.pendingBons;
+      state.categoryOverrides    = data.categoryOverrides;
+      state.subcategoryOverrides = data.subcategoryOverrides;
       state.currentMonth      = getCurrentMonth();
       setInMemoryKeys(data.apiKeys);
 

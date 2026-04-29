@@ -42,18 +42,20 @@ export function currentEmail() {
 // ── Daten laden ───────────────────────────────────────────────────────────
 
 export async function loadAllData() {
-  const [txSnap, bonSnap, keysSnap, overridesSnap] = await Promise.all([
+  const [txSnap, bonSnap, keysSnap, overridesSnap, subcatSnap] = await Promise.all([
     getDocs(query(collection(db, `${HH}/transactions`), orderBy('date', 'desc'))),
     getDocs(collection(db, `${HH}/pendingBons`)),
     getDoc(doc(db, `${HH}/config`, 'apiKeys')),
     getDoc(doc(db, `${HH}/config`, 'categoryOverrides')),
+    getDoc(doc(db, `${HH}/config`, 'subcategoryOverrides')),
   ]);
 
   return {
-    transactions:      txSnap.docs.map(d => ({ ...d.data(), id: d.id })),
-    pendingBons:       bonSnap.docs.map(d => ({ ...d.data(), id: d.id })),
-    apiKeys:           keysSnap.exists()      ? keysSnap.data()                       : {},
-    categoryOverrides: overridesSnap.exists() ? (overridesSnap.data().overrides || {}) : {},
+    transactions:          txSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+    pendingBons:           bonSnap.docs.map(d => ({ ...d.data(), id: d.id })),
+    apiKeys:               keysSnap.exists()      ? keysSnap.data()                       : {},
+    categoryOverrides:     overridesSnap.exists() ? (overridesSnap.data().overrides || {}) : {},
+    subcategoryOverrides:  subcatSnap.exists()    ? (subcatSnap.data().overrides    || {}) : {},
   };
 }
 
@@ -118,5 +120,9 @@ export async function fsDeletePendingBon(bonId) {
 
 export async function fsSaveCategoryOverrides(overrides) {
   await setDoc(doc(db, `${HH}/config`, 'categoryOverrides'), { overrides });
+}
+
+export async function fsSaveSubcategoryOverrides(overrides) {
+  await setDoc(doc(db, `${HH}/config`, 'subcategoryOverrides'), { overrides });
 }
 
