@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## v1.2.9 — 2026-05-01
+
+### Added
+- **Beleg-Status Card (Dashboard)** — Neue Karte zwischen Bon-Aufschlüsselung und Fixkosten zeigt zwei offene Posten: „X Bons ohne Buchung" (gescannte Bons in der Pending-Queue) und „X Buchungen ohne Bon" (Ausgaben des Monats ohne verknüpften Beleg). Tap navigiert direkt in den Bon-Scanner bzw. in die gefilterte Buchungsliste. Karte blendet sich aus wenn beide Werte 0 sind.
+- **Quick-Filter Chips (Buchungen)** — Chips „◻ Ohne Bon" und „✅ Mit Bon" direkt unterhalb der Suchleiste für One-Tap-Filterung; aktiver Chip wird hervorgehoben; schalten beim erneuten Tippen auf „Alle" zurück.
+- **Konto hinzufügen (Konten-Screen)** — Echtes Modal statt Placeholder-Toast: Name, IBAN (optional), Kürzel (1–2 Zeichen) und Farbwahl (6 Swatches). ＋-Icon in Topbar und „Neues Konto verknüpfen"-Button öffnen das Sheet. Eigene Konten können per ✕ gelöscht werden (Standard-Konto geschützt).
+- **Account-Selektor im Import-Screen** — Wenn mehr als ein Konto vorhanden ist, erscheint nach dem PDF-Upload ein Chip-Selektor „Konto zuordnen". Vorselektion per Dateinamen (easy → easybank, sonst erstes Konto). Alle importierten Buchungen erhalten die gewählte Account-ID; `acc.lastImport` wird korrekt gesetzt.
+
+---
+
 ## v1.2.8 — 2026-04-29
 
 ### Added

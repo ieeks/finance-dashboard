@@ -66,7 +66,7 @@
 - [x] Subkat-Overrides: manuelle Änderung wird in Firestore gemerkt + beim nächsten Scan angewendet (v1.2.8, 2026-04-29)
 - [ ] Auswertung nach Sub-Kategorien **über Monate** (Trend: "Süßwaren Ø 18,40 € / Monat")
 - [ ] Top-Produkte Ranking (was kaufe ich am häufigsten?)
-- [ ] Filter: nur Buchungen mit / ohne Bon anzeigen
+- [x] Filter: nur Buchungen mit / ohne Bon anzeigen — Quick-Chips in Buchungen-Screen (v1.2.9)
 
 ---
 
@@ -79,12 +79,15 @@
 
 ## Phase 5 — Datenquellen & Multi-Konto
 - [ ] Finanzguru CSV-Export Import
-- [ ] Mehrere Konten / Kreditkarten (BAWAG Girokonto + easybank Sparkonto etc.)
+- [x] Mehrere Konten hinzufügen — Modal mit Name, IBAN, Kürzel, Farbe (v1.2.9)
       → IBAN maskiert anzeigen (AT45 ••••••••• 8821)
       → Bank-Logo je Konto
       → AKTIV-Badge = letzter Import-Zeitstempel
       → Gesamtvermögens-Karte mit Trend-Kurve (alle Konten summiert)
-- [ ] "Neues Konto verknüpfen" Flow (PDF-Upload einem Konto zuordnen)
+- [x] Account-Selektor im Import-Screen — Konto per Chip wählbar nach PDF-Upload (v1.2.9)
+- [ ] **Parser für weitere Banken** — N26, Sparkasse, Raiffeisen etc.
+      → Muster-PDF je Bank analysieren → eigenen Parser-Branch schreiben
+      → Einstieg: N26 PDF-Format (CSV-Export als Alternative prüfen)
 - [ ] YNAB-Export-Format (optional)
 
 ---
