@@ -591,9 +591,15 @@ async function _callAnthropic(key, prompt) {
     }),
   });
   if (!resp.ok) throw new Error(`Anthropic API ${resp.status}`);
-  const data = await resp.json();
-  const text = data.content[0].text;
-  return JSON.parse(text.match(/\[[\s\S]*\]/)[0]);
+  const data  = await resp.json();
+  const text  = data.content[0].text;
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error('KI hat kein JSON-Array zurückgegeben');
+  try {
+    return JSON.parse(match[0]);
+  } catch {
+    throw new Error('KI-Antwort ist kein gültiges JSON');
+  }
 }
 
 async function _callOpenAI(key, prompt) {
@@ -611,9 +617,14 @@ async function _callOpenAI(key, prompt) {
     }),
   });
   if (!resp.ok) throw new Error(`OpenAI API ${resp.status}`);
-  const data   = await resp.json();
-  const text   = data.choices[0].message.content;
-  const parsed = JSON.parse(text);
+  const data = await resp.json();
+  const text = data.choices[0].message.content;
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('KI-Antwort ist kein gültiges JSON');
+  }
   return Array.isArray(parsed) ? parsed : (parsed.categories || parsed.transactions || []);
 }
 

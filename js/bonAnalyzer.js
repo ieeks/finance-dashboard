@@ -12,10 +12,21 @@ async function _loadPrompt() {
 
 function _safeParseObject(raw) {
   const clean = raw.replace(/```json|```/g, '').trim();
-  // Extract first JSON object
   const match = clean.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Kein JSON im Response');
-  return JSON.parse(match[0]);
+  if (!match) throw new Error('KI hat kein JSON zurückgegeben — bitte nochmal versuchen');
+  let obj;
+  try {
+    obj = JSON.parse(match[0]);
+  } catch {
+    throw new Error('KI-Antwort ist kein gültiges JSON — bitte nochmal versuchen');
+  }
+  return {
+    store:   obj.store   || obj.händler || obj.shop || 'Unbekannt',
+    date:    obj.date    || obj.datum   || null,
+    total:   typeof obj.total === 'number' ? obj.total : parseFloat(obj.total || obj.gesamt || 0) || 0,
+    items:   Array.isArray(obj.items)   ? obj.items   : [],
+    category: obj.category || obj.kategorie || null,
+  };
 }
 
 // ── Bild-Bon via Claude Vision ──
