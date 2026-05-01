@@ -22,10 +22,11 @@ window.showScreen = function(name) {
   document.getElementById('screen-' + name)?.classList.add('active');
   document.getElementById('nav-' + name)?.classList.add('active');
   window.scrollTo(0, 0);
-  if (name === 'dashboard')  renderDashboard();
-  if (name === 'buchungen')  renderBuchungen();
-  if (name === 'konten')     renderKonten();
-  if (name === 'concierge')  renderPendingBons();
+  if (name === 'dashboard')   renderDashboard();
+  if (name === 'buchungen')   renderBuchungen();
+  if (name === 'konten')      renderKonten();
+  if (name === 'concierge')   renderPendingBons();
+  if (name === 'rechnungen')  renderRechnungen();
 };
 
 // ── Month Trigger ──
@@ -34,7 +35,7 @@ const MONTH_NAMES_LONG = ['Jänner','Februar','März','April','Mai','Juni','Juli
 function updateMonthTriggers() {
   const [y, m] = state.currentMonth.split('-').map(Number);
   const label = `${MONTH_NAMES_LONG[m-1]} ${y}`;
-  ['monthTriggerLabel', 'buchMonthLabel', 'fsMonthLabel'].forEach(id => {
+  ['monthTriggerLabel', 'buchMonthLabel', 'fsMonthLabel', 'rechnMonthLabel'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = label;
   });
@@ -66,6 +67,7 @@ function renderDashboard() {
   renderFixkosten(txs);
   renderInsight(txs);
   renderBelegStatus(txs);
+  renderRechnungenTeaser(txs);
 
   const pendingCount = (state.pendingBons || []).length;
   const badgeEl = document.getElementById('concierge-badge');
@@ -303,6 +305,107 @@ window.goToOhneBeleg = function() {
   _buchFilter.beleg = 'open';
   showScreen('buchungen');
   window._refreshBuchUI?.();
+};
+
+// ── Rechnungen (Gmail-Import) ──
+function findRechnungMatch(rechnung) {
+  const rDate = new Date(rechnung.date);
+  const rAmt  = Math.abs(rechnung.amount);
+  return state.transactions.find(t =>
+    t.source !== 'gmail_import' &&
+    t.amount < 0 &&
+    Math.abs(Math.abs(t.amount) - rAmt) < 0.02 &&
+    Math.abs(new Date(t.date) - rDate) <= 14 * 24 * 60 * 60 * 1000
+  ) || null;
+}
+
+function renderRechnungenTeaser(txs) {
+  const el = document.getElementById('db-rechnungen-teaser');
+  if (!el) return;
+  const rechnungen = txs.filter(t => t.source === 'gmail_import');
+  if (!rechnungen.length) { el.style.display = 'none'; return; }
+  const unmatched = rechnungen.filter(t => !findRechnungMatch(t)).length;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="section-label">E-Mail Rechnungen</div>
+    <div class="card" style="padding:16px 20px;display:flex;align-items:center;gap:14px;cursor:pointer;" onclick="showScreen('rechnungen')">
+      <div style="font-size:1.8rem;">✉️</div>
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+          <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;">${rechnungen.length} Rechnungen</div>
+          ${unmatched > 0
+            ? `<span class="chip chip-gold" style="font-size:0.6rem;padding:2px 8px;">${unmatched} offen</span>`
+            : `<span class="chip chip-green" style="font-size:0.6rem;padding:2px 8px;">✅ alle verknüpft</span>`}
+        </div>
+        <div style="font-size:0.72rem;color:var(--text-muted);">Automatisch aus Gmail importiert</div>
+      </div>
+      <span style="color:var(--text-muted);">›</span>
+    </div>
+  `;
+}
+
+function renderRechnungen() {
+  updateMonthTriggers();
+  const listEl    = document.getElementById('rechnungen-list');
+  const summaryEl = document.getElementById('rechnungen-summary');
+  if (!listEl) return;
+
+  const month = getTransactionsForMonth(state.currentMonth).filter(t => t.source === 'gmail_import');
+  const matched   = month.filter(t => findRechnungMatch(t)).length;
+  const unmatched = month.length - matched;
+
+  if (summaryEl) {
+    summaryEl.innerHTML = month.length
+      ? `<span style="color:var(--text-muted);">${month.length} Rechnungen</span>
+         <span style="color:var(--green);font-weight:700;">✅ ${matched} verknüpft</span>
+         ${unmatched ? `<span style="color:var(--secondary);font-weight:700;">⚠️ ${unmatched} offen</span>` : ''}`
+      : '';
+  }
+
+  if (!month.length) {
+    listEl.innerHTML = `<div class="empty-state">
+      <div class="empty-state-icon">✉️</div>
+      <div class="empty-state-title">Keine Rechnungen</div>
+      <p class="empty-state-text">In ${getMonthLabel(state.currentMonth)} wurden keine E-Mail-Rechnungen importiert.</p>
+    </div>`;
+    return;
+  }
+
+  listEl.innerHTML = [...month].sort((a,b) => b.date.localeCompare(a.date)).map(t => {
+    const match = findRechnungMatch(t);
+    const cfg   = CAT_CONFIG[t.category] || CAT_CONFIG['Sonstiges'];
+    const statusHtml = match
+      ? `<div style="display:flex;align-items:center;gap:6px;font-size:0.68rem;margin-top:8px;padding-top:8px;border-top:1px solid var(--outline-soft);">
+           <span style="color:var(--green);">✅</span>
+           <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(match.description.slice(0,35))} · ${formatDate(match.date)}</span>
+         </div>`
+      : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--outline-soft);">
+           <span style="font-size:0.68rem;color:var(--secondary);font-weight:600;">⚠️ Kein Match</span>
+           <button onclick="searchRechnungInBuchungen('${Math.abs(t.amount).toFixed(2).replace('.',',')}')"
+             style="font-size:0.65rem;padding:3px 10px;border-radius:99px;border:1px solid var(--outline-soft);background:var(--surface-mid);color:var(--text-muted);cursor:pointer;font-family:var(--sans);">
+             In Buchungen suchen →
+           </button>
+         </div>`;
+    return `<div class="card" style="padding:14px 16px;margin-bottom:10px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;border-radius:12px;background:var(--surface-mid);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">${cfg.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+            <div style="font-size:0.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description)}</div>
+            <div style="font-family:var(--serif);font-weight:700;white-space:nowrap;">${formatEur(t.amount)}</div>
+          </div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}</div>
+        </div>
+      </div>
+      ${statusHtml}
+    </div>`;
+  }).join('');
+}
+
+window.searchRechnungInBuchungen = function(amountStr) {
+  const search = document.getElementById('search-input');
+  if (search) search.value = amountStr;
+  showScreen('buchungen');
 };
 
 window.applyQuickFilter = function(key, val) {
@@ -1561,6 +1664,9 @@ function initMonthPicker() {
 
   document.getElementById('monthTriggerChip')?.addEventListener('click', () =>
     openSheet(ym => { state.currentMonth = ym; saveState(); renderDashboard(); })
+  );
+  document.getElementById('rechnMonthTrigger')?.addEventListener('click', () =>
+    openSheet(ym => { state.currentMonth = ym; saveState(); renderRechnungen(); })
   );
 }
 
