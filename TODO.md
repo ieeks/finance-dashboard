@@ -22,7 +22,7 @@
 - [x] API Key von Import → Bon-Screen verschoben
 - [x] Kamera-Upload TypeError (leerer MIME-Type Android + HEIC iOS) behoben (2026-04-26)
 - [x] Pending-Queue: Bons ohne passende Buchung speichern + Auto-Match beim Import (2026-04-26)
-- [ ] Fehlerfall: Was wenn KI kein valid JSON zurückgibt? bessere Fallback-Meldung statt crash
+- [x] Fehlerfall: KI gibt kein valid JSON zurück → Null-Check + try/catch in parser.js + bonAnalyzer.js (v1.2.9)
 
 ---
 
@@ -55,8 +55,8 @@
 - [x] Auto-Matching bei sofort vorhandener Buchung (Betrag ±0,015 €) — lokal in localStorage
 - [x] Pending-Queue: Bon speichern wenn keine Buchung → Auto-Match beim nächsten Import (60-Tage-Fenster)
 - [x] Manuelle Zuweisung wenn kein Auto-Match möglich ("Als offen speichern" + manuell verknüpfen)
-- [ ] Status-Anzeige pro Buchung: matched ✅ / unmatched ⚠️ / kein Bon ❓ (in Buchungsliste)
-- [ ] Matching via matcher.js (Score Betrag + Datum + Händlername) statt nur Betragsvergleich
+- [x] Status-Anzeige pro Buchung: ✅ Bon / ⚠️ kein Bon in Buchungsliste (v1.2.9)
+- [x] Matching via matcher.js (Score Betrag + Datum + Händlername) — Concierge + Auto-Link + Rechnungen (v1.3.0)
 - [ ] Basis: receipt-scanner Code aus bestehendem Repo wiederverwenden
 
 ### 3c — Sub-Kategorie Dashboard
@@ -101,8 +101,8 @@
 - [x] GitHub Actions: täglich 07:00 UTC + manuell (`.github/workflows/gmail_finance_sync.yml`)
 - [x] Single-Label "Rechnungen" — kein Konflikt mit gmail-pdf-sync
 - [ ] Gmail OAuth2 im Browser (statt IMAP/App-Passwort) — erst Phase 6b
-- [ ] Neuer "Rechnungen" Screen im Dashboard
-- [ ] Matching: importierte Rechnung ↔ Kontoauszug-Buchung (Betrag ± Datum, Score 0–100)
+- [x] Neuer "Rechnungen" Screen im Dashboard — Match-Status pro Rechnung (v1.2.9)
+- [x] Matching: importierte Rechnung ↔ Kontoauszug-Buchung mit Score-Chip (v1.3.0)
 
 **Gedanken dazu (siehe unten im Abschnitt "Notizen")**
 

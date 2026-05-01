@@ -1,12 +1,27 @@
 # CHANGELOG
 
+## v1.3.0 — 2026-05-01
+
+### Added
+- **Score-basiertes Bon-Matching** (`matcher.js` integriert) — Concierge zeigt jetzt den besten Match mit Score-Chip (`100% Match` / `Starker Match` / `Möglicher Match` / `Schwacher Match`) und Begründung (`Betrag und Datum stimmen exakt überein` etc.) statt einer einfachen Betrags-Liste.
+- **Rechnungen-Screen: Match-Score-Chip** — Jede verknüpfte Gmail-Rechnung zeigt neben der Buchung den Score-Chip der Übereinstimmungsqualität.
+- **Auto-Link beim Import via matcher.js** — Pending Bons werden beim PDF-Import jetzt über Betrag + Datumsnähe + Händlername gematcht (Score-System) statt einem losen 60-Tage-Betragsvergleich. Weniger False Positives.
+
+---
+
 ## v1.2.9 — 2026-05-01
 
 ### Added
-- **Beleg-Status Card (Dashboard)** — Neue Karte zwischen Bon-Aufschlüsselung und Fixkosten zeigt zwei offene Posten: „X Bons ohne Buchung" (gescannte Bons in der Pending-Queue) und „X Buchungen ohne Bon" (Ausgaben des Monats ohne verknüpften Beleg). Tap navigiert direkt in den Bon-Scanner bzw. in die gefilterte Buchungsliste. Karte blendet sich aus wenn beide Werte 0 sind.
+- **Beleg-Status Card (Dashboard)** — Neue Karte zeigt zwei offene Posten: „X Bons ohne Buchung" (gescannte Bons in der Pending-Queue) und „X Buchungen ohne Bon" (Ausgaben des Monats ohne verknüpften Beleg). Tap navigiert direkt in den Bon-Scanner bzw. in die gefilterte Buchungsliste. Karte blendet sich aus wenn beide Werte 0 sind.
+- **Rechnungen-Screen** — Neuer Screen erreichbar über Dashboard-Karte „E-Mail Rechnungen". Zeigt alle Gmail-Rechnungen des gewählten Monats mit Match-Status: ✅ verknüpft (inkl. Buchungsname + Datum) oder ⚠️ Kein Match (mit „In Buchungen suchen →"-Button). Summary-Zeile: Anzahl gesamt / verknüpft / offen.
+- **Beleg-Status pro Buchung** — Jede Ausgabe in der Buchungsliste zeigt unterhalb des Betrags `✅ Bon` (wenn verknüpft) oder `⚠️ kein Bon` (wenn Kategorie bon-relevant ist: Supermarkt, Restaurant, Online Shopping etc.).
 - **Quick-Filter Chips (Buchungen)** — Chips „◻ Ohne Bon" und „✅ Mit Bon" direkt unterhalb der Suchleiste für One-Tap-Filterung; aktiver Chip wird hervorgehoben; schalten beim erneuten Tippen auf „Alle" zurück.
 - **Konto hinzufügen (Konten-Screen)** — Echtes Modal statt Placeholder-Toast: Name, IBAN (optional), Kürzel (1–2 Zeichen) und Farbwahl (6 Swatches). ＋-Icon in Topbar und „Neues Konto verknüpfen"-Button öffnen das Sheet. Eigene Konten können per ✕ gelöscht werden (Standard-Konto geschützt).
 - **Account-Selektor im Import-Screen** — Wenn mehr als ein Konto vorhanden ist, erscheint nach dem PDF-Upload ein Chip-Selektor „Konto zuordnen". Vorselektion per Dateinamen (easy → easybank, sonst erstes Konto). Alle importierten Buchungen erhalten die gewählte Account-ID; `acc.lastImport` wird korrekt gesetzt.
+
+### Fixed
+- **JSON-Crash (parser.js)** — `text.match(/\[[\s\S]*\]/)` kann null zurückgeben; führte zu unbehandeltem TypeError. Null-Check + try/catch um `JSON.parse` ergänzt; klare Fehlermeldung statt Crash.
+- **JSON-Crash (bonAnalyzer.js)** — `_safeParseObject` crashte bei ungültigem JSON; try/catch + Struct-Normalisierung mit Defaults (`store`, `date`, `total`, `items`, `category`) verhindert Downstream-Crashes in `renderConciergeResult`.
 
 ---
 

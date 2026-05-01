@@ -18,13 +18,16 @@ Läuft vollständig im Browser — kein eigener Server, kein Tracking.
 - Monatsfilter — Navigation zwischen allen importierten Monaten
 - Einnahmen / Ausgaben / Saldo — kompakte Übersichtskarten
 - Beleg-Status — Dashboard zeigt offene Bons und Buchungen ohne Beleg direkt an
+- Rechnungen-Screen — alle Gmail-Rechnungen des Monats mit Match-Status (✅ verknüpft / ⚠️ offen)
 
 **Bon-Scan (Concierge)**
 - Kassenbon per Foto oder PDF hochladen; KI extrahiert Einzelpositionen + Händler + Gesamtbetrag
+- Score-basiertes Matching — bester Treffer mit Konfidenz-Chip (`100% Match` · `Starker Match` · `Möglicher Match`) und Begründung
 - Pending-Queue — Bon vor dem Kontoauszug scannen: automatische Verknüpfung beim nächsten Import
 - Subkategorie-Drill-Down — Tap auf Subkategorie zeigt alle Einzelpositionen
 
 **Sonstiges**
+- Beleg-Status pro Buchung — `✅ Bon` / `⚠️ kein Bon` direkt in der Buchungsliste
 - Kommentare — Freitextnotiz pro Buchung
 - CSV-Export — alle Buchungen exportieren
 - Quick-Filter — „Ohne Bon" / „Mit Bon" direkt in der Buchungsliste
