@@ -1,29 +1,34 @@
-# 💶 Finance Dashboard
+# Finance Dashboard
 
-Persönliches Finance Dashboard für österreichische Kontoauszüge (BAWAG / easybank).  
-Läuft vollständig im Browser – keine Server, kein Tracking, kein Backend.
+Persönliches Finance Dashboard für österreichische Kontoauszüge.  
+Läuft vollständig im Browser — kein eigener Server, kein Tracking.
 
 ## Features
 
-- **PDF-Import** — BAWAG / easybank Kontoauszüge direkt hochladen (Drag & Drop)
-- **KI-Kategorisierung** — Claude Haiku oder GPT-4o-mini erkennt automatisch Buchungskategorien
-- **Bon-Scan (Concierge)** — Kassenbon per Foto oder PDF hochladen, KI extrahiert Einzelpositionen und verknüpft mit Buchung
-- **Pending-Queue** — Bon vor dem Kontoauszug scannen: wird automatisch verknüpft sobald der Import kommt
-- **Kategorien-Übersicht** — Supermarkt, Wohnen, Energie, Auto, Freizeit, … mit Donut-Chart
-- **Monatsfilter** — Navigation zwischen importierten Monaten
-- **Einnahmen / Ausgaben / Saldo** — Kompakte Übersichtskarten
-- **Kommentare** — Freitextnotiz pro Buchung
-- **CSV-Export** — Alle Buchungen als CSV exportieren
-- **Mobile First** — Optimiert für iPhone / Android (kein Dark Mode Bug)
+**Import & Konten**
+- PDF-Import — BAWAG / easybank Kontoauszüge per Drag & Drop oder Dateiauswahl
+- Mehrere Konten — beliebig viele Konten anlegen (Name, IBAN, Farbe); Account-Selektor beim Import
+- Multi-PDF — mehrere Kontoauszugs-PDFs auf einmal importieren
+- Gmail Invoice Matcher — Rechnungs-PDFs aus Gmail werden täglich automatisch importiert (GitHub Actions)
 
-## Geplante Features
+**Auswertung**
+- KI-Kategorisierung — Claude Haiku oder GPT-4o-mini erkennt Buchungskategorien automatisch
+- Kategorie-Lernfunktion — manuelle Korrekturen werden gemerkt und beim nächsten Import angewendet
+- Donut-Chart — Top-5 Ausgabenkategorien auf einen Blick
+- Monatsfilter — Navigation zwischen allen importierten Monaten
+- Einnahmen / Ausgaben / Saldo — kompakte Übersichtskarten
+- Beleg-Status — Dashboard zeigt offene Bons und Buchungen ohne Beleg direkt an
 
-- [ ] Firebase Auth + Firestore (Datenpersistenz + Zwei-Personen-Haushalt)
-- [ ] Drill-Down: Buchung → Bon → Einzelpositionen-Auswertung
-- [ ] Finanzguru CSV-Import
-- [ ] Mehrere Konten / Kreditkarten
-- [ ] Jahresübersicht & Trendcharts
-- [ ] Gmail Invoice Matcher (automatischer Rechnungsabruf)
+**Bon-Scan (Concierge)**
+- Kassenbon per Foto oder PDF hochladen; KI extrahiert Einzelpositionen + Händler + Gesamtbetrag
+- Pending-Queue — Bon vor dem Kontoauszug scannen: automatische Verknüpfung beim nächsten Import
+- Subkategorie-Drill-Down — Tap auf Subkategorie zeigt alle Einzelpositionen
+
+**Sonstiges**
+- Kommentare — Freitextnotiz pro Buchung
+- CSV-Export — alle Buchungen exportieren
+- Quick-Filter — „Ohne Bon" / „Mit Bon" direkt in der Buchungsliste
+- Mobile First — optimiert für iPhone / Android
 
 ## Tech Stack
 
@@ -33,21 +38,27 @@ Läuft vollständig im Browser – keine Server, kein Tracking, kein Backend.
 | PDF-Parsing | PDF.js (CDN) |
 | KI-Kategorisierung | Claude Haiku · GPT-4o-mini |
 | Bon-Analyse | Claude Vision · GPT-4o |
-| Datenspeicher | localStorage → Firebase Firestore (Phase 2) |
+| Auth & Daten | Firebase Auth + Firestore |
+| Gmail-Import | Python · IMAP · GitHub Actions |
 | Hosting | GitHub Pages |
 
 ## Setup
 
-1. Repo klonen / Fork erstellen
-2. `index.html` in GitHub Pages aktivieren (Settings → Pages → main / root)
-3. Anthropic oder OpenAI API Key direkt im Browser eingeben (wird nur lokal in `localStorage` gespeichert)
+1. Repo forken
+2. Firebase-Projekt anlegen, `firebase-config.js` befüllen (nicht committen)
+3. Firestore: `config/apiKeys` mit `anthropic` und `openai` Key anlegen
+4. Firestore: `config/allowed_emails` mit erlaubten E-Mail-Adressen befüllen
+5. GitHub Pages aktivieren (Settings → Pages → main / root)
+
+Für den Gmail-Import zusätzlich:
+- GitHub Secrets setzen: `GMAIL_APP_PASSWORD`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`
+- GitHub Actions Workflow (`.github/workflows/gmail_finance_sync.yml`) läuft täglich 07:00 UTC
 
 ## Datenschutz
 
-- PDF-Inhalt und Bon-Bilder werden direkt an die gewählte KI-API gesendet (nur zur Analyse)
-- Kein eigener Server, keine Logs
-- API Keys werden nur in `localStorage` des eigenen Browsers gespeichert
-- Firestore (Phase 2): eigene Firebase-Instanz, vollständige Datenkontrolle
+- PDF-Inhalt und Bon-Bilder werden nur zur Analyse an die gewählte KI-API gesendet
+- API Keys liegen in der eigenen Firestore-Instanz (nicht im Browser-localStorage)
+- Kein eigener Server, keine Logs außerhalb von Firebase
 
 ## Lizenz
 
