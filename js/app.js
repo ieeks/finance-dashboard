@@ -8,6 +8,7 @@ import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
          fsSaveSubcategoryOverrides } from './firebaseService.js';
+import { findMatch, matchLabel } from './matcher.js';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -309,14 +310,8 @@ window.goToOhneBeleg = function() {
 
 // ── Rechnungen (Gmail-Import) ──
 function findRechnungMatch(rechnung) {
-  const rDate = new Date(rechnung.date);
-  const rAmt  = Math.abs(rechnung.amount);
-  return state.transactions.find(t =>
-    t.source !== 'gmail_import' &&
-    t.amount < 0 &&
-    Math.abs(Math.abs(t.amount) - rAmt) < 0.02 &&
-    Math.abs(new Date(t.date) - rDate) <= 14 * 24 * 60 * 60 * 1000
-  ) || null;
+  const bon = { date: rechnung.date, total: Math.abs(rechnung.amount), store: rechnung.description };
+  return findMatch(bon, state.transactions.filter(t => t.source !== 'gmail_import')) || null;
 }
 
 function renderRechnungenTeaser(txs) {
@@ -374,10 +369,12 @@ function renderRechnungen() {
   listEl.innerHTML = [...month].sort((a,b) => b.date.localeCompare(a.date)).map(t => {
     const match = findRechnungMatch(t);
     const cfg   = CAT_CONFIG[t.category] || CAT_CONFIG['Sonstiges'];
+    const ml = match ? matchLabel(match.score) : null;
     const statusHtml = match
       ? `<div style="display:flex;align-items:center;gap:6px;font-size:0.68rem;margin-top:8px;padding-top:8px;border-top:1px solid var(--outline-soft);">
            <span style="color:var(--green);">✅</span>
-           <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(match.description.slice(0,35))} · ${formatDate(match.date)}</span>
+           <span style="color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${escHtml(match.transaction.description.slice(0,35))} · ${formatDate(match.transaction.date)}</span>
+           <span class="chip ${ml.chip}" style="font-size:0.55rem;padding:1px 6px;flex-shrink:0;">${ml.label}</span>
          </div>`
       : `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid var(--outline-soft);">
            <span style="font-size:0.68rem;color:var(--secondary);font-weight:600;">⚠️ Kein Match</span>
@@ -947,14 +944,9 @@ window.runImport = async function() {
       (state.pendingBons).forEach(bon => {
         const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
         if (bonDate < cutoffDate) return;
-        const bonDateStr = bon.date || bon.savedAt?.slice(0,10);
-        const match = state.transactions.find(t =>
-          t.amount < 0 &&
-          !t.bon &&
-          Math.abs(Math.abs(t.amount) - bon.total) < 0.015 &&
-          t.date >= bonDateStr &&
-          t.date <= _addDays(bonDateStr, 60)
-        );
+        const bonForMatch = { ...bon, date: bon.date || bon.savedAt?.slice(0,10) };
+        const result = findMatch(bonForMatch, state.transactions.filter(t => !t.bon));
+        const match = result?.transaction || null;
         if (match) { match.bon = bon; linked.push(bon.id); totalAutoLinked++; }
       });
       if (linked.length) {
@@ -1232,30 +1224,29 @@ function renderConciergeResult(bon) {
       </div>`).join('');
 
   const matchSection = document.getElementById('bon-match-section');
-  const matches      = state.transactions.filter(t => t.amount < 0 && Math.abs(Math.abs(t.amount) - bon.total) < 0.015).slice(0,3);
-  if (matches.length) {
+  const bestMatch    = findMatch(bon, state.transactions);
+  if (bestMatch) {
+    const m  = bestMatch.transaction;
+    const ml = matchLabel(bestMatch.score);
     matchSection.innerHTML = `
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div class="section-label" style="margin:0;">Passende Buchung</div>
-        <span class="chip chip-green">${matches.length} Treffer</span>
+        <span class="chip ${ml.chip}" style="font-size:0.6rem;padding:2px 8px;">${ml.label}</span>
       </div>
-      ${matches.map(m => `
-        <div class="match-card" id="match-${m.id}">
-          <div class="tx-icon-wrap" style="width:40px;height:40px;">${m.bon ? '🔗' : (CAT_CONFIG[m.category]?.icon||'📌')}</div>
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:0.85rem;font-weight:700;">${escHtml(m.description)}</div>
-            <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(m.date)}</div>
-            ${m.bon
-              ? `<div style="font-size:0.65rem;color:var(--green);margin-top:4px;">✅ Bereits verknüpft</div>`
-              : `<div style="font-size:0.65rem;color:var(--green);margin-top:4px;">Betrag stimmt überein</div>`}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-            <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;">${formatEur(Math.abs(m.amount))}</div>
-            ${m.bon
-              ? `<span class="chip chip-green" style="padding:2px 8px;font-size:0.6rem;">Verknüpft</span>`
-              : `<button onclick="linkBon('${m.id}')" style="padding:5px 12px;border-radius:8px;border:none;background:var(--primary-container);color:var(--on-primary);font-size:0.68rem;font-weight:700;cursor:pointer;font-family:var(--sans);">🔗 Verknüpfen</button>`}
-          </div>
-        </div>`).join('')}`;
+      <div class="match-card" id="match-${m.id}">
+        <div class="tx-icon-wrap" style="width:40px;height:40px;">${m.bon ? '🔗' : (CAT_CONFIG[m.category]?.icon||'📌')}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.85rem;font-weight:700;">${escHtml(m.description)}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(m.date)} · ${escHtml(bestMatch.reason)}</div>
+          ${m.bon ? `<div style="font-size:0.65rem;color:var(--green);margin-top:4px;">✅ Bereits verknüpft</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+          <div style="font-family:var(--serif);font-size:0.95rem;font-weight:700;">${formatEur(Math.abs(m.amount))}</div>
+          ${m.bon
+            ? `<span class="chip chip-green" style="padding:2px 8px;font-size:0.6rem;">Verknüpft</span>`
+            : `<button onclick="linkBon('${m.id}')" style="padding:5px 12px;border-radius:8px;border:none;background:var(--primary-container);color:var(--on-primary);font-size:0.68rem;font-weight:700;cursor:pointer;font-family:var(--sans);">🔗 Verknüpfen</button>`}
+        </div>
+      </div>`;
   } else {
     matchSection.innerHTML = `
       <div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px 0 10px;">Keine passende Buchung gefunden.</div>
