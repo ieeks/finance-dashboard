@@ -709,8 +709,30 @@ function _setUploadUI(files) {
     const totalKB = files.reduce((s, f) => s + f.size, 0) / 1024;
     document.getElementById('upload-sub').textContent   = `${totalKB.toFixed(1)} KB gesamt — bereit zum Import`;
   }
+  _renderAccountSelector(files);
   document.getElementById('import-btn').style.display = 'flex';
 }
+
+function _renderAccountSelector(files) {
+  const wrap  = document.getElementById('account-selector-wrap');
+  const chips = document.getElementById('account-selector-chips');
+  if (!wrap || !chips) return;
+  if (state.accounts.length <= 1) { wrap.style.display = 'none'; return; }
+  const firstName = (files[0]?.name || '').toLowerCase();
+  const autoId = firstName.includes('easy') ? 'easybank' :
+                 state.accounts.find(a => firstName.includes(a.name.toLowerCase()))?.id ||
+                 state.accounts[0].id;
+  wrap.style.display = 'block';
+  chips.innerHTML = state.accounts.map(a =>
+    `<button class="bs-chip${a.id === autoId ? ' active' : ''}" data-acc-id="${escHtml(a.id)}" onclick="selectImportAccount('${escHtml(a.id)}')">${escHtml(a.initial)} ${escHtml(a.name)}</button>`
+  ).join('');
+}
+
+window.selectImportAccount = function(id) {
+  document.querySelectorAll('#account-selector-chips .bs-chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.accId === id)
+  );
+};
 
 window.handlePdfUpload = function(input) {
   const files = Array.from(input.files);
@@ -765,8 +787,10 @@ window.runImport = async function() {
       showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
     }
 
-    const fileName   = file.name.toLowerCase();
-    const accountSlug = fileName.includes('easy') ? 'easybank' : 'bawag';
+    const selectedChip = document.querySelector('#account-selector-chips .bs-chip.active');
+    const fileName     = file.name.toLowerCase();
+    const accountSlug  = selectedChip?.dataset.accId ||
+                         (fileName.includes('easy') ? 'easybank' : 'bawag');
     const fileMonth  = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
     const importMonth = (fileMonth || state.currentMonth).replace('-','_');
     const importId    = `${accountSlug}_${importMonth}`;
@@ -782,12 +806,16 @@ window.runImport = async function() {
     let added = 0;
     categorized.forEach(t => {
       const key = `${t.date}|${t.amount}|${t.description}`;
-      if (!existing.has(key)) { state.transactions.push(t); existing.add(key); added++; }
+      if (!existing.has(key)) {
+        t.account = accountSlug;
+        state.transactions.push(t);
+        existing.add(key);
+        added++;
+      }
     });
     totalAdded += added;
 
-    const accountId = fileName.includes('easy') ? 'easybank' : 'bawag';
-    const acc       = state.accounts.find(a => a.id === accountId);
+    const acc = state.accounts.find(a => a.id === accountSlug);
     if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
 
     if (fileMonth && fileMonth > latestMonth) latestMonth = fileMonth;
@@ -847,6 +875,7 @@ window.runImport = async function() {
   selectedPdfFiles = [];
   document.getElementById('pdf-input').value = '';
   document.getElementById('import-btn').style.display = 'none';
+  document.getElementById('account-selector-wrap').style.display = 'none';
   document.getElementById('upload-icon').textContent  = '📄';
   document.getElementById('upload-title').textContent = 'BAWAG / easybank PDF';
   document.getElementById('upload-sub').innerHTML     = 'Per Klick oder Drag &amp; Drop · Mehrere PDFs möglich<br><br><span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>';
