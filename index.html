@@ -982,6 +982,9 @@ html, body {
     <!-- Bon Breakdown -->
     <div id="db-bon-breakdown" style="display:none;"></div>
 
+    <!-- Beleg Status -->
+    <div id="db-beleg-status" style="display:none;"></div>
+
     <!-- Fixkosten -->
     <div id="db-fixkosten" style="display:none;margin-top:16px;"></div>
 
@@ -1036,6 +1039,8 @@ html, body {
     </div>
 
     <div class="active-pills" id="activePills"></div>
+
+    <div id="buch-quick-chips" class="bs-chips" style="margin-bottom:10px;"></div>
 
     <button class="month-trigger-chip" id="buchMonthTrigger" onclick="openBuchMonthSheet()" style="margin-bottom:14px;">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1149,7 +1154,7 @@ html, body {
       <div class="topbar-avatar">MK</div>
       Meine Konten
     </div>
-    <button class="topbar-icon" title="Konto hinzufügen" onclick="showToast('Konto-Verwaltung folgt in Phase 2')">＋</button>
+    <button class="topbar-icon" title="Konto hinzufügen" onclick="showAddAccountSheet()">＋</button>
   </div>
 
   <div class="px" style="padding-top:24px;">
@@ -1158,7 +1163,7 @@ html, body {
 
     <div style="display:flex;flex-direction:column;gap:12px;" id="account-list"></div>
 
-    <button class="btn-ghost" style="margin-top:12px;" onclick="showToast('Multi-Konto folgt in Phase 2')">＋ Neues Konto verknüpfen</button>
+    <button class="btn-ghost" style="margin-top:12px;" onclick="showAddAccountSheet()">＋ Neues Konto verknüpfen</button>
 
     <!-- Gesamtvermögen -->
     <div class="card-dark" style="margin-top:20px;" id="gesamtvermoegen-card">
@@ -1326,6 +1331,47 @@ html, body {
       <button class="btn-ghost" onclick="exportCSV()">📊 Buchungen als CSV exportieren</button>
       <button onclick="clearTransactions(); closeClearModal();" style="width:100%;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);padding:14px;font-family:var(--sans);font-size:0.85rem;font-weight:600;cursor:pointer;">🗑️ Alle Buchungen löschen</button>
       <button onclick="closeClearModal();" class="btn-ghost" style="margin-top:4px;">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Konto hinzufügen Modal -->
+<div class="modal-overlay" id="add-account-modal" onclick="if(event.target===this)closeAddAccountSheet()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div style="font-family:var(--serif);font-size:1.3rem;font-weight:700;margin-bottom:6px;">Konto hinzufügen</div>
+    <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:20px;">Neues Bank- oder Kreditkartenkonto verknüpfen.</p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div>
+        <label style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">Kontoname *</label>
+        <input id="acc-name-input" type="text" placeholder="z.B. Sparkasse, N26, Revolut"
+          style="width:100%;padding:12px 14px;border:1.5px solid var(--outline-soft);border-radius:var(--radius-sm);background:var(--surface-low);font-family:var(--sans);font-size:0.88rem;color:var(--text);outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">IBAN (optional)</label>
+        <input id="acc-iban-input" type="text" placeholder="AT12 3456 7890 1234 5678"
+          style="width:100%;padding:12px 14px;border:1.5px solid var(--outline-soft);border-radius:var(--radius-sm);background:var(--surface-low);font-family:var(--sans);font-size:0.88rem;color:var(--text);outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:6px;">Kürzel (1–2 Zeichen)</label>
+        <input id="acc-initial-input" type="text" maxlength="2" placeholder="z.B. N, SP"
+          style="width:100%;padding:12px 14px;border:1.5px solid var(--outline-soft);border-radius:var(--radius-sm);background:var(--surface-low);font-family:var(--sans);font-size:0.88rem;color:var(--text);outline:none;">
+      </div>
+      <div>
+        <label style="font-size:0.62rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:10px;">Farbe</label>
+        <div id="acc-color-swatches" style="display:flex;gap:10px;">
+          <div class="acc-swatch" data-color="#41051F" style="width:32px;height:32px;border-radius:50%;background:#41051F;cursor:pointer;flex-shrink:0;"></div>
+          <div class="acc-swatch" data-color="#7B5723" style="width:32px;height:32px;border-radius:50%;background:#7B5723;cursor:pointer;flex-shrink:0;"></div>
+          <div class="acc-swatch" data-color="#2D6A4F" style="width:32px;height:32px;border-radius:50%;background:#2D6A4F;cursor:pointer;flex-shrink:0;"></div>
+          <div class="acc-swatch" data-color="#1E3A5F" style="width:32px;height:32px;border-radius:50%;background:#1E3A5F;cursor:pointer;flex-shrink:0;"></div>
+          <div class="acc-swatch" data-color="#5C3A6E" style="width:32px;height:32px;border-radius:50%;background:#5C3A6E;cursor:pointer;flex-shrink:0;"></div>
+          <div class="acc-swatch" data-color="#4A4A4A" style="width:32px;height:32px;border-radius:50%;background:#4A4A4A;cursor:pointer;flex-shrink:0;"></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button class="btn-ghost" style="flex:1;" onclick="closeAddAccountSheet()">Abbrechen</button>
+      <button class="btn-primary" style="flex:1;" onclick="addNewAccount()">Hinzufügen</button>
     </div>
   </div>
 </div>

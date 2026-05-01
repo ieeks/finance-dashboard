@@ -65,6 +65,7 @@ function renderDashboard() {
   renderBonBreakdown(txs);
   renderFixkosten(txs);
   renderInsight(txs);
+  renderBelegStatus(txs);
 
   const pendingCount = (state.pendingBons || []).length;
   const badgeEl = document.getElementById('concierge-badge');
@@ -262,12 +263,70 @@ function renderInsight(txs) {
   el.style.display = 'block';
 }
 
+function renderBelegStatus(txs) {
+  const el = document.getElementById('db-beleg-status');
+  if (!el) return;
+  const pendingCount = (state.pendingBons || []).length;
+  const ohneBeleg = txs.filter(t => t.amount < 0 && !t.bon).length;
+  if (!pendingCount && !ohneBeleg) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  const rows = [];
+  if (pendingCount > 0) {
+    rows.push(`<div onclick="showScreen('concierge')" style="display:flex;align-items:center;gap:12px;padding:14px 0;${ohneBeleg ? 'border-bottom:1px solid var(--outline-soft);' : ''}cursor:pointer;">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-high);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">🧾</div>
+      <div style="flex:1;">
+        <div style="font-size:0.82rem;font-weight:700;">${pendingCount} Bon${pendingCount !== 1 ? 's' : ''} ohne Buchung</div>
+        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;">Gescannt — noch keiner Buchung zugeordnet</div>
+      </div>
+      <span style="color:var(--text-muted);">›</span>
+    </div>`);
+  }
+  if (ohneBeleg > 0) {
+    rows.push(`<div onclick="goToOhneBeleg()" style="display:flex;align-items:center;gap:12px;padding:14px 0;cursor:pointer;">
+      <div style="width:36px;height:36px;border-radius:10px;background:var(--surface-high);display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">📋</div>
+      <div style="flex:1;">
+        <div style="font-size:0.82rem;font-weight:700;">${ohneBeleg} Buchung${ohneBeleg !== 1 ? 'en' : ''} ohne Bon</div>
+        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px;">Ausgaben ${getMonthLabel(state.currentMonth)} ohne Beleg</div>
+      </div>
+      <span style="color:var(--text-muted);">›</span>
+    </div>`);
+  }
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;margin-bottom:4px;">
+      <div class="section-label">Beleg-Status</div>
+    </div>
+    <div class="card" style="padding:0 16px;">${rows.join('')}</div>
+  `;
+}
+
+window.goToOhneBeleg = function() {
+  _buchFilter.beleg = 'open';
+  showScreen('buchungen');
+  window._refreshBuchUI?.();
+};
+
+window.applyQuickFilter = function(key, val) {
+  _buchFilter[key] = _buchFilter[key] === val ? 'alle' : val;
+  renderBuchungen();
+  window._refreshBuchUI?.();
+};
+
 // ── Buchungen ──
 let _buchFilter = {
   konto: 'alle', beleg: 'alle', typ: 'alle', cats: [], quelle: 'alle'
 };
 
+function renderBuchQuickChips() {
+  const el = document.getElementById('buch-quick-chips');
+  if (!el) return;
+  el.innerHTML = [
+    { label: '◻ Ohne Bon', key: 'beleg', val: 'open'   },
+    { label: '✅ Mit Bon',  key: 'beleg', val: 'linked' },
+  ].map(c => `<button class="bs-chip${_buchFilter[c.key] === c.val ? ' active' : ''}" onclick="applyQuickFilter('${c.key}','${c.val}')">${c.label}</button>`).join('');
+}
+
 function renderBuchungen() {
+  renderBuchQuickChips();
   updateMonthTriggers();
   const search = (document.getElementById('search-input')?.value || '').toLowerCase();
 
@@ -550,6 +609,57 @@ window.clearTransactions = function() {
 };
 
 // ── Konten ──
+window.showAddAccountSheet = function() {
+  const modal = document.getElementById('add-account-modal');
+  if (!modal) return;
+  ['acc-name-input','acc-iban-input','acc-initial-input'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('.acc-swatch').forEach((s, i) => {
+    s.style.outline = i === 0 ? '2.5px solid var(--text)' : 'none';
+    s.style.outlineOffset = '2px';
+    s.onclick = () => {
+      document.querySelectorAll('.acc-swatch').forEach(x => x.style.outline = 'none');
+      s.style.outline = '2.5px solid var(--text)';
+      s.style.outlineOffset = '2px';
+    };
+  });
+  modal.classList.add('open');
+};
+
+window.closeAddAccountSheet = function() {
+  document.getElementById('add-account-modal')?.classList.remove('open');
+};
+
+window.addNewAccount = function() {
+  const name    = (document.getElementById('acc-name-input')?.value || '').trim();
+  const iban    = (document.getElementById('acc-iban-input')?.value || '').trim();
+  const initial = (document.getElementById('acc-initial-input')?.value || '').trim().slice(0,2) || name.slice(0,1).toLowerCase();
+  const activeEl = document.querySelector('.acc-swatch[style*="solid"]') || document.querySelector('.acc-swatch');
+  const color   = activeEl?.dataset.color || '#41051F';
+  if (!name) { showToast('Bitte Kontoname eingeben'); return; }
+  if (state.accounts.some(a => a.name.toLowerCase() === name.toLowerCase())) {
+    showToast('Konto mit diesem Namen existiert bereits'); return;
+  }
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g,'_') + '_' + Date.now().toString(36);
+  state.accounts.push({ id, name, iban, balance: null, lastImport: null, color, initial });
+  saveState();
+  closeAddAccountSheet();
+  renderKonten();
+  showToast(`✓ "${name}" hinzugefügt`);
+};
+
+window.deleteAccount = function(id) {
+  const acc = state.accounts.find(a => a.id === id);
+  if (!acc) return;
+  if (!confirm(`Konto "${acc.name}" wirklich entfernen? Buchungen bleiben erhalten.`)) return;
+  state.accounts = state.accounts.filter(a => a.id !== id);
+  saveState();
+  renderKonten();
+  showToast(`"${acc.name}" entfernt`);
+};
+
 function renderKonten() {
   const list        = document.getElementById('account-list');
   const accountData = state.accounts.map(acc => {
@@ -564,14 +674,16 @@ function renderKonten() {
     const statusChip    = hasData
       ? '<span class="chip chip-green">● Aktiv</span>'
       : '<span class="chip chip-gold">Kein Import</span>';
+    const isDefault = acc.id === 'easybank' || acc.id === 'bawag';
     return `<div class="account-card">
       <div class="account-header">
         <div class="account-logo" style="background:${acc.color};font-size:0.9rem;">${acc.initial}</div>
         <div style="flex:1;">
           <div class="account-name">${escHtml(acc.name)}</div>
-          <div class="account-iban">${escHtml(acc.iban)}</div>
+          <div class="account-iban">${escHtml(acc.iban || '—')}</div>
         </div>
         ${statusChip}
+        ${!isDefault ? `<button onclick="deleteAccount('${acc.id}')" style="padding:4px 8px;border-radius:8px;border:none;background:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;margin-left:6px;">✕</button>` : ''}
       </div>
       <div>
         <div class="account-balance-label">Verfügbarer Saldo</div>
@@ -1244,6 +1356,8 @@ function initBuchFilters() {
 
   document.getElementById('buchFilterClose')?.addEventListener('click', closeFilterSheet);
   document.getElementById('buchFilterBtn')?.addEventListener('click', openFilterSheet);
+
+  window._refreshBuchUI = function() { renderActivePills(); updateFilterBadge(); };
 
   // ── Month sheet ──
   function openMonthSheet(fromFilter = false) {
