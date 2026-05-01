@@ -501,14 +501,27 @@ function renderBuchungen() {
   }).join('');
 }
 
+const BON_RELEVANT_CATS = new Set([
+  'Supermarkt', 'Restaurant / Café', 'Online Shopping', 'Drogerie',
+  'Freizeit', 'Mobilität / Auto', 'Gesundheit', 'Telekommunikation', 'Energie / Strom'
+]);
+
+function belegStatusTag(tx) {
+  if (tx.amount >= 0) return '';
+  if (tx.bon)
+    return '<div style="font-size:0.58rem;color:var(--green);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">✅ Bon</div>';
+  if (BON_RELEVANT_CATS.has(tx.category))
+    return '<div style="font-size:0.58rem;color:var(--secondary);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">⚠️ kein Bon</div>';
+  return '';
+}
+
 function renderTxItem(tx) {
   const cfg      = CAT_CONFIG[tx.category] || CAT_CONFIG['Sonstiges'];
   const isIn     = tx.amount > 0;
   const chipClass = tx.category === 'Gehalt / Einnahmen' ? 'chip-green' : 'chip-gold';
-  const aiTag     = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
-  const bonTag    = tx.bon  ? '<span style="font-size:0.7rem;">🧾</span>' : '';
-  const noteTag   = tx.note ? '<span style="font-size:0.7rem;">💬</span>' : '';
-  const gmailTag  = tx.source === 'gmail_import' ? '<span class="chip" style="padding:2px 6px;font-size:0.55rem;background:var(--surface-container);color:var(--secondary);">✉ Rechnung</span>' : '';
+  const aiTag    = tx.aiCategorized ? '<span class="chip chip-ai" style="padding:2px 6px;font-size:0.55rem;">✦ AI</span>' : '';
+  const noteTag  = tx.note ? '<span style="font-size:0.7rem;">💬</span>' : '';
+  const gmailTag = tx.source === 'gmail_import' ? '<span class="chip" style="padding:2px 6px;font-size:0.55rem;background:var(--surface-container);color:var(--secondary);">✉ Rechnung</span>' : '';
   const avatar   = tx.cardHolder === 'manuel' ? '<span class="avatar-chip avatar-m">M</span>'
                  : tx.cardHolder === 'olga'   ? '<span class="avatar-chip avatar-o">O</span>'
                  : '';
@@ -517,13 +530,16 @@ function renderTxItem(tx) {
     <div style="flex:1;min-width:0;">
       <div class="tx-name">${escHtml(tx.description)}</div>
       <div class="tx-meta">
-        ${gmailTag}${aiTag}${bonTag}${noteTag}
+        ${gmailTag}${aiTag}${noteTag}
         <span class="chip ${chipClass}" style="padding:2px 8px;font-size:0.55rem;">${escHtml(tx.category||'Sonstiges')}</span>
         ${avatar}
         <span>${formatDate(tx.date)}</span>
       </div>
     </div>
-    <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '−'}${formatEur(Math.abs(tx.amount))}</div>
+    <div style="text-align:right;flex-shrink:0;">
+      <div class="tx-amount ${isIn ? 'in' : 'out'}">${isIn ? '+' : '−'}${formatEur(Math.abs(tx.amount))}</div>
+      ${belegStatusTag(tx)}
+    </div>
   </div>`;
 }
 
