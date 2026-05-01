@@ -60,6 +60,8 @@ export const BON_EXCLUDED_COMPANIES = [
   'T-Mobile Austria GmbH',
   'Helvetia Versicherungen AG',
   'Tesla',
+  'Wien Energie Vertrieb GmbH & Co KG',
+  'STURM ENERGIE',
 ];
 
 export const SUBSCRIPTION_RULES = [
