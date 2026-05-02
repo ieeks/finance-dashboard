@@ -6,6 +6,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "date": "YYYY-MM-DD",
   "total": 43.20,
   "currency": "EUR",
+  "card_last4": "1234",
   "items": [
     {
       "name": "Produktname max 40 Zeichen",
@@ -29,3 +30,6 @@ Hinweise:
 - Apotheke, Drogerie → "Hygiene & Drogerie"
 - Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
 - subcategory immer auf Englisch (kein "subkategorie")
+- card_last4: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
+  Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
+  Falls keine Kartennummer vorhanden (Bar, PayPal, etc.): null

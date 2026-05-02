@@ -790,7 +790,7 @@ function renderKonten() {
     const statusChip    = hasData
       ? '<span class="chip chip-green">● Aktiv</span>'
       : '<span class="chip chip-gold">Kein Import</span>';
-    const isDefault = acc.id === 'easybank' || acc.id === 'bawag';
+    const isDefault = ['haushalt','privat_olga','privat_olga_erste','privat_manuel'].includes(acc.id);
     return `<div class="account-card">
       <div class="account-header">
         <div class="account-logo" style="background:${acc.color};font-size:0.9rem;">${acc.initial}</div>
@@ -835,7 +835,7 @@ function _renderAccountSelector(files) {
   if (!wrap || !chips) return;
   if (state.accounts.length <= 1) { wrap.style.display = 'none'; return; }
   const firstName = (files[0]?.name || '').toLowerCase();
-  const autoId = firstName.includes('easy') ? 'easybank' :
+  const autoId = (firstName.includes('easy') || firstName.includes('bawag')) ? 'haushalt' :
                  state.accounts.find(a => firstName.includes(a.name.toLowerCase()))?.id ||
                  state.accounts[0].id;
   wrap.style.display = 'block';
@@ -906,7 +906,7 @@ window.runImport = async function() {
     const selectedChip = document.querySelector('#account-selector-chips .bs-chip.active');
     const fileName     = file.name.toLowerCase();
     const accountSlug  = selectedChip?.dataset.accId ||
-                         (fileName.includes('easy') ? 'easybank' : 'bawag');
+                         (fileName.includes('erste') ? 'privat_manuel' : 'haushalt');
     const fileMonth  = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
     const importMonth = (fileMonth || state.currentMonth).replace('-','_');
     const importId    = `${accountSlug}_${importMonth}`;

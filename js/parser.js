@@ -488,7 +488,7 @@ export function makeTx(date, description, amount, account, cardHolder = null) {
     amount,
     category:      'Sonstiges',
     aiCategorized: false,
-    account:       account || 'easybank',
+    account:       account || 'haushalt',
     cardHolder,
   };
 }

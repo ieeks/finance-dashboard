@@ -47,6 +47,15 @@ OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "").strip()
 ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "").strip()
 FIREBASE_SERVICE_ACCOUNT = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
 
+# Letzte 4 Stellen → Konto-ID (muss mit state.js CARD_CONFIG übereinstimmen)
+CARD_ACCOUNT_MAP: dict[str, str] = {
+    "5676": "haushalt",       # Olga physische Karte (Easybank Haushalt)
+    "6562": "haushalt",       # Manuel physische Karte (Easybank Haushalt)
+    "0522": "haushalt",       # Manuel Apple Watch (Easybank Haushalt)
+    "6351": "privat_olga",    # Olga Privatkonto (Easybank)
+    "4575": "privat_manuel",  # Manuel iPhone (Erste Bank Privat)
+}
+
 # Firestore-Pfad: household/main/transactions/{id}  ← gleich wie Browser-Parser
 FIRESTORE_HH_DOC    = ("household", "main")
 FIRESTORE_TX_SUBCOL = "transactions"
@@ -179,6 +188,7 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach):
   "betrag_brutto": 0.00,
   "beschreibung": "...",
   "kategorie": "...",
+  "card_last4": "1234",
   "positionen": [
     {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subkategorie": "..."}}
   ]
@@ -187,6 +197,9 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach):
 Regeln:
 - "absender": NUR der Firmenname, KEINE Adresse, PLZ oder Stadt.
   Richtig: "Billa" — Falsch: "Billa AG, 1030 Wien, Musterstraße 1"
+- "card_last4": letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
+  Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
+  Falls keine Kartennummer vorhanden (Bar, PayPal, Überweisung etc.): null
 - "positionen": alle Einzelpositionen aus dem Kassenbon/Rechnung extrahieren.
   Falls keine Einzelpositionen erkennbar sind → leeres Array [].
 - "positionen[].subkategorie" aus dieser Liste wählen:
@@ -328,6 +341,17 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     raw_absender = ai_data.get("absender", filename) or filename
     description  = raw_absender.split(",")[0].split("\n")[0].strip()
 
+    # Konto aus Kartennummer auflösen
+    card_last4 = str(ai_data.get("card_last4") or "").strip().lstrip("0") or None
+    # Normalisieren: nur die letzten 4 Ziffern, führende Nullen behalten
+    if card_last4:
+        card_last4 = card_last4[-4:].zfill(4)
+    account = CARD_ACCOUNT_MAP.get(card_last4, "unbekannt") if card_last4 else "unbekannt"
+    if card_last4:
+        print(f"  Karte: …{card_last4} → {account}")
+    else:
+        print("  Karte: nicht erkannt → account=unbekannt")
+
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
     positionen = ai_data.get("positionen") or []
     bon = None
@@ -354,7 +378,8 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "amount":        -abs(ai_data.get("betrag_brutto", 0)),
         "description":   description,
         "category":      ai_data.get("kategorie", "Sonstiges"),
-        "account":       "easybank",
+        "account":       account,
+        "card_last4":    card_last4,
         "aiCategorized": True,
         "source":        "gmail_import",
         "note":          ai_data.get("beschreibung", ""),
