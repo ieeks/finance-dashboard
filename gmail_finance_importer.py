@@ -47,13 +47,13 @@ OPENAI_API_KEY           = os.getenv("OPENAI_API_KEY", "").strip()
 ANTHROPIC_API_KEY        = os.getenv("ANTHROPIC_API_KEY", "").strip()
 FIREBASE_SERVICE_ACCOUNT = os.getenv("FIREBASE_SERVICE_ACCOUNT", "")
 
-# Letzte 4 Stellen → Konto-ID (muss mit state.js accounts[].id übereinstimmen)
+# Letzte 4 Stellen → Konto-ID (muss mit state.js CARD_CONFIG übereinstimmen)
 CARD_ACCOUNT_MAP: dict[str, str] = {
-    "5676": "easybank_olga",      # Haushalt — Olga physische Karte (Easybank)
-    "6562": "easybank_manuel",    # Haushalt — Manuel physische Karte (Easybank)
-    "0522": "easybank_apple",     # Haushalt — Manuel Apple Watch (Easybank)
-    "6351": "privat_olga",        # Privat — Olga (Easybank)
-    "4575": "erste_manuel",       # Privat — Manuel iPhone (Erste Bank)
+    "5676": "haushalt",       # Olga physische Karte (Easybank Haushalt)
+    "6562": "haushalt",       # Manuel physische Karte (Easybank Haushalt)
+    "0522": "haushalt",       # Manuel Apple Watch (Easybank Haushalt)
+    "6351": "privat_olga",    # Olga Privatkonto (Easybank)
+    "4575": "privat_manuel",  # Manuel iPhone (Erste Bank Privat)
 }
 
 # Firestore-Pfad: household/main/transactions/{id}  ← gleich wie Browser-Parser
