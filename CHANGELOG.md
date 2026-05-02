@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v1.3.1 — 2026-05-02
+
+### Added
+- **Karten-Mapping** (`CARD_CONFIG` in `state.js`) — Letzte 4 Ziffern einer Zahlungskarte werden auf eine Konto-ID gemappt. Karten sind Zugriffswege auf ein Konto, keine eigenen Konten. Unterstützt beide Bon-Formate: `XXXX XXXX XXXX 1234` (Standard) und `############1234` (Billa).
+- **4 Konten mit IBANs** (`state.js`) — Haushaltskonto Easybank, Privatkonto Olga Easybank, Privatkonto Olga Erste Bank, Privatkonto Manuel Erste Bank als Default-Konten hinterlegt (inkl. IBAN, Farbe, Kürzel).
+- **`card_last4` Feld** in `prompts/analyze-bon.md` + `gmail_finance_importer.py` — KI extrahiert Kartennummer aus dem Bon; Importer löst sie via `CARD_ACCOUNT_MAP` auf den korrekten Account auf. Unbekannte Karte / Barzahlung → `account: "unbekannt"`.
+
+### Fixed
+- **Hardkodierte `'easybank'` Account-ID entfernt** — `parser.js` Fallback, PDF-Autoerkennung und Fallback-Slug in `app.js` auf `'haushalt'` / `'privat_manuel'` umgestellt. Neue PDF-Imports landen jetzt im richtigen Konto statt in einem nicht mehr existierenden `easybank`-Account.
+- **`isDefault`-Schutz** (`app.js`) — Lösch-Button wird jetzt für alle 4 Default-Konten unterdrückt statt nur für `easybank`/`bawag`.
+
+---
+
 ## v1.3.0 — 2026-05-01
 
 ### Added

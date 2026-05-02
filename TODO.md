@@ -85,6 +85,11 @@
       → AKTIV-Badge = letzter Import-Zeitstempel
       → Gesamtvermögens-Karte mit Trend-Kurve (alle Konten summiert)
 - [x] Account-Selektor im Import-Screen — Konto per Chip wählbar nach PDF-Upload (v1.2.9)
+- [x] 4 Konten mit IBANs als Defaults hinterlegt (v1.3.1, 2026-05-02)
+      Haushalt Easybank · Privat Olga Easybank · Privat Olga Erste Bank · Privat Manuel Erste Bank
+- [x] Karten-Mapping: last4 → Konto-ID (`CARD_CONFIG` in state.js, v1.3.1, 2026-05-02)
+      Gmail-Importer erkennt Kartennummer aus Bon → setzt `account` korrekt
+- [ ] **Erste Bank Parser** — Kontoauszüge Erste Bank (Manuel + Olga) importierbar machen
 - [ ] **Parser für weitere Banken** — N26, Sparkasse, Raiffeisen etc.
       → Muster-PDF je Bank analysieren → eigenen Parser-Branch schreiben
       → Einstieg: N26 PDF-Format (CSV-Export als Alternative prüfen)
