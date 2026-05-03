@@ -20,7 +20,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
 
 Erlaubte subcategory-Werte:
 Milchprodukte | Süßwaren / Naschen | Backwaren | Getränke |
-Fleisch & Wurst | Obst & Gemüse | Nudeln & Reis | Aufstriche & Butter |
+Fleisch & Wurst | Fisch / Meeresfrüchte | Obst & Gemüse | Nudeln & Reis | Reis | Öl | Aufstriche & Butter |
 Pfand | Tiefkühl | Hygiene & Drogerie |
 Putzmittel | Elektronik | Mobilität / Auto | Dienstleistung | Sonstiges
 
