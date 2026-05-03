@@ -25,9 +25,12 @@ Gewürze & Saucen | Konserven | Tiefkühl | Hygiene & Drogerie |
 Putzmittel | Pfand | Elektronik | Dienstleistung | Sonstiges
 
 Hinweise:
-- Pfand, Pfand Einweg, Pfand Mehrweg, DPG → "Pfand"
-- Tesla Supercharger, Tanken, Parken → "Mobilität / Auto"
-- Apotheke, Drogerie → "Hygiene & Drogerie"
+- Pfand-Erkennung (IMMER → "Pfand", egal wie geschrieben):
+  PFAND | Pfand | pfand | PFAND EW | PFAND MW | Pfand Einweg | Pfand Mehrweg |
+  DPG | DPG EINWEG | DPG Einweg | ePfand | EPFAND |
+  Leergut | LEERGUT | Leergutbon | MEHRWEGPFAND | EINWEGPFAND |
+  Pfandrückgabe | PFANDRÜCKGABE | Pfand 0,25 | Pfand 0,09 | Pfand 0,15
+- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
 - Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
 - subcategory immer auf Englisch (kein "subkategorie")
 - card_last4: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
