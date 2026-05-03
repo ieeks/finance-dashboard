@@ -571,6 +571,30 @@ def process_image(image_path: Path) -> bool:
     return save_to_firestore(ai_data, image_path.name, doc_id, is_new)
 
 
+def imap_connect() -> imaplib.IMAP4_SSL:
+    """Baut IMAP-Verbindung auf und wählt das Label aus."""
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+    status, _ = mail.select(f'"{GMAIL_LABEL}"')
+    if status != "OK":
+        raise RuntimeError(f"Label '{GMAIL_LABEL}' nicht gefunden.")
+    return mail
+
+
+def ensure_imap(mail: imaplib.IMAP4_SSL) -> imaplib.IMAP4_SSL:
+    """Sendet NOOP; reconnectet bei toter Verbindung (Gmail timeout nach ~30 min)."""
+    try:
+        mail.noop()
+        return mail
+    except Exception:
+        print("  [IMAP] Verbindung unterbrochen — reconnecte …")
+        try:
+            mail.shutdown()
+        except Exception:
+            pass
+        return imap_connect()
+
+
 def main() -> None:
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] gmail_finance_importer.py gestartet")
 
@@ -580,19 +604,21 @@ def main() -> None:
 
     # IMAP-Verbindung
     try:
-        mail = imaplib.IMAP4_SSL("imap.gmail.com")
-        mail.login(GMAIL_USER, GMAIL_APP_PASSWORD)
+        mail = imap_connect()
     except imaplib.IMAP4.error as exc:
         print(f"FEHLER: Anmeldung fehlgeschlagen — {exc}")
         print("Tipp: App-Passwort prüfen und IMAP in Gmail aktivieren.")
         sys.exit(1)
 
-    # Label auswählen
+    # Label auswählen (bereits in imap_connect erledigt; Fehler → Abbruch)
     status, _ = mail.select(f'"{GMAIL_LABEL}"')
     if status != "OK":
         print(f"FEHLER: Label '{GMAIL_LABEL}' nicht gefunden.")
         list_labels(mail)
-        mail.logout()
+        try:
+            mail.logout()
+        except Exception:
+            pass
         sys.exit(1)
 
     # Mails der letzten 30 Tage suchen (SEIT-Filter statt UNSEEN)
@@ -614,6 +640,7 @@ def main() -> None:
 
     for msg_id in msg_ids:
         print(f"\nVerarbeite E-Mail ID {msg_id.decode()} …")
+        mail = ensure_imap(mail)
         attachments = download_attachments(mail, msg_id)
 
         if not attachments:
@@ -633,7 +660,10 @@ def main() -> None:
 
         # Seen-Flag absichtlich NICHT setzen — gmail-pdf-sync verwaltet das
 
-    mail.logout()
+    try:
+        mail.logout()
+    except Exception:
+        pass
     print(f"\nFertig: {processed} Anhang/Anhänge verarbeitet, {saved} in Firestore gespeichert.")
     print(f"Temp-Verzeichnis: {PDF_TEMP_DIR}  (für Debugging behalten)")
 
