@@ -445,7 +445,7 @@ function renderBuchungen() {
   if (_buchFilter.typ === 'ein')      txs = txs.filter(t => t.amount > 0);
   if (_buchFilter.cats.length)        txs = txs.filter(t => _buchFilter.cats.includes(t.category));
   if (_buchFilter.quelle === 'gmail') txs = txs.filter(t => t.source === 'gmail_import');
-  if (_buchFilter.quelle === 'pdf')   txs = txs.filter(t => t.source !== 'gmail_import');
+  if (_buchFilter.quelle !== 'gmail') txs = txs.filter(t => t.source !== 'gmail_import');
 
   // summary bar when filter or search active
   const hasFilter = search || _buchFilter.konto !== 'alle' || _buchFilter.beleg !== 'alle' ||
@@ -957,6 +957,8 @@ window.runImport = async function() {
           .forEach(t => updateTx(t.id, { bon: t.bon }).catch(() => {}));
       }
     }
+
+    _autoLinkGmailBons();
 
     // Firestore: neue Buchungen speichern + Import-Dokument anlegen
     saveTxBatch(state.transactions.filter(t =>
@@ -1734,6 +1736,20 @@ window.firebaseLogout = async function() {
   document.getElementById('login-screen')?.classList.add('visible');
 };
 
+function _autoLinkGmailBons() {
+  const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
+  if (!gmailWithBon.length) return;
+  const bankTxs = state.transactions.filter(t => t.source !== 'gmail_import' && !t.bon && t.amount < 0);
+  gmailWithBon.forEach(gmail => {
+    const bonObj = { date: gmail.date, total: Math.abs(gmail.amount), store: gmail.description };
+    const result = findMatch(bonObj, bankTxs);
+    if (result?.transaction) {
+      result.transaction.bon = gmail.bon;
+      updateTx(result.transaction.id, { bon: gmail.bon }).catch(() => {});
+    }
+  });
+}
+
 function _initApp() {
   // Drag & drop
   const zone = document.getElementById('upload-zone');
@@ -1824,6 +1840,7 @@ function _initApp() {
     }, { passive: true });
   })();
 
+  _autoLinkGmailBons();
   setProviderUI(state.aiProvider);
   renderDashboard();
   renderKonten();
