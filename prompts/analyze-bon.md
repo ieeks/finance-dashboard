@@ -28,7 +28,7 @@ Hinweise:
 - Pfand-Erkennung (IMMER → "Pfand", egal wie geschrieben):
   PFAND | Pfand | pfand | PFAND EW | PFAND MW | Pfand Einweg | Pfand Mehrweg |
   DPG | DPG EINWEG | DPG Einweg | ePfand | EPFAND |
-  Leergut | LEERGUT | Leergutbon | MEHRWEGPFAND | EINWEGPFAND |
+  Leergut | LEERGUT | Leergutbon | MEHRWEGPFAND | EINWEGPFAND | Pfandartikel | PFANDARTIKEL | Pfand Artikel |
   Pfandrückgabe | PFANDRÜCKGABE | Pfand 0,25 | Pfand 0,09 | Pfand 0,15
 - Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
 - Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
