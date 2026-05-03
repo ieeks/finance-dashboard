@@ -20,9 +20,9 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
 
 Erlaubte subcategory-Werte:
 Milchprodukte | Süßwaren / Naschen | Backwaren | Getränke |
-Fleisch & Wurst | Fisch / Meeresfrüchte | Obst & Gemüse | Nudeln & Reis | Reis | Öl | Aufstriche & Butter |
-Pfand | Tiefkühl | Hygiene & Drogerie |
-Putzmittel | Elektronik | Mobilität / Auto | Dienstleistung | Sonstiges
+Fleisch & Wurst | Fisch / Meeresfrüchte | Obst & Gemüse | Nudeln & Reis | Öl | Aufstriche & Butter |
+Gewürze & Saucen | Konserven | Tiefkühl | Hygiene & Drogerie |
+Putzmittel | Pfand | Elektronik | Dienstleistung | Sonstiges
 
 Hinweise:
 - Pfand, Pfand Einweg, Pfand Mehrweg, DPG → "Pfand"
