@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """
-gmail_finance_importer.py — PDF-Rechnungen aus Gmail → Firestore (finance-dashboard)
+gmail_finance_importer.py — PDF- & Bild-Rechnungen aus Gmail → Firestore (finance-dashboard)
 
 Ablauf:
-  1. IMAP: UNSEEN-Mails im Label "Finance" abholen, PDF-Anhänge speichern
-     (IMAP-Logik direkt aus gmail_invoices.py übernommen)
-  2. pdfplumber: Text aus PDF extrahieren
-  3. AI: OpenAI gpt-4o-mini (primär) → Claude Haiku (Fallback)
+  1. IMAP: Mails im Label "Rechnungen" abholen, PDF- und Bild-Anhänge speichern
+  2a. PDF: pdfplumber → Text extrahieren
+  2b. Bild (PNG/JPG): Base64 → GPT-4o Vision → strukturierte Daten
+  3. AI: OpenAI gpt-4o-mini/gpt-4o (primär) → Claude Haiku (Fallback)
   4. Firestore: Transaktion unter household/main/transactions/{id} speichern
-     (get_firestore_db() direkt aus extract_verbund.py übernommen)
 
 Felder werden auf das Format des Browser-Parsers gemappt:
   date, amount (negativ), description, category, account, aiCategorized
@@ -31,6 +30,8 @@ import urllib.request
 from datetime import datetime, timedelta
 from email.header import decode_header
 from pathlib import Path
+
+import base64
 
 import pdfplumber
 from dotenv import load_dotenv
@@ -94,10 +95,14 @@ def list_labels(mail: imaplib.IMAP4_SSL) -> None:
         print(" ", label.decode())
 
 
-def download_pdfs(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+
+
+def download_attachments(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
     """
-    Alle PDF-Anhänge einer E-Mail in PDF_TEMP_DIR speichern.
-    Dateiname: {datum}_{absender}_{original}.pdf
+    Alle PDF- und Bild-Anhänge einer E-Mail in PDF_TEMP_DIR speichern.
+    Dateiname: {datum}_{absender}_{original}.{ext}
     Gibt Liste der gespeicherten Pfade zurück (bereits vorhandene inklusive).
     """
     _, msg_data = mail.fetch(msg_id, "(RFC822)")
@@ -127,23 +132,29 @@ def download_pdfs(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
     for part in msg.walk():
         content_type = part.get_content_type()
         disposition  = str(part.get("Content-Disposition", ""))
+        raw_filename = part.get_filename()
+        fname_decoded = decode_str(raw_filename).lower() if raw_filename else ""
 
+        # PDF erkennen
         is_pdf = (
             content_type == "application/pdf"
             or (content_type == "application/octet-stream" and "pdf" in disposition.lower())
-            or ("attachment" in disposition.lower() and disposition.lower().endswith(".pdf"))
+            or fname_decoded.endswith(".pdf")
         )
-        if not is_pdf:
-            filename = part.get_filename()
-            if filename and filename.lower().endswith(".pdf"):
-                is_pdf = True
-        if not is_pdf:
+
+        # Bild erkennen (PNG, JPG, WEBP — typisch für Lidl, REWE, etc.)
+        is_image = (
+            content_type in IMAGE_MIME_TYPES
+            or any(fname_decoded.endswith(ext) for ext in IMAGE_EXTENSIONS)
+        )
+
+        if not (is_pdf or is_image):
             continue
 
-        raw_filename = part.get_filename() or "attachment.pdf"
-        orig_name    = safe_filename(decode_str(raw_filename))
-        new_name     = f"{date_prefix}_{sender}_{orig_name}"
-        dest         = target_dir / new_name
+        default_ext = ".pdf" if is_pdf else Path(fname_decoded).suffix or ".png"
+        orig_name   = safe_filename(decode_str(raw_filename or f"attachment{default_ext}"))
+        new_name    = f"{date_prefix}_{sender}_{orig_name}"
+        dest        = target_dir / new_name
 
         if dest.exists():
             print(f"  Bereits vorhanden, übersprungen: {dest.name}")
@@ -155,7 +166,8 @@ def download_pdfs(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
             continue
 
         dest.write_bytes(payload)
-        print(f"  PDF gespeichert: {dest.name}")
+        kind = "Bild" if is_image else "PDF"
+        print(f"  {kind} gespeichert: {dest.name}")
         saved_paths.append(dest)
 
     return saved_paths
@@ -169,6 +181,120 @@ def extract_pdf_text(pdf_path: Path) -> str:
         for page in pdf.pages:
             text += (page.extract_text() or "") + "\n"
     return text
+
+# ── Bild-Extraktion via Vision ────────────────────────────────────────────────
+
+def _image_to_base64(image_path: Path) -> tuple[str, str]:
+    """Bild → (base64-String, MIME-Type)."""
+    suffix = image_path.suffix.lower()
+    mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".webp": "image/webp", ".gif": "image/gif"}
+    mime = mime_map.get(suffix, "image/png")
+    b64 = base64.b64encode(image_path.read_bytes()).decode("utf-8")
+    return b64, mime
+
+
+VISION_SYSTEM = """Du bist ein Kassenbon-Extraktor. Du bekommst ein Foto oder einen
+Screenshot eines Kassenbons und extrahierst alle relevanten Felder als JSON.
+Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach)."""
+
+VISION_PROMPT = """Extrahiere aus diesem Kassenbon-Bild:
+
+{
+  "rechnungsnummer": "...",
+  "rechnungsdatum": "YYYY-MM-DD",
+  "absender": "...",
+  "betrag_brutto": 0.00,
+  "beschreibung": "...",
+  "kategorie": "...",
+  "positionen": [
+    {"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subkategorie": "..."}
+  ]
+}
+
+Regeln:
+- "absender": NUR der Firmenname (z.B. "Lidl"), keine Adresse.
+- "rechnungsdatum": falls kein Jahr erkennbar, aktuelles Jahr annehmen.
+- "betrag_brutto": der Endbetrag / Summe (positiv).
+- "positionen": alle Einzelartikel aus dem Bon. Subkategorie aus:
+  Milchprodukte, Süßwaren / Naschen, Getränke, Brot & Backwaren,
+  Fleisch & Wurst, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges
+- "kategorie": Supermarkt, Restaurant / Café, Drogerie, Energie / Strom,
+  Telekommunikation, Versicherung, Online Shopping, Mobilität / Auto,
+  Wohnen / Miete, Gesundheit, Gebühren / Bank, Freizeit, Sonstiges"""
+
+
+def _call_openai_vision(image_path: Path) -> dict | None:
+    b64, mime = _image_to_base64(image_path)
+    body = json.dumps({
+        "model": "gpt-4o",
+        "messages": [{
+            "role": "user",
+            "content": [
+                {"type": "image_url",
+                 "image_url": {"url": f"data:{mime};base64,{b64}", "detail": "high"}},
+                {"type": "text", "text": VISION_PROMPT},
+            ],
+        }],
+        "max_tokens": 1500,
+    }).encode()
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+        }
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        data = json.loads(resp.read())
+    return _parse_ai_response(data["choices"][0]["message"]["content"])
+
+
+def _call_anthropic_vision(image_path: Path) -> dict | None:
+    import anthropic
+    b64, mime = _image_to_base64(image_path)
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1500,
+        system=VISION_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image",
+                 "source": {"type": "base64", "media_type": mime, "data": b64}},
+                {"type": "text", "text": VISION_PROMPT},
+            ],
+        }],
+    )
+    return _parse_ai_response(message.content[0].text)
+
+
+def extract_image_with_ai(image_path: Path) -> dict | None:
+    """Vision-Extraktion: GPT-4o Vision primär → Claude Haiku Vision Fallback."""
+    if OPENAI_API_KEY:
+        try:
+            result = _call_openai_vision(image_path)
+            if result:
+                print("  Vision: GPT-4o erfolgreich.")
+                return result
+            print("  Vision: GPT-4o — kein valides JSON, versuche Claude...")
+        except Exception as exc:
+            print(f"  Vision: GPT-4o fehlgeschlagen ({exc}), versuche Claude...")
+
+    if ANTHROPIC_API_KEY:
+        try:
+            result = _call_anthropic_vision(image_path)
+            if result:
+                print("  Vision: Claude Haiku (Fallback) erfolgreich.")
+                return result
+        except Exception as exc:
+            print(f"  Vision: Claude fehlgeschlagen ({exc}).")
+
+    print("  FEHLER: Beide Vision-Provider fehlgeschlagen.")
+    return None
+
 
 # ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
 
@@ -403,7 +529,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 
 def process_pdf(pdf_path: Path) -> bool:
     """PDF verarbeiten: Text → AI → Duplikat-Check → Firestore."""
-    print(f"  Verarbeite: {pdf_path.name}")
+    print(f"  Verarbeite PDF: {pdf_path.name}")
 
     text = extract_pdf_text(pdf_path)
     if not text.strip():
@@ -420,10 +546,29 @@ def process_pdf(pdf_path: Path) -> bool:
     print(f"  Erkannt: {ai_data.get('absender','?')} — "
           f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
 
-    doc_id   = _pdf_doc_id(pdf_path)
-    is_new   = not is_duplicate(doc_id)
-
+    doc_id = _pdf_doc_id(pdf_path)
+    is_new = not is_duplicate(doc_id)
     return save_to_firestore(ai_data, pdf_path.name, doc_id, is_new)
+
+
+def process_image(image_path: Path) -> bool:
+    """Bild-Bon verarbeiten: Vision-AI → Duplikat-Check → Firestore."""
+    print(f"  Verarbeite Bild: {image_path.name}")
+
+    ai_data = extract_image_with_ai(image_path)
+    if not ai_data:
+        print("  FEHLER: Vision-Extraktion fehlgeschlagen.")
+        return False
+
+    n_items = len(ai_data.get("positionen") or [])
+    items_info = f" · {n_items} Positionen" if n_items else ""
+    print(f"  Erkannt: {ai_data.get('absender','?')} — "
+          f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
+
+    # doc_id aus Bild-Bytes — gleiche Logik wie PDF
+    doc_id = "img_" + hashlib.sha256(image_path.read_bytes()).hexdigest()[:20]
+    is_new = not is_duplicate(doc_id)
+    return save_to_firestore(ai_data, image_path.name, doc_id, is_new)
 
 
 def main() -> None:
@@ -469,20 +614,27 @@ def main() -> None:
 
     for msg_id in msg_ids:
         print(f"\nVerarbeite E-Mail ID {msg_id.decode()} …")
-        pdfs = download_pdfs(mail, msg_id)
+        attachments = download_attachments(mail, msg_id)
 
-        if not pdfs:
-            print("  Keine PDF-Anhänge.")
+        if not attachments:
+            print("  Keine Anhänge (PDF oder Bild).")
         else:
-            for pdf_path in pdfs:
+            for path in attachments:
                 processed += 1
-                if process_pdf(pdf_path):
-                    saved += 1
+                suffix = path.suffix.lower()
+                if suffix == ".pdf":
+                    if process_pdf(path):
+                        saved += 1
+                elif suffix in IMAGE_EXTENSIONS:
+                    if process_image(path):
+                        saved += 1
+                else:
+                    print(f"  Unbekannter Typ, übersprungen: {path.name}")
 
         # Seen-Flag absichtlich NICHT setzen — gmail-pdf-sync verwaltet das
 
     mail.logout()
-    print(f"\nFertig: {processed} PDF(s) verarbeitet, {saved} in Firestore gespeichert.")
+    print(f"\nFertig: {processed} Anhang/Anhänge verarbeitet, {saved} in Firestore gespeichert.")
     print(f"Temp-Verzeichnis: {PDF_TEMP_DIR}  (für Debugging behalten)")
 
 
