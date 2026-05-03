@@ -127,6 +127,9 @@
 - [x] Kategorie manuell ändern (Tap auf Transaktion → Dropdown)
 - [x] Lernfunktion: geänderte Kategorien für zukünftige Importe merken — Override-Map in state (2026-04-26)
 - [x] Multi-PDF Upload — mehrere Kontoauszüge gleichzeitig importieren (v1.2.1, 2026-04-27)
+- [x] dm-Buchungen doppelt — Gmail-Import + PDF-Bankbuchung selber Tag/Betrag → `renderBuchungen` filtert gmail_import heraus, `_autoLinkGmailBons()` verknüpft Bon mit Bankbuchung (v1.3.2, 2026-05-03)
+- [x] Sub-Kategorien Duplikate im Dropdown — Aliase entfernt, nur kanonische Namen (v1.3.2, 2026-05-03)
+- [x] Pfand-Erkennung: alle österreichischen Varianten im Bon-Prompt (v1.3.2, 2026-05-03)
 - [ ] Bessere Fehlerbehandlung für passwortgeschützte PDFs
 - [ ] Ladeindikator beim Demo-Button
 

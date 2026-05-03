@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v1.3.2 — 2026-05-03
+
+### Fixed
+- **dm-Buchungen Duplikat** — Gmail-importierte Rechnungen (`source: gmail_import`) erschienen neben den PDF-Bankbuchungen als zweiter Eintrag am selben Tag. `renderBuchungen` filtert sie jetzt standardmäßig heraus (eigener Rechnungen-Screen). Neue Funktion `_autoLinkGmailBons()` verknüpft den `bon` der gmail-Transaktion beim App-Start und nach PDF-Import automatisch mit der passenden Bankbuchung.
+- **Sub-Kategorien Duplikate** — Aliase (`Süßwaren`, `Brot & Backwaren`, `Fleisch`, `Reis`, `Hygiene`) aus `SUBCAT_ICONS` entfernt; nur noch kanonische Bezeichnungen im Dropdown.
+- **Pfand-Erkennung** — Alle österreichischen Varianten im Bon-Prompt explizit aufgelistet: `DPG`, `ePfand`, `Leergut`, `Leergutbon`, `PFAND EW/MW`, `Pfandrückgabe`, `Pfandartikel`, `Pfand Artikel`. `Mobilität / Auto` aus den Hints entfernt (war nicht in erlaubter Subcategory-Liste).
+
+### Added
+- **Sub-Kategorien** `Fisch / Meeresfrüchte 🐟`, `Öl 🫙`, `Gewürze & Saucen 🧂`, `Konserven 🥫` in `categories.js` + Bon-Prompt ergänzt.
+
+---
+
 ## v1.3.1 — 2026-05-02
 
 ### Added
