@@ -106,7 +106,10 @@ def download_attachments(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
     Gibt Liste der gespeicherten Pfade zurück (bereits vorhandene inklusive).
     """
     _, msg_data = mail.fetch(msg_id, "(RFC822)")
-    raw = msg_data[0][1]
+    # IMAP responses mix tuples and bare bytes; find the first tuple part
+    raw = next((part[1] for part in msg_data if isinstance(part, tuple)), None)
+    if not isinstance(raw, bytes):
+        raise ValueError(f"Konnte RFC822-Bytes nicht aus IMAP-Response lesen: {msg_data!r}")
     msg = email.message_from_bytes(raw)
 
     # Datum + Absender aus Header
