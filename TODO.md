@@ -2,6 +2,30 @@
 
 ## Sofort (nächste Session)
 
+### Matcher / Parser — Bugfix-Sprint (aus Code Review 2026-05-20)
+Vollständige Analyse + Patches: [`docs/code-review-2026-05-20.md`](docs/code-review-2026-05-20.md)
+
+- [ ] **A1** `CARD_MERCHANTS` Reihenfolge fixen — `BILLA PLUS` vor `BILLA` (Patch D)
+- [ ] **A2** Score-System neu: gewichtete Punkte, Name immer Pflicht-Faktor (Patch A) — **behebt Hauptursache der Fehlmatches**
+- [ ] **A3** `nameSimilarity` token-basiert mit Wortgrenze + Normalisierung (Patch B)
+- [ ] **A4** Exklusivität in `app.js` — verbrauchte Tx-IDs tracken (Patch C)
+- [ ] **A5** `_dedup` mit voller Description als Key (Patch G)
+- [ ] **A6** Manueller Verifikationslauf — 10 Bons des letzten Monats
+
+### Hygiene (Phase B aus Review)
+- [ ] **B1** Debug-Logs hinter `window.DEBUG_PARSER` Flag (Patch F)
+- [ ] **B2** `RECURRING_RULES.category` aktivieren oder Feld entfernen (Patch I)
+- [ ] **B3** `originalDescription` bei `SUBSCRIPTION_RULES` bewahren (Patch H)
+- [ ] **B4** Personen-Config nach `firebase-config.js` auslagern (Patch E)
+- [ ] **B5** `parseGenericStatement` regex auf Statement-Body begrenzen (Patch J)
+
+### Test-Infrastruktur (Phase C aus Review)
+- [ ] **C1** `tests/fixtures/` mit anonymisierten PDF-Texten + erwarteten JSON-Outputs
+- [ ] **C2** `tests/run.html` — Browser-Testrunner ohne Framework (Click-to-Run)
+- [ ] **C3** Matcher-Szenarien: perfekt / fast / falsche Filiale gleicher Betrag / zu alt
+
+---
+
 - [x] **Modul-Refactor**: index.html → js/ Module (app, state, parser, bonAnalyzer, matcher, categories, ui)
 
 ### PDF Parser — offene Bugs
