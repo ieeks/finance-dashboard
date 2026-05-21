@@ -1,5 +1,33 @@
 # CHANGELOG
 
+## v1.5.0 — 2026-05-21
+
+### Fixed (Browser)
+- **Dashboard doppelt-zählte Gmail-Rechnungen** — `renderDashboard` summierte Bank-Buchungen UND die per `_autoLinkGmailBons` verknüpften Gmail-Tx. Konkret: Supermarkt €1.656,49 statt €858,01, Versicherung €1.783,95 statt €0. Fix filtert `source !== 'gmail_import'` vor allen Summationen (`renderDashboardCategories`, `renderBonBreakdown`, `renderFixkosten`, `renderInsight`, `renderBelegStatus`). `renderRechnungenTeaser` bekommt weiterhin die volle Liste.
+
+### Fixed (Python Gmail-Importer)
+- **Helvetia → Miete Override** — Python kategorisierte Helvetia-Rechnungen per AI als "Versicherung". Helvetia ist hier aber Hausverwalter (kassiert Miete). Gleiche Heuristik wie `parser.js`: Helvetia + Vorschreibung/Miete/Betriebskosten/Hausverwaltung/Rennweg → `Wohnen / Miete`.
+- **Pfand-Erkennung fehlte komplett** — Subkategorie "Pfand" wurde dem AI nie als Option gegeben, Pfand-Items landeten in "Sonstiges". Jetzt mit allen österr. Varianten: DPG, ePfand, Leergut, PFAND EW/MW, Pfandartikel, Pfand 0,25/0,09/0,15.
+- **9 fehlende Subkategorien** — Python kannte 10, JS 19. Ergänzt: Fisch / Meeresfrüchte, Nudeln & Reis, Öl, Aufstriche & Butter, Gewürze & Saucen, Konserven, Pfand, Elektronik, Dienstleistung.
+- **Naming-Drift** — `Brot & Backwaren` → `Backwaren`, `Hygiene` → `Hygiene & Drogerie` (war in v1.3.2 nur in JS dedup't).
+- **Feldname** `subkategorie` → `subcategory` (= JS-Schema). `save_to_firestore` akzeptiert weiterhin beide Namen.
+
+### Added (Python Gmail-Importer)
+- **Single Source Markdown-Prompt** — `gmail_finance_importer.py` lädt `prompts/analyze-bon.md` direkt. Browser-Bon-Scanner und Python-Importer nutzen denselben Prompt. Drift strukturell unmöglich. Plus Python-spezifischer Suffix für Top-Level `category` (Browser braucht das nicht — Bank-Tx liefert die Kategorie via Auto-Link).
+- **`isRecurring`-Flag** — Gmail-Rechnungen für Netflix, Spotify, Allianz, Magenta, Helvetia/Miete, BYD Leasing bekommen jetzt `isRecurring=true` + `recurringLabel` analog zu `RECURRING_RULES` in `js/categories.js`. Plus Kategorie-Override wenn die Regel eine definiert (Magenta → Telekom, Allianz KFZ → Mobilität, Allianz → Versicherung).
+- **`CARD_MERCHANTS`-Normalisierung** — 52 Patterns aus `parser.js` portiert. "BILLA AG, 1030 Wien" wird zu "Billa", "MCDONALDS WIEN" zu "McDonald's". Konsistente Display-Namen zwischen Bank-Tx und Gmail-Tx → bessere Matcher-Scores.
+
+### Refactored (Python Gmail-Importer)
+- `MAIN_CATEGORIES`, `SUBCATEGORIES`, `RECURRING_RULES`, `CARD_MERCHANTS` als Modul-Konstanten. Bei Änderungen IMMER auch in JS-Side aktualisieren.
+- `save_to_firestore` akzeptiert das JS-Schema (`store`/`date`/`total`/`items`/`category`/`subcategory`) mit Fallback auf die alten deutschen Namen (für AI-Outputs aus Training-Daten).
+- `_ai_get(d, *keys, default)` Helper, `_normalize_subcategory`, `_normalize_store`, `_match_recurring`, `_SUBCAT_ALIASES`.
+- Trace-Logs in `process_pdf`/`process_image` auf JS-Schema umgestellt.
+
+### Notes
+- Helvetia-Gmail-Docs die bereits mit "Versicherung" in Firestore stehen werden vom Dashboard nicht mehr summiert (Browser-Fix), behalten aber kosmetisch ihre alte Kategorie im Rechnungen-Tab. Cleanup falls gewünscht: Doc löschen → GitHub Action neu laufen lassen.
+
+---
+
 ## v1.4.0 — 2026-05-21
 
 ### Fixed (Matcher)

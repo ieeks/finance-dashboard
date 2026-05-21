@@ -1,9 +1,42 @@
 # TODO — Finance Dashboard
 
-## Sofort (nächste Session)
+## Roadmap (nächste Session)
 
-### Matcher / Parser — Bugfix-Sprint (aus Code Review 2026-05-20) ✅ (v1.4.0)
-Vollständige Analyse + Patches: [`docs/code-review-2026-05-20.md`](docs/code-review-2026-05-20.md)
+Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sortiert:
+
+### 🟢 Quick Wins
+- [ ] **R1** CI-Gate für Tests — `.github/workflows/test.yml`, läuft Browser-Test-Runner (`tests/run.html` via Playwright/Puppeteer ODER node-Variante) und Python `py_compile + Inline-Tests` bei jedem PR. Verhindert dass Bugs wie der McDonald's-Matcher durchrutschen.
+- [ ] **R2** Personal-Config zentralisieren — `js/personalConfig.js` (gitignored, mit `.example`-Template) mit `LANDLORD = { vendor: /Helvetia/i, keywords: [...] }`. Aktuell ist Helvetia/Rennweg/Hausverwaltung an mehreren Stellen hardcodiert (`parser.js`, `gmail_finance_importer.py`). Damit wird der Code für andere Nutzer brauchbar UND testbar.
+
+### 🟡 Mittel (1–2 h)
+- [ ] **R3** Monatsvergleich-Karte auf Dashboard — pro Top-Kategorie "Supermarkt €858 (▲12% vs. April)". Daten alle vorhanden (`getAvailableMonths`), nur UI fehlt. Direkter User-Wert.
+- [ ] **R4** Re-Match-Maintenance-Button — wir haben Self-Healing für Gmail-Bons, aber **Pending-Bons** + manuelle Verknüpfungen nicht. "Bon-Verknüpfungen neu evaluieren"-Button im Settings prüft alle bestehenden Links gegen den aktuellen Matcher.
+- [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
+
+### 🟠 Größer (Halb-/Ganztag, optional)
+- [ ] Erste-Bank-Parser (siehe Phase 5 weiter unten) — du hast 2 Erste-Bank-Konten als Defaults, kannst sie aber nicht importieren. CSV-Export wenn verfügbar einfacher als PDF.
+- [ ] Budget-Funktion — Limit pro Kategorie ("Restaurant: €200/Monat"), Warnung bei Überschreitung, Progress-Bar im Dashboard.
+- [ ] Firestore-Export als JSON — Backup-Funktion im Settings, Datensicherheit.
+
+### 🔵 Architektonisch (für die Drift-Fans)
+- [ ] `CARD_MERCHANTS` + `RECURRING_RULES` als geteilte JSON-Datei — gleiches Pattern wie `analyze-bon.md`. `data/merchants.json` + `data/recurring.json`. Letzte Drift-Quellen eliminieren. Mittlerer JS-Refactor (~1 h).
+
+---
+
+## Erledigt (v1.5.0, 2026-05-21) — Drift-Audit Browser ↔ Python
+
+Browser (`parser.js`, `bonAnalyzer.js`) und Python (`gmail_finance_importer.py`) waren über die Zeit auseinandergelaufen. Komplett synchronisiert:
+
+- [x] Pfand-Erkennung + 9 fehlende Subkategorien + Naming-Drift + Feldname `subcategory` (PR #5)
+- [x] Helvetia-Override im Python-Importer (PR #4)
+- [x] Dashboard-Doppelzählung von Gmail-Imports (PR #4)
+- [x] Python lädt `prompts/analyze-bon.md` direkt — Single Source of Truth (PR #6)
+- [x] `isRecurring`-Flag im Python-Importer — Netflix/Spotify/Allianz etc. (PR #7)
+- [x] `CARD_MERCHANTS`-Normalisierung im Python-Importer (PR #8)
+
+## Erledigt (v1.4.0) — Matcher / Parser Bugfix-Sprint
+
+Aus Code Review [`docs/code-review-2026-05-20.md`](docs/code-review-2026-05-20.md):
 
 - [x] **A1** `CARD_MERCHANTS` Reihenfolge fixen — `BILLA PLUS` vor `BILLA` (Patch D)
 - [x] **A2** Score-System neu: gewichtete Punkte, Name immer Pflicht-Faktor (Patch A)
@@ -11,18 +44,14 @@ Vollständige Analyse + Patches: [`docs/code-review-2026-05-20.md`](docs/code-re
 - [x] **A4** Exklusivität in `app.js` — verbrauchte Tx-IDs tracken (Patch C)
 - [x] **A5** `_dedup` mit voller Description als Key (Patch G)
 - [ ] **A6** Manueller Verifikationslauf — 10 Bons des letzten Monats (User-Aufgabe)
-
-### Hygiene (Phase B aus Review) ✅ (v1.4.0)
 - [x] **B1** Debug-Logs hinter `window.DEBUG_PARSER` Flag (Patch F)
 - [x] **B2** `RECURRING_RULES.category` aktivieren oder Feld entfernen (Patch I)
 - [x] **B3** `originalDescription` bei `SUBSCRIPTION_RULES` bewahren (Patch H)
 - [x] **B4** Personen-Config nach `js/owners.js` ausgelagert (Patch E)
 - [x] **B5** `parseGenericStatement` regex auf Statement-Body begrenzen (Patch J)
-
-### Test-Infrastruktur (Phase C aus Review)
 - [ ] **C1** `tests/fixtures/` mit anonymisierten PDF-Texten + erwarteten JSON-Outputs — braucht echte (anonymisierte) PDF-Texte vom User
-- [x] **C2** `tests/run.html` — Browser-Testrunner ohne Framework (v1.4.0)
-- [x] **C3** Matcher-Szenarien: perfekt / fast / falsche Filiale gleicher Betrag / zu alt — 16 Tests in `tests/matcher.test.js` (v1.4.0)
+- [x] **C2** `tests/run.html` — Browser-Testrunner ohne Framework
+- [x] **C3** Matcher-Szenarien: 16 Tests in `tests/matcher.test.js`
 
 ---
 
