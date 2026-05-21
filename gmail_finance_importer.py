@@ -470,6 +470,19 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     raw_absender = ai_data.get("absender", filename) or filename
     description  = raw_absender.split(",")[0].split("\n")[0].strip()
 
+    # Kategorie-Override: Helvetia Versicherungen ist hier der Hausverwalter
+    # (kassiert Miete), nicht eine Versicherung. Same Logik wie parser.js.
+    category_text = " ".join([
+        str(raw_absender or ""),
+        str(ai_data.get("beschreibung") or ""),
+    ]).lower()
+    category = ai_data.get("kategorie", "Sonstiges")
+    if "helvetia" in category_text and any(
+        k in category_text for k in
+        ("vorschreibung", "miete", "betriebskosten", "hausverwaltung", "rennweg")
+    ):
+        category = "Wohnen / Miete"
+
     # Konto aus Kartennummer auflösen
     card_last4 = str(ai_data.get("card_last4") or "").strip().lstrip("0") or None
     # Normalisieren: nur die letzten 4 Ziffern, führende Nullen behalten
@@ -506,7 +519,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "date":          ai_data.get("rechnungsdatum", ""),
         "amount":        -abs(ai_data.get("betrag_brutto", 0)),
         "description":   description,
-        "category":      ai_data.get("kategorie", "Sonstiges"),
+        "category":      category,
         "account":       account,
         "card_last4":    card_last4,
         "aiCategorized": True,
