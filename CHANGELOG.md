@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## v1.4.0 — 2026-05-21
+
+### Fixed (Matcher)
+- **Score-System neu aufgebaut** (`matcher.js`) — vier diskrete Stufen ersetzt durch gewichtete Punkte: Betrag (max 50) + Datum (max 30) + Name (max 20). Hauptbug behoben: Bon mit ähnlichem Betrag aber falschem Händler (z.B. Billa-Bon 19,78 € auf McDonald's-Buchung 19,00 €) bekam vorher Score 55 ohne Namensprüfung.
+- **`nameSimilarity` token-basiert** — Diacritic-Normalisierung (`Café` ≡ `Cafe`), Mindest-Tokenlänge 3 (kein False-Positive mehr bei `DM`/`BP`/`JET`), Wortreihenfolge egal (`Joseph Bäckerei` ≡ `Bäckerei Joseph`).
+- **Hard-Outs ergänzt** — Bon-Datum mehr als ~1 Tag NACH Buchung → kein Match (Bank bucht 0–7 Tage NACH Kauf). Wenn Name komplett fehlt UND Betrag nicht exakt → kein Match.
+- **`amountDiff < 0.005 €` statt `=== 0`** — Float-Safety, konsistent mit `parser.js`.
+- **Tiebreaker** bei Score-Gleichstand: kleinerer Betragsabstand → wenigere Tage → höherer Name-Score.
+- **`excludeIds`-Set** für Exklusivität — dieselbe Buchung hängt nicht mehr an zwei Bons gleichzeitig (`_autoLinkGmailBons` + Pending-Bon-Auto-Match in `app.js`).
+
+### Fixed (Parser)
+- **`CARD_MERCHANTS` Reihenfolge** (`parser.js`) — `BILLA PLUS` jetzt vor `BILLA`, sonst wurde Billa Plus nie als solches erkannt.
+- **`_dedup` vollständige Description** als Key — keine Kollision mehr bei zwei "Bezahlung Karte …" am selben Tag mit gleichem Betrag.
+- **`parseGenericStatement` zeilenweise + anchored** — Header/Footer mit Datumsangabe (`Saldo per 31.12.2025: …`) werden nicht mehr als Transaktion gelesen. Skip-Liste: Saldo/Übertrag/Summe/IBAN/Seite.
+- **`SUBSCRIPTION_RULES` bewahrt `originalDescription`** — ermöglicht späteres Bon-Matching auch nach Umbenennung zu "Netflix".
+- **`RECURRING_RULES.category` wird angewendet** wenn definiert (vorher Dead Code).
+
+### Added
+- **`js/owners.js`** — Familienmitglieder-Konfiguration mit `matchOwner()`-Helper. Personennamen nicht mehr über `parser.js` verstreut.
+- **Debug-Flag `window.DEBUG_PARSER`** — alle `[DBG-*]`-Logs in DevTools opt-in statt Default-Spam.
+- **Browser-Test-Runner** (`tests/`) — schlanker ES-Module-Runner ohne Framework. `tests/run.html` öffnen, fertig. 20 Tests für Matcher + Owners. Anleitung in `tests/README.md`.
+- **`docs/code-review-2026-05-20.md`** — vollständiger Code Review mit 14 Findings, 10 atomaren Patches und 4-Phasen-Plan.
+
+### Notes
+- Parser-Fixture-Tests (Phase C1 aus Review) noch offen — brauchen anonymisierte echte PDF-Texte.
+- 100%-Match jetzt bei score ≥ 95 (statt 100) — saubere Token-Matches mit kleinen Bon-Store-Suffixen wie Filialnummern landen bei 93.
+
+---
+
 ## v1.3.2 — 2026-05-03
 
 ### Fixed
