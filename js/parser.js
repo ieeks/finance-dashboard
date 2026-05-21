@@ -279,8 +279,8 @@ function _extractMerchant(merchantLine, terminalLine, rawDesc = '') {
 // Known Austrian card merchants (pattern → display name)
 const CARD_MERCHANTS = [
   // ── Supermärkte (Österreich) ──
-  [/\bBILLA\b/i,            'Billa'],
   [/BILLA\s*PLUS/i,         'Billa Plus'],
+  [/\bBILLA\b/i,            'Billa'],
   [/INTERSPAR/i,            'Interspar'],
   [/EUROSPAR/i,             'Eurospar'],
   [/\bSPAR\b/i,             'Spar'],
@@ -500,7 +500,7 @@ function _makeTx(date, description, amount, account, cardHolder = null) {
 function _dedup(txs) {
   const seen = new Set();
   return txs.filter(t => {
-    const key = `${t.date}|${t.amount}|${t.description.slice(0,20)}`;
+    const key = `${t.date}|${t.amount}|${t.description}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

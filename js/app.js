@@ -941,13 +941,14 @@ window.runImport = async function() {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - 60);
       const linked = [];
+      const usedTxIds = new Set();
       (state.pendingBons).forEach(bon => {
         const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
         if (bonDate < cutoffDate) return;
         const bonForMatch = { ...bon, date: bon.date || bon.savedAt?.slice(0,10) };
-        const result = findMatch(bonForMatch, state.transactions.filter(t => !t.bon));
+        const result = findMatch(bonForMatch, state.transactions.filter(t => !t.bon), { excludeIds: usedTxIds });
         const match = result?.transaction || null;
-        if (match) { match.bon = bon; linked.push(bon.id); totalAutoLinked++; }
+        if (match) { match.bon = bon; usedTxIds.add(match.id); linked.push(bon.id); totalAutoLinked++; }
       });
       if (linked.length) {
         state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
@@ -1740,11 +1741,13 @@ function _autoLinkGmailBons() {
   const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
   if (!gmailWithBon.length) return;
   const bankTxs = state.transactions.filter(t => t.source !== 'gmail_import' && !t.bon && t.amount < 0);
+  const usedTxIds = new Set();
   gmailWithBon.forEach(gmail => {
     const bonObj = { date: gmail.date, total: Math.abs(gmail.amount), store: gmail.description };
-    const result = findMatch(bonObj, bankTxs);
+    const result = findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
     if (result?.transaction) {
       result.transaction.bon = gmail.bon;
+      usedTxIds.add(result.transaction.id);
       updateTx(result.transaction.id, { bon: gmail.bon }).catch(() => {});
     }
   });
