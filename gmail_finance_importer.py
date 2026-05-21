@@ -86,13 +86,27 @@ SUBCATEGORIES = [
     "Elektronik", "Dienstleistung", "Sonstiges",
 ]
 
-PFAND_HINT = (
-    'Pfand-Erkennung (IMMER → "Pfand", egal wie geschrieben): '
-    'PFAND, Pfand, pfand, PFAND EW, PFAND MW, Pfand Einweg, Pfand Mehrweg, '
-    'DPG, DPG EINWEG, ePfand, EPFAND, Leergut, LEERGUT, Leergutbon, '
-    'MEHRWEGPFAND, EINWEGPFAND, Pfandartikel, PFANDARTIKEL, Pfand Artikel, '
-    'Pfandrückgabe, PFANDRÜCKGABE, Pfand 0,25, Pfand 0,09, Pfand 0,15'
-)
+# ── Bon-Prompt (Single Source: prompts/analyze-bon.md) ───────────────────────
+# Wird beim Modul-Import einmal von der Markdown-Datei geladen. Damit kann der
+# Browser-Bon-Scanner (bonAnalyzer.js) und der Python-Importer denselben Prompt
+# benutzen — Drift ist strukturell unmöglich.
+
+def _load_bon_prompt() -> str:
+    path = Path(__file__).parent / "prompts" / "analyze-bon.md"
+    return path.read_text(encoding="utf-8")
+
+
+BON_PROMPT = _load_bon_prompt()
+
+# Python-spezifischer Suffix: zusätzlich Top-Level-Kategorie anfordern.
+# (Browser braucht das nicht — Bank-Tx liefert die Kategorie via Auto-Link.
+# Python-Importer schreibt aber Stand-alone-Transaktionen.)
+PYTHON_PROMPT_SUFFIX = f"""
+
+Zusätzlich:
+- "category": Hauptkategorie der Rechnung. Eine dieser Optionen wählen:
+  {", ".join(MAIN_CATEGORIES)}
+"""
 
 # ── IMAP Helpers (aus gmail_invoices.py) ───────────────────────────────────────
 
@@ -228,31 +242,7 @@ VISION_SYSTEM = """Du bist ein Kassenbon-Extraktor. Du bekommst ein Foto oder ei
 Screenshot eines Kassenbons und extrahierst alle relevanten Felder als JSON.
 Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach)."""
 
-VISION_PROMPT = f"""Extrahiere aus diesem Kassenbon-Bild:
-
-{{
-  "rechnungsnummer": "...",
-  "rechnungsdatum": "YYYY-MM-DD",
-  "absender": "...",
-  "betrag_brutto": 0.00,
-  "beschreibung": "...",
-  "kategorie": "...",
-  "positionen": [
-    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subcategory": "..."}}
-  ]
-}}
-
-Regeln:
-- "absender": NUR der Firmenname (z.B. "Lidl"), keine Adresse.
-- "rechnungsdatum": falls kein Jahr erkennbar, aktuelles Jahr annehmen.
-- "betrag_brutto": der Endbetrag / Summe (positiv).
-- "positionen": alle Einzelartikel aus dem Bon.
-- "positionen[].subcategory" aus dieser Liste wählen:
-  {", ".join(SUBCATEGORIES)}
-- {PFAND_HINT}
-- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
-- "kategorie" aus dieser Liste wählen:
-  {", ".join(MAIN_CATEGORIES)}"""
+VISION_PROMPT = BON_PROMPT + PYTHON_PROMPT_SUFFIX
 
 
 def _call_openai_vision(image_path: Path) -> dict | None:
@@ -330,42 +320,12 @@ def extract_image_with_ai(image_path: Path) -> dict | None:
 # ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
 
 def _build_prompt(pdf_text: str, filename: str) -> str:
-    return f"""Du bist ein Kassenbon- und Rechnungs-Extraktor. Analysiere diesen PDF-Text
-und extrahiere alle relevanten Felder als JSON.
-
-PDF-Dateiname: {filename}
-PDF-Text:
-{pdf_text[:8000]}
-
-Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach):
-{{
-  "rechnungsnummer": "...",
-  "rechnungsdatum": "YYYY-MM-DD",
-  "absender": "...",
-  "betrag_brutto": 0.00,
-  "beschreibung": "...",
-  "kategorie": "...",
-  "card_last4": "1234",
-  "positionen": [
-    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subcategory": "..."}}
-  ]
-}}
-
-Regeln:
-- "absender": NUR der Firmenname, KEINE Adresse, PLZ oder Stadt.
-  Richtig: "Billa" — Falsch: "Billa AG, 1030 Wien, Musterstraße 1"
-- "card_last4": letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
-  Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
-  Falls keine Kartennummer vorhanden (Bar, PayPal, Überweisung etc.): null
-- "positionen": alle Einzelpositionen aus dem Kassenbon/Rechnung extrahieren.
-  Falls keine Einzelpositionen erkennbar sind → leeres Array [].
-- "positionen[].subcategory" aus dieser Liste wählen:
-  {", ".join(SUBCATEGORIES)}
-- {PFAND_HINT}
-- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
-
-Für "kategorie" eine dieser Optionen wählen:
-{", ".join(MAIN_CATEGORIES)}"""
+    """PDF-Text-Prompt: shared Bon-Prompt + Python-Suffix + Rechnungstext."""
+    return (
+        BON_PROMPT
+        + PYTHON_PROMPT_SUFFIX
+        + f"\n\nDateiname: {filename}\nRechnungstext:\n{pdf_text[:8000]}"
+    )
 
 
 def _parse_ai_response(text: str) -> dict | None:
@@ -505,11 +465,24 @@ def _normalize_subcategory(value: str) -> str:
     return "Sonstiges"
 
 
+def _ai_get(ai_data: dict, *keys: str, default=None):
+    """Liest das erste vorhandene Feld in ai_data — für JS-Schema mit deutscher
+    Fallback-Compat. Beispiel: _ai_get(d, 'store', 'absender')."""
+    for k in keys:
+        v = ai_data.get(k)
+        if v not in (None, ""):
+            return v
+    return default
+
+
 def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = True) -> bool:
     """
     Transaktion unter household/main/transactions/{doc_id} speichern.
-    Feldnamen auf Browser-App-Format gemappt:
-      date, amount (negativ = Ausgabe), description, category, account, aiCategorized
+
+    Akzeptiert JS-Schema aus prompts/analyze-bon.md (store, date, total, items,
+    subcategory) mit Fallback auf die alten deutschen Namen (absender,
+    rechnungsdatum, betrag_brutto, positionen, kategorie). Damit auch
+    historische AI-Outputs lesbar bleiben.
     """
     col = _tx_collection()
     if not col:
@@ -517,18 +490,30 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         return False
 
     # Nur Firmennamen, keine Adresse (Fallback-Cleanup falls AI es ignoriert)
-    raw_absender = ai_data.get("absender", filename) or filename
-    description  = raw_absender.split(",")[0].split("\n")[0].strip()
+    raw_store   = str(_ai_get(ai_data, "store", "absender", default=filename))
+    description = raw_store.split(",")[0].split("\n")[0].strip()
+
+    date_val    = str(_ai_get(ai_data, "date", "rechnungsdatum", default=""))
+    total_raw   = _ai_get(ai_data, "total", "betrag_brutto", default=0)
+    try:
+        total_val = abs(float(total_raw))
+    except (TypeError, ValueError):
+        total_val = 0.0
+
+    items_list  = _ai_get(ai_data, "items", "positionen", default=[]) or []
 
     # Kategorie-Override: Helvetia Versicherungen ist hier der Hausverwalter
     # (kassiert Miete), nicht eine Versicherung. Same Logik wie parser.js.
-    category_text = " ".join([
-        str(raw_absender or ""),
-        str(ai_data.get("beschreibung") or ""),
+    # JS-Markdown-Prompt liefert kein "beschreibung"-Feld mehr — stattdessen
+    # nutzen wir Store + ggf. rohen PDF-Text (via _raw_text vom Caller).
+    helvetia_text = " ".join([
+        raw_store,
+        str(ai_data.get("_raw_text") or ""),
+        " ".join(str(p.get("name") or "") for p in items_list if isinstance(p, dict)),
     ]).lower()
-    category = ai_data.get("kategorie", "Sonstiges")
-    if "helvetia" in category_text and any(
-        k in category_text for k in
+    category = str(_ai_get(ai_data, "category", "kategorie", default="Sonstiges"))
+    if "helvetia" in helvetia_text and any(
+        k in helvetia_text for k in
         ("vorschreibung", "miete", "betriebskosten", "hausverwaltung", "rennweg")
     ):
         category = "Wohnen / Miete"
@@ -545,13 +530,12 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         print("  Karte: nicht erkannt → account=unbekannt")
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
-    positionen = ai_data.get("positionen") or []
     bon = None
-    if positionen:
+    if items_list:
         bon = {
             "source": "gmail_import",
-            "total":  abs(ai_data.get("betrag_brutto", 0)),
-            "date":   ai_data.get("rechnungsdatum", ""),
+            "total":  total_val,
+            "date":   date_val,
             "vendor": description,
             "items":  [
                 {
@@ -562,21 +546,20 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
                         p.get("subcategory") or p.get("subkategorie") or "Sonstiges"
                     ),
                 }
-                for p in positionen if p.get("name")
+                for p in items_list if p.get("name")
             ],
         }
 
     tx = {
         "id":            doc_id,
-        "date":          ai_data.get("rechnungsdatum", ""),
-        "amount":        -abs(ai_data.get("betrag_brutto", 0)),
+        "date":          date_val,
+        "amount":        -total_val,
         "description":   description,
         "category":      category,
         "account":       account,
         "card_last4":    card_last4,
         "aiCategorized": True,
         "source":        "gmail_import",
-        "note":          ai_data.get("beschreibung", ""),
         "savedAt":       datetime.now().isoformat(),
         "savedBy":       "gmail_importer",
         "filename":      filename,
@@ -609,10 +592,15 @@ def process_pdf(pdf_path: Path) -> bool:
         print("  FEHLER: AI-Extraktion fehlgeschlagen.")
         return False
 
-    n_items = len(ai_data.get("positionen") or [])
-    items_info = f" · {n_items} Positionen" if n_items else ""
-    print(f"  Erkannt: {ai_data.get('absender','?')} — "
-          f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
+    # PDF-Rohtext für Kategorie-Override (Helvetia-Miete-Detection) durchreichen
+    ai_data["_raw_text"] = text
+
+    items_list = ai_data.get("items") or ai_data.get("positionen") or []
+    items_info = f" · {len(items_list)} Positionen" if items_list else ""
+    store      = ai_data.get("store") or ai_data.get("absender") or "?"
+    total      = ai_data.get("total") or ai_data.get("betrag_brutto") or "?"
+    date       = ai_data.get("date") or ai_data.get("rechnungsdatum") or "?"
+    print(f"  Erkannt: {store} — {total} EUR — {date}{items_info}")
 
     doc_id = _pdf_doc_id(pdf_path)
     is_new = not is_duplicate(doc_id)
@@ -628,10 +616,12 @@ def process_image(image_path: Path) -> bool:
         print("  FEHLER: Vision-Extraktion fehlgeschlagen.")
         return False
 
-    n_items = len(ai_data.get("positionen") or [])
-    items_info = f" · {n_items} Positionen" if n_items else ""
-    print(f"  Erkannt: {ai_data.get('absender','?')} — "
-          f"{ai_data.get('betrag_brutto','?')} EUR — {ai_data.get('rechnungsdatum','?')}{items_info}")
+    items_list = ai_data.get("items") or ai_data.get("positionen") or []
+    items_info = f" · {len(items_list)} Positionen" if items_list else ""
+    store      = ai_data.get("store") or ai_data.get("absender") or "?"
+    total      = ai_data.get("total") or ai_data.get("betrag_brutto") or "?"
+    date       = ai_data.get("date") or ai_data.get("rechnungsdatum") or "?"
+    print(f"  Erkannt: {store} — {total} EUR — {date}{items_info}")
 
     # doc_id aus Bild-Bytes — gleiche Logik wie PDF
     doc_id = "img_" + hashlib.sha256(image_path.read_bytes()).hexdigest()[:20]
