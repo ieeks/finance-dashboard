@@ -1740,15 +1740,38 @@ window.firebaseLogout = async function() {
 function _autoLinkGmailBons() {
   const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
   if (!gmailWithBon.length) return;
+
+  // Phase 1: Self-Healing — alle bisherigen gmail-Bon-Links von Bank-Txs lösen.
+  // Damit kann der (verbesserte) Matcher beim Re-Lauf falsche Altlinks korrigieren.
+  // Manuell vom User gescannte Bons (source !== gmail_import) bleiben unangetastet.
+  const previouslyLinked = new Map();
+  state.transactions.forEach(t => {
+    if (t.source !== 'gmail_import' && t.bon?.source === 'gmail_import') {
+      previouslyLinked.set(t.id, t.bon);
+      t.bon = null;
+    }
+  });
+
+  // Phase 2: mit dem aktuellen Matcher neu verknüpfen
   const bankTxs = state.transactions.filter(t => t.source !== 'gmail_import' && !t.bon && t.amount < 0);
-  const usedTxIds = new Set();
+  const usedTxIds   = new Set();
+  const newlyLinked = new Set();
   gmailWithBon.forEach(gmail => {
     const bonObj = { date: gmail.date, total: Math.abs(gmail.amount), store: gmail.description };
     const result = findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
     if (result?.transaction) {
       result.transaction.bon = gmail.bon;
       usedTxIds.add(result.transaction.id);
+      newlyLinked.add(result.transaction.id);
       updateTx(result.transaction.id, { bon: gmail.bon }).catch(() => {});
+    }
+  });
+
+  // Phase 3: Bank-Txs die vorher verknüpft waren aber jetzt keinen Match mehr
+  // bekommen → Clear in Firestore persistieren.
+  previouslyLinked.forEach((_, txId) => {
+    if (!newlyLinked.has(txId)) {
+      updateTx(txId, { bon: null }).catch(() => {});
     }
   });
 }
