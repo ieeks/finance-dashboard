@@ -2,12 +2,22 @@
 
 import { loadKeys } from './ui.js';
 import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js';
+import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js';
+
+// Debug-Logs via window.DEBUG_PARSER = true aktivieren.
+const _DBG = typeof window !== 'undefined' && window.DEBUG_PARSER === true;
+const dlog = _DBG ? console.log.bind(console) : () => {};
 
 function _applyRecurringFlags(txs) {
   return txs.map(t => {
     const rule = RECURRING_RULES.find(r => r.pattern.test(t.description));
     if (!rule) return t;
-    return { ...t, isRecurring: true, recurringLabel: rule.label };
+    return {
+      ...t,
+      isRecurring: true,
+      recurringLabel: rule.label,
+      ...(rule.category ? { category: rule.category, aiCategorized: false } : {}),
+    };
   });
 }
 
@@ -17,7 +27,13 @@ function _applySubscriptionRules(txs) {
       r.pattern.test(t.description) && Math.abs(Math.abs(t.amount) - r.amount) < 0.015
     );
     if (!rule) return t;
-    return { ...t, description: rule.name, category: rule.category, aiCategorized: false };
+    return {
+      ...t,
+      originalDescription: t.description,
+      description: rule.name,
+      category: rule.category,
+      aiCategorized: false,
+    };
   });
 }
 
@@ -97,7 +113,15 @@ function parseEasybankStatement(text) {
   }
 
   const lines    = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const headerRe = /^KONTOAUSZUG|^IBAN\s|^Buch\.-Tag|^Währung|^Manuel Koblischek\s+AT\d|^D04MMK|^Bei Rückfragen|^Reklamationen|^BIC:|^Dieses Konto|^Ihre aktuelle|^Summe Ein|^Summe Aus|^Neuer Kontostand|^Beilagen/;
+  const headerRe = new RegExp(
+    [
+      /^KONTOAUSZUG/, /^IBAN\s/, /^Buch\.-Tag/, /^Währung/,
+      OWNER_HEADER_RE,
+      /^D04MMK/, /^Bei Rückfragen/, /^Reklamationen/, /^BIC:/,
+      /^Dieses Konto/, /^Ihre aktuelle/, /^Summe Ein/, /^Summe Aus/,
+      /^Neuer Kontostand/, /^Beilagen/,
+    ].map(r => r.source).join('|')
+  );
 
   let i = 0;
   while (i < lines.length) {
@@ -156,7 +180,7 @@ function parseEasybankStatement(text) {
               if (headerRe.test(prevLine)) continue;
               if (/DANKT/i.test(prevLine)) {
                 merchantLine = prevLine;
-                console.log('[DBG-KARTE] Backward fallback hit:', prevLine);
+                dlog('[DBG-KARTE] Backward fallback hit:', prevLine);
                 break;
               }
             }
@@ -178,16 +202,15 @@ function parseEasybankStatement(text) {
               terminalCache.set(termId, description);
             } else if (terminalCache.has(termId)) {
               description = terminalCache.get(termId);
-              console.log('[DBG-KARTE] Terminal cache hit:', termId, '→', description);
+              dlog('[DBG-KARTE] Terminal cache hit:', termId, '→', description);
             }
           }
 
-          // ── DEBUG (bitte nach Bugfix entfernen) ──
-          console.log('[DBG-KARTE]', bookingDate, amount + '€ →', description);
-          console.log('[DBG-KARTE] bzLines     :', bzLines);
-          console.log('[DBG-KARTE] terminalLine:', terminalLine || '(leer)');
-          console.log('[DBG-KARTE] merchantLine:', merchantLine || '(leer)');
-          console.log('[DBG-KARTE] txDate      :', txDate);
+          dlog('[DBG-KARTE]', bookingDate, amount + '€ →', description);
+          dlog('[DBG-KARTE] bzLines     :', bzLines);
+          dlog('[DBG-KARTE] terminalLine:', terminalLine || '(leer)');
+          dlog('[DBG-KARTE] merchantLine:', merchantLine || '(leer)');
+          dlog('[DBG-KARTE] txDate      :', txDate);
 
           const cardCode   = terminalLine.match(/\b([DK]\d{3})\b/)?.[1] ?? null;
           const cardHolder = cardCode?.startsWith('D') ? 'manuel'
@@ -220,17 +243,16 @@ function parseEasybankStatement(text) {
             const prevLine = lines[back];
             if (/^\d{2}\.\d{2}\s/.test(prevLine)) break;
             if (headerRe.test(prevLine)) continue;
-            if (/Olga|Zelenina/i.test(prevLine))   { description = 'Gutschrift Olga';   break; }
-            if (/Manuel|Koblischek/i.test(prevLine)) { description = 'Gutschrift Manuel'; break; }
+            const owner = matchOwner(prevLine);
+            if (owner) { description = `Gutschrift ${owner}`; break; }
           }
         }
         // Forward-Lookup: BAWAATWWXXX + Name kann durch Y-Koordinaten-Merge mit der nächsten
         // Transaktion verschmelzen → taucht als contLine der nächsten TX auf, nicht als eigene Zeile
         if (description === 'Gutschrift') {
           for (let fwd = j; fwd < Math.min(j + 4, lines.length); fwd++) {
-            const fwdLine = lines[fwd];
-            if (/Olga|Zelenina/i.test(fwdLine))    { description = 'Gutschrift Olga';   break; }
-            if (/Manuel|Koblischek/i.test(fwdLine)) { description = 'Gutschrift Manuel'; break; }
+            const owner = matchOwner(lines[fwd]);
+            if (owner) { description = `Gutschrift ${owner}`; break; }
           }
         }
         if (Math.abs(amount) >= 0.01 && description.length > 0) {
@@ -259,12 +281,12 @@ function _extractMerchant(merchantLine, terminalLine, rawDesc = '') {
     if (!line) continue;
     for (const [pat, name] of CARD_MERCHANTS) {
       if (pat.test(line)) {
-        console.log('[DBG-MERCHANT] Match:', line, '→', name);
+        dlog('[DBG-MERCHANT] Match:', line, '→', name);
         return name;
       }
     }
   }
-  console.log(`[DBG-MERCHANT] Kein CARD_MERCHANTS Match. merchantLine="${merchantLine}" terminalLine="${terminalLine}" rawDesc="${rawDesc}"`);
+  dlog(`[DBG-MERCHANT] Kein CARD_MERCHANTS Match. merchantLine="${merchantLine}" terminalLine="${terminalLine}" rawDesc="${rawDesc}"`);
   // Generisch: Händlerzeile, alles vor DANKT / Zahl / Backslash
   const src = merchantLine || terminalLine;
   if (!src) return 'Kartenzahlung';
@@ -341,7 +363,7 @@ const CARD_MERCHANTS = [
 
 export function extractEasybankDescription(rawDesc, contLines, amount = 0) {
   const result = _extractDesc(rawDesc, contLines, amount);
-  console.log(`[DBG-SEPA] "${rawDesc.trim()}" (${amount}€) → "${result}"`);
+  dlog(`[DBG-SEPA] "${rawDesc.trim()}" (${amount}€) → "${result}"`);
   return result;
 }
 
@@ -374,7 +396,7 @@ function _extractDesc(rawDesc, contLines, amount) {
     for (const cl of contLines) {
       if (/^POS[\s\d]/i.test(cl)) continue;
       if (/^(OG|MC|BG|FE|VD)\//i.test(cl)) continue;
-      if (/^Manuel Koblischek$|^Koblischek/i.test(cl)) continue;
+      if (matchOwner(cl)) continue;
       if (/^[A-Z0-9]{8,}$/i.test(cl)) continue;
       if (/^\d+$/.test(cl)) continue;
       const merchant = cl.split(/[\\\/]/)[0]
@@ -397,8 +419,8 @@ function _extractDesc(rawDesc, contLines, amount) {
         .replace(/^(OG|BG|MC)\//i, '')
         .replace(/\s+/g, ' ').trim();
       if (cleaned.length > 2 && !/^\d+$/.test(cleaned)) {
-        if (/Olga|Zelenina/i.test(cleaned))            return 'Gutschrift Olga';
-        if (/Manuel|Koblischek/i.test(cleaned))        return 'Gutschrift Manuel';
+        const owner = matchOwner(cleaned);
+        if (owner) return `Gutschrift ${owner}`;
         return `Gutschrift (${cleaned.slice(0, 30)})`;
       }
     }
@@ -407,8 +429,8 @@ function _extractDesc(rawDesc, contLines, amount) {
   if (/^Miete/i.test(raw)) {
     // Eingehende Mietzahlung (positiv) → kein Wohnen/Miete, Name aus contLines prüfen
     if (amount > 0) {
-      if (/Olga\s*Zelenina|Zelenina/i.test(allText)) return 'Gutschrift Olga';
-      if (/Manuel\s*Koblischek/i.test(allText))      return 'Gutschrift Manuel';
+      const owner = matchOwner(allText);
+      if (owner) return `Gutschrift ${owner}`;
       // Unbekannter Absender — als generische Gutschrift weiter klassifizieren
     } else {
       return 'Miete / Hausverwaltung';
@@ -434,15 +456,19 @@ function _extractDesc(rawDesc, contLines, amount) {
     return 'Allianz Versicherung';
   }
   // Personennamen erst nach Firmen-Checks — vermeidet False-Positives aus Adresszeilen
-  if (/Olga\s*Zelenina|Zelenina/i.test(allText))
-    return amount > 0 ? 'Gutschrift Olga' : 'Olga Zelenina';
-  if (/Manuel\s*Koblischek/i.test(allText) && amount > 0) return 'Gutschrift Manuel';
+  const owner = matchOwner(allText);
+  if (owner) {
+    if (amount > 0) return `Gutschrift ${owner}`;
+    // Eigener Owner als Empfänger einer Ausgabe → Name als Description
+    if (owner === 'Olga') return 'Olga Zelenina';
+    // Manuel als Empfänger einer Ausgabe → keine Description-Übernahme (eigene Karte)
+  }
 
   // 4. SEPA mit BIC → Gegenpartei aus Folgezeilen (kein i-Flag: BICs sind immer Großbuchstaben)
   if (/^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}/.test(raw)) {
     for (const cl of contLines) {
-      if (/^[A-Z]{6}[A-Z0-9]{2}|^(OG|BG|MC)\/|^Manuel Koblischek$|^\d{8,}$/.test(cl)) continue;
-      if (/^(Koblischek|KOBLISCHEK)/i.test(cl)) continue;
+      if (/^[A-Z]{6}[A-Z0-9]{2}|^(OG|BG|MC)\/|^\d{8,}$/.test(cl)) continue;
+      if (matchOwner(cl)) continue;
       const name = cl.split('/')[0].replace(/^\d+\s*/, '').trim();
       if (name.length > 3 && !/^\d+$/.test(name)) return name.slice(0, 50);
     }
@@ -454,11 +480,17 @@ function _extractDesc(rawDesc, contLines, amount) {
 
 
 // ── Generic Statement Parser ──
+// Zeilenweise + anchored — verhindert dass Header/Footer-Zeilen mit Datumsangabe
+// als Transaktion gelesen werden (z.B. "Saldo per 31.12.2025: 1.234,56").
 function parseGenericStatement(text) {
   const transactions = [];
-  const linePattern  = /(\d{2}\.\d{2}\.\d{4})\s+(.+?)\s+([-+]?\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:EUR)?/g;
-  let match;
-  while ((match = linePattern.exec(text)) !== null) {
+  const linePattern  = /^(\d{2}\.\d{2}\.\d{4})\s+(.+?)\s+([-+]?\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:EUR)?\s*$/;
+  const skipRe       = /^(Saldo|Übertrag|Summe|Stand|Konto-?Nr|IBAN|BIC|Seite\s+\d)/i;
+  for (const rawLine of text.split('\n')) {
+    const line = rawLine.trim();
+    if (!line || skipRe.test(line)) continue;
+    const match = line.match(linePattern);
+    if (!match) continue;
     const date   = _parseFullDate(match[1]);
     const desc   = match[2].trim().replace(/\s+/g,' ').slice(0,80);
     const amount = _parseAmount(match[3]);
@@ -536,12 +568,13 @@ export async function categorizeWithAI(transactions, provider = 'anthropic', ove
     .map((t,i) => `${i}: ${t.description} (${t.amount > 0 ? '+' : ''}${t.amount}€)`)
     .join('\n');
 
+  const ownerNames = OWNERS.flatMap(o => o.patterns.map(p => p.source.replace(/[\\^$.*+?()[\]{}|]/g, ''))).join(', ');
   const prompt = `Du bist ein österreichischer Finanz-Assistent. Kategorisiere diese Bankbuchungen.
 
 Verfügbare Kategorien: ${categories}
 
 Hinweise:
-- "Familientransfer": Gutschriften oder Überweisungen von/an Privatpersonen (Familie, Partner), erkennbar an Personennamen (z.B. Olga, Manuel, Zelenina, Koblischek) oder Beschreibungen wie "Gutschrift (Name)"
+- "Familientransfer": Gutschriften oder Überweisungen von/an Privatpersonen (Familie, Partner), erkennbar an Personennamen (z.B. ${ownerNames}) oder Beschreibungen wie "Gutschrift (Name)"
 - "Gehalt / Einnahmen": nur eindeutige Gehaltseingänge von Arbeitgebern (Firmen, GmbH, AG usw.)
 - Reine "Gutschrift" ohne Firmennamen → eher "Familientransfer" als "Gehalt / Einnahmen"
 
