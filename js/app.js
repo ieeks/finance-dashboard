@@ -45,7 +45,11 @@ function updateMonthTriggers() {
 // ── Dashboard ──
 function renderDashboard() {
   updateMonthTriggers();
-  const txs     = getTransactionsForMonth(state.currentMonth);
+  const allTxs  = getTransactionsForMonth(state.currentMonth);
+  // Gmail-Rechnungen sind Duplikate der Bank-Txs (nach _autoLinkGmailBons hängt
+  // ihr bon an der Bank-Tx). Für alle Summations-Renderings rausfiltern, sonst
+  // wird die Ausgabe doppelt gezählt. Nur renderRechnungenTeaser will sie sehen.
+  const txs     = allTxs.filter(t => t.source !== 'gmail_import');
   const income  = txs.filter(t => t.amount > 0).reduce((s,t) => s + t.amount, 0);
   const expense = txs.filter(t => t.amount < 0).reduce((s,t) => s + Math.abs(t.amount), 0);
   const saldo   = income - expense;
@@ -68,7 +72,7 @@ function renderDashboard() {
   renderFixkosten(txs);
   renderInsight(txs);
   renderBelegStatus(txs);
-  renderRechnungenTeaser(txs);
+  renderRechnungenTeaser(allTxs);
 
   const pendingCount = (state.pendingBons || []).length;
   const badgeEl = document.getElementById('concierge-badge');
