@@ -108,6 +108,84 @@ Zusätzlich:
   {", ".join(MAIN_CATEGORIES)}
 """
 
+# ── Händler-Normalisierung — sync mit CARD_MERCHANTS in js/parser.js ─────────
+# Reihenfolge: spezifischere Patterns ZUERST (BILLA PLUS vor BILLA).
+# Der erste Match gewinnt.
+
+CARD_MERCHANTS: list[tuple[re.Pattern, str]] = [
+    # ── Supermärkte (Österreich) ──
+    (re.compile(r"BILLA\s*PLUS", re.I),                    "Billa Plus"),
+    (re.compile(r"\bBILLA\b", re.I),                       "Billa"),
+    (re.compile(r"INTERSPAR", re.I),                       "Interspar"),
+    (re.compile(r"EUROSPAR", re.I),                        "Eurospar"),
+    (re.compile(r"\bSPAR\b", re.I),                        "Spar"),
+    (re.compile(r"\bHOFER\b", re.I),                       "Hofer"),
+    (re.compile(r"\bLIDL\b", re.I),                        "Lidl"),
+    (re.compile(r"\bPENNY\b", re.I),                       "Penny"),
+    (re.compile(r"NAH.{0,3}FRISCH", re.I),                 "Nah & Frisch"),
+    (re.compile(r"\bMPREIS\b", re.I),                      "M-Preis"),
+    (re.compile(r"UNIMARKT", re.I),                        "Unimarkt"),
+    (re.compile(r"MAXIMARKT", re.I),                       "Maximarkt"),
+    (re.compile(r"\bADEG\b", re.I),                        "Adeg"),
+    (re.compile(r"JULIUS\s*MEINL", re.I),                  "Julius Meinl"),
+    # ── Drogerie ──
+    (re.compile(r"DM-?FIL", re.I),                         "dm"),
+    (re.compile(r"\bBIPA\b", re.I),                        "Bipa"),
+    (re.compile(r"MUELLER|MÜLLER", re.I),                  "Müller"),
+    # ── Gastronomie ──
+    (re.compile(r"MCDONALD|MC\s*DON", re.I),               "McDonald's"),
+    (re.compile(r"BURGER\s*KING", re.I),                   "Burger King"),
+    (re.compile(r"\bKFC\b", re.I),                         "KFC"),
+    (re.compile(r"\bSUBWAY\b", re.I),                      "Subway"),
+    (re.compile(r"STARBUCKS", re.I),                       "Starbucks"),
+    (re.compile(r"\bPRONTO\b", re.I),                      "Pronto"),
+    (re.compile(r"JOSEPH\s*BAC", re.I),                    "Joseph Bäckerei"),
+    (re.compile(r"ANKER", re.I),                           "Anker"),
+    (re.compile(r"\bFELBER\b", re.I),                      "Felber"),
+    (re.compile(r"DER\s+MANN", re.I),                      "Der Mann"),
+    (re.compile(r"COCA.COLA\s*HBC", re.I),                 "Coca-Cola Automat"),
+    # ── Tankstellen (Österreich) ──
+    (re.compile(r"\bOMV\b", re.I),                         "OMV"),
+    (re.compile(r"\bAVANTI\b", re.I),                      "Avanti"),
+    (re.compile(r"TURMOEL|TURM.L", re.I),                  "Turmöl"),
+    (re.compile(r"\bSHELL\b", re.I),                       "Shell"),
+    (re.compile(r"\bJET\b", re.I),                         "JET"),
+    (re.compile(r"\bBP\b", re.I),                          "BP"),
+    (re.compile(r"\bENI\b|\bAGIP\b", re.I),                "ENI"),
+    (re.compile(r"CIRCLE\s*K", re.I),                      "Circle K"),
+    # ── Elektronik ──
+    (re.compile(r"MEDIA\s*MARKT|MEDIAMARKT", re.I),        "MediaMarkt"),
+    (re.compile(r"\bSATURN\b", re.I),                      "Saturn"),
+    (re.compile(r"\bHARTLAUER\b", re.I),                   "Hartlauer"),
+    (re.compile(r"\bCONRAD\b", re.I),                      "Conrad"),
+    # ── Einrichtung & Baumarkt ──
+    (re.compile(r"\bIKEA\b", re.I),                        "IKEA"),
+    (re.compile(r"\bOBI\b", re.I),                         "OBI"),
+    (re.compile(r"HORNBACH", re.I),                        "Hornbach"),
+    (re.compile(r"\bBAUHAUS\b", re.I),                     "Bauhaus"),
+    # ── Mode & Sport ──
+    (re.compile(r"\bZARA\b", re.I),                        "Zara"),
+    (re.compile(r"\bH&M\b", re.I),                         "H&M"),
+    (re.compile(r"\bC&A\b", re.I),                         "C&A"),
+    (re.compile(r"DEICHMANN", re.I),                       "Deichmann"),
+    (re.compile(r"\bHUMANIC\b", re.I),                     "Humanic"),
+    (re.compile(r"INTERSPORT", re.I),                      "Intersport"),
+    (re.compile(r"DECATHLON", re.I),                       "Decathlon"),
+    (re.compile(r"\bLIBRO\b", re.I),                       "Libro"),
+]
+
+
+def _normalize_store(text: str) -> str:
+    """Normalisiert einen Händlernamen auf den kanonischen Display-Namen aus
+    CARD_MERCHANTS. Liefert den Eingabe-Text unverändert zurück wenn keine
+    bekannte Marke erkannt wird."""
+    if not text:
+        return text
+    for pattern, name in CARD_MERCHANTS:
+        if pattern.search(text):
+            return name
+    return text
+
 # ── IMAP Helpers (aus gmail_invoices.py) ───────────────────────────────────────
 
 def decode_str(value: str) -> str:
@@ -491,7 +569,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 
     # Nur Firmennamen, keine Adresse (Fallback-Cleanup falls AI es ignoriert)
     raw_store   = str(_ai_get(ai_data, "store", "absender", default=filename))
-    description = raw_store.split(",")[0].split("\n")[0].strip()
+    # 1) Adresse abschneiden ("Billa AG, 1030 Wien" → "Billa AG")
+    # 2) Auf bekannten Brand normalisieren ("Billa AG" → "Billa")
+    description = _normalize_store(raw_store.split(",")[0].split("\n")[0].strip())
 
     date_val    = str(_ai_get(ai_data, "date", "rechnungsdatum", default=""))
     total_raw   = _ai_get(ai_data, "total", "betrag_brutto", default=0)
