@@ -67,6 +67,33 @@ MONTH_NAMES = {
     9: "09_September",10: "10_Oktober",11: "11_November",  12: "12_Dezember",
 }
 
+# ── Kategorie-Listen (Single Source: prompts/analyze-bon.md + js/categories.js) ──
+# Bei Änderungen IMMER auch in JS-Side aktualisieren.
+
+MAIN_CATEGORIES = [
+    "Supermarkt", "Restaurant / Café", "Drogerie", "Energie / Strom",
+    "Telekommunikation", "Versicherung", "Online Shopping",
+    "Mobilität / Auto", "Wohnen / Miete", "Gesundheit", "Gebühren / Bank",
+    "Freizeit", "Sonstiges",
+]
+
+# Kanonische Subkategorien-Liste (analog SUBCAT_ICONS in js/categories.js)
+SUBCATEGORIES = [
+    "Milchprodukte", "Süßwaren / Naschen", "Backwaren", "Getränke",
+    "Fleisch & Wurst", "Fisch / Meeresfrüchte", "Obst & Gemüse",
+    "Nudeln & Reis", "Öl", "Aufstriche & Butter", "Gewürze & Saucen",
+    "Konserven", "Tiefkühl", "Hygiene & Drogerie", "Putzmittel", "Pfand",
+    "Elektronik", "Dienstleistung", "Sonstiges",
+]
+
+PFAND_HINT = (
+    'Pfand-Erkennung (IMMER → "Pfand", egal wie geschrieben): '
+    'PFAND, Pfand, pfand, PFAND EW, PFAND MW, Pfand Einweg, Pfand Mehrweg, '
+    'DPG, DPG EINWEG, ePfand, EPFAND, Leergut, LEERGUT, Leergutbon, '
+    'MEHRWEGPFAND, EINWEGPFAND, Pfandartikel, PFANDARTIKEL, Pfand Artikel, '
+    'Pfandrückgabe, PFANDRÜCKGABE, Pfand 0,25, Pfand 0,09, Pfand 0,15'
+)
+
 # ── IMAP Helpers (aus gmail_invoices.py) ───────────────────────────────────────
 
 def decode_str(value: str) -> str:
@@ -201,9 +228,9 @@ VISION_SYSTEM = """Du bist ein Kassenbon-Extraktor. Du bekommst ein Foto oder ei
 Screenshot eines Kassenbons und extrahierst alle relevanten Felder als JSON.
 Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach)."""
 
-VISION_PROMPT = """Extrahiere aus diesem Kassenbon-Bild:
+VISION_PROMPT = f"""Extrahiere aus diesem Kassenbon-Bild:
 
-{
+{{
   "rechnungsnummer": "...",
   "rechnungsdatum": "YYYY-MM-DD",
   "absender": "...",
@@ -211,20 +238,21 @@ VISION_PROMPT = """Extrahiere aus diesem Kassenbon-Bild:
   "beschreibung": "...",
   "kategorie": "...",
   "positionen": [
-    {"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subkategorie": "..."}
+    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subcategory": "..."}}
   ]
-}
+}}
 
 Regeln:
 - "absender": NUR der Firmenname (z.B. "Lidl"), keine Adresse.
 - "rechnungsdatum": falls kein Jahr erkennbar, aktuelles Jahr annehmen.
 - "betrag_brutto": der Endbetrag / Summe (positiv).
-- "positionen": alle Einzelartikel aus dem Bon. Subkategorie aus:
-  Milchprodukte, Süßwaren / Naschen, Getränke, Brot & Backwaren,
-  Fleisch & Wurst, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges
-- "kategorie": Supermarkt, Restaurant / Café, Drogerie, Energie / Strom,
-  Telekommunikation, Versicherung, Online Shopping, Mobilität / Auto,
-  Wohnen / Miete, Gesundheit, Gebühren / Bank, Freizeit, Sonstiges"""
+- "positionen": alle Einzelartikel aus dem Bon.
+- "positionen[].subcategory" aus dieser Liste wählen:
+  {", ".join(SUBCATEGORIES)}
+- {PFAND_HINT}
+- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
+- "kategorie" aus dieser Liste wählen:
+  {", ".join(MAIN_CATEGORIES)}"""
 
 
 def _call_openai_vision(image_path: Path) -> dict | None:
@@ -319,7 +347,7 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, kein Text davor/danach):
   "kategorie": "...",
   "card_last4": "1234",
   "positionen": [
-    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subkategorie": "..."}}
+    {{"name": "...", "menge": 1, "einzelpreis": 0.00, "gesamt": 0.00, "subcategory": "..."}}
   ]
 }}
 
@@ -331,14 +359,13 @@ Regeln:
   Falls keine Kartennummer vorhanden (Bar, PayPal, Überweisung etc.): null
 - "positionen": alle Einzelpositionen aus dem Kassenbon/Rechnung extrahieren.
   Falls keine Einzelpositionen erkennbar sind → leeres Array [].
-- "positionen[].subkategorie" aus dieser Liste wählen:
-  Milchprodukte, Süßwaren / Naschen, Getränke, Brot & Backwaren,
-  Fleisch & Wurst, Obst & Gemüse, Tiefkühl, Hygiene, Putzmittel, Sonstiges
+- "positionen[].subcategory" aus dieser Liste wählen:
+  {", ".join(SUBCATEGORIES)}
+- {PFAND_HINT}
+- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
 
 Für "kategorie" eine dieser Optionen wählen:
-Supermarkt, Restaurant / Café, Drogerie, Energie / Strom, Telekommunikation,
-Versicherung, Online Shopping, Mobilität / Auto, Wohnen / Miete, Gesundheit,
-Gebühren / Bank, Freizeit, Sonstiges"""
+{", ".join(MAIN_CATEGORIES)}"""
 
 
 def _parse_ai_response(text: str) -> dict | None:
@@ -455,6 +482,29 @@ def is_duplicate(doc_id: str) -> bool:
     return col.document(doc_id).get().exists
 
 
+# Aliase aus alten AI-Outputs/Prompts → kanonische Subkategorie.
+# JS-Seite hat diese in v1.3.2 dedup'd, Python hatte sie noch.
+_SUBCAT_ALIASES = {
+    "Brot & Backwaren": "Backwaren",
+    "Hygiene":          "Hygiene & Drogerie",
+    "Fleisch":          "Fleisch & Wurst",
+    "Reis":             "Nudeln & Reis",
+    "Süßwaren":         "Süßwaren / Naschen",
+    "Fisch":            "Fisch / Meeresfrüchte",
+}
+
+
+def _normalize_subcategory(value: str) -> str:
+    """Mappt Aliase auf kanonische Subkategorie. Fällt zurück auf 'Sonstiges'
+    wenn der Wert weder kanonisch noch ein bekannter Alias ist."""
+    v = (value or "").strip()
+    if v in SUBCATEGORIES:
+        return v
+    if v in _SUBCAT_ALIASES:
+        return _SUBCAT_ALIASES[v]
+    return "Sonstiges"
+
+
 def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = True) -> bool:
     """
     Transaktion unter household/main/transactions/{doc_id} speichern.
@@ -495,7 +545,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
                     "name":        p.get("name", ""),
                     "menge":       p.get("menge", 1),
                     "price":       float(p.get("gesamt") or p.get("einzelpreis") or 0),
-                    "subcategory": p.get("subkategorie", "Sonstiges"),
+                    "subcategory": _normalize_subcategory(
+                        p.get("subcategory") or p.get("subkategorie") or "Sonstiges"
+                    ),
                 }
                 for p in positionen if p.get("name")
             ],
