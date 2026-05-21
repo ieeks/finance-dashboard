@@ -2,6 +2,30 @@
 
 ## Sofort (nächste Session)
 
+### Matcher / Parser — Bugfix-Sprint (aus Code Review 2026-05-20) ✅ (v1.4.0)
+Vollständige Analyse + Patches: [`docs/code-review-2026-05-20.md`](docs/code-review-2026-05-20.md)
+
+- [x] **A1** `CARD_MERCHANTS` Reihenfolge fixen — `BILLA PLUS` vor `BILLA` (Patch D)
+- [x] **A2** Score-System neu: gewichtete Punkte, Name immer Pflicht-Faktor (Patch A)
+- [x] **A3** `nameSimilarity` token-basiert mit Wortgrenze + Normalisierung (Patch B)
+- [x] **A4** Exklusivität in `app.js` — verbrauchte Tx-IDs tracken (Patch C)
+- [x] **A5** `_dedup` mit voller Description als Key (Patch G)
+- [ ] **A6** Manueller Verifikationslauf — 10 Bons des letzten Monats (User-Aufgabe)
+
+### Hygiene (Phase B aus Review) ✅ (v1.4.0)
+- [x] **B1** Debug-Logs hinter `window.DEBUG_PARSER` Flag (Patch F)
+- [x] **B2** `RECURRING_RULES.category` aktivieren oder Feld entfernen (Patch I)
+- [x] **B3** `originalDescription` bei `SUBSCRIPTION_RULES` bewahren (Patch H)
+- [x] **B4** Personen-Config nach `js/owners.js` ausgelagert (Patch E)
+- [x] **B5** `parseGenericStatement` regex auf Statement-Body begrenzen (Patch J)
+
+### Test-Infrastruktur (Phase C aus Review)
+- [ ] **C1** `tests/fixtures/` mit anonymisierten PDF-Texten + erwarteten JSON-Outputs — braucht echte (anonymisierte) PDF-Texte vom User
+- [x] **C2** `tests/run.html` — Browser-Testrunner ohne Framework (v1.4.0)
+- [x] **C3** Matcher-Szenarien: perfekt / fast / falsche Filiale gleicher Betrag / zu alt — 16 Tests in `tests/matcher.test.js` (v1.4.0)
+
+---
+
 - [x] **Modul-Refactor**: index.html → js/ Module (app, state, parser, bonAnalyzer, matcher, categories, ui)
 
 ### PDF Parser — offene Bugs
