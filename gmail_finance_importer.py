@@ -86,6 +86,38 @@ SUBCATEGORIES = [
     "Elektronik", "Dienstleistung", "Sonstiges",
 ]
 
+# Wiederkehrende Buchungen — sync mit RECURRING_RULES in js/categories.js.
+# isRecurring=True erlaubt es dem Browser-Dashboard die Tx in der
+# "Fixkosten"-Karte zu zeigen (renderFixkosten in app.js).
+RECURRING_RULES: list[dict] = [
+    {"pattern": re.compile(r"Miete / Hausverwaltung|Helvetia", re.I),
+     "label": "Miete"},
+    {"pattern": re.compile(r"Magenta Mobil", re.I),
+     "label": "Magenta Mobil",         "category": "Telekommunikation"},
+    {"pattern": re.compile(r"Magenta Festnetz", re.I),
+     "label": "Magenta Festnetz",      "category": "Telekommunikation"},
+    {"pattern": re.compile(r"Allianz.*Elementar|AEV\d+|Allianz KFZ", re.I),
+     "label": "Allianz KFZ",           "category": "Mobilität / Auto"},
+    {"pattern": re.compile(r"Allianz", re.I),
+     "label": "Allianz Versicherung",  "category": "Versicherung"},
+    {"pattern": re.compile(r"Raiffeisen.Leasing", re.I),
+     "label": "BYD Leasing"},
+    {"pattern": re.compile(r"Netflix", re.I),
+     "label": "Netflix"},
+    {"pattern": re.compile(r"Spotify", re.I),
+     "label": "Spotify"},
+]
+
+
+def _match_recurring(description: str) -> dict | None:
+    """Erste matching RECURRING_RULES-Regel zurückgeben (oder None)."""
+    if not description:
+        return None
+    for rule in RECURRING_RULES:
+        if rule["pattern"].search(description):
+            return rule
+    return None
+
 # ── Bon-Prompt (Single Source: prompts/analyze-bon.md) ───────────────────────
 # Wird beim Modul-Import einmal von der Markdown-Datei geladen. Damit kann der
 # Browser-Bon-Scanner (bonAnalyzer.js) und der Python-Importer denselben Prompt
@@ -518,6 +550,13 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     ):
         category = "Wohnen / Miete"
 
+    # Wiederkehrende Buchung erkennen (Netflix, Spotify, Allianz, Miete, ...).
+    # Setzt isRecurring/recurringLabel — Browser-Dashboard zeigt sie dann in
+    # der Fixkosten-Karte. Optional auch Kategorie-Override (siehe RECURRING_RULES).
+    recurring = _match_recurring(description)
+    if recurring and "category" in recurring:
+        category = recurring["category"]
+
     # Konto aus Kartennummer auflösen
     card_last4 = str(ai_data.get("card_last4") or "").strip().lstrip("0") or None
     # Normalisieren: nur die letzten 4 Ziffern, führende Nullen behalten
@@ -564,6 +603,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "savedBy":       "gmail_importer",
         "filename":      filename,
     }
+    if recurring:
+        tx["isRecurring"]    = True
+        tx["recurringLabel"] = recurring["label"]
     if bon and bon["items"]:
         tx["bon"] = bon
 
