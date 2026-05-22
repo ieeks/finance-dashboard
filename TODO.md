@@ -1,16 +1,8 @@
 # TODO — Finance Dashboard
 
-## Roadmap (nächste Session)
-
-Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sortiert:
-
-### 🟢 Quick Wins
-- [x] **R1** CI-Gate für Tests — `.github/workflows/ci.yml` läuft Python (`unittest`) und JS (`node tests/run.node.mjs`) bei jedem PR/Push. 44 Python- + 27 JS-Tests grün lokal.
-- [x] **R2** Personal-Config zentralisieren — `js/personalConfig.js` mit `LANDLORD = { vendorPattern, mieteKeywords }`. Helvetia/Rennweg/Hausverwaltung-Logik aus `parser.js` und `categories.js` raus, einmal zentral. Python-Mirror in `gmail_finance_importer.py` mit Sync-Kommentar. 5 zusätzliche Tests in `TestLandlord` (TestPython 49 total).
+## Roadmap (offen)
 
 ### 🟡 Mittel (1–2 h)
-- [x] **R3** Monatsvergleich-Karte auf Dashboard — `renderMonthlyComparison(txs)` in `app.js`, neue Karte unter "Top Kategorien". Zeigt Top 5 Kategorien mit ▲/▼ Chip + Prozent-Veränderung vs. Vormonat + Vormonats-Betrag. "neu"-Chip für Kategorien ohne Vormonats-Daten. `_prevMonth(ym)` mit Jahreswechsel-Support.
-- [x] **R4** Re-Match-Maintenance-Button — `analyzeBonLinks(transactions)` in `matcher.js` re-evaluiert alle Bank-Tx-↔-Bon-Verknüpfungen gegen den aktuellen Matcher. "Bon-Verknüpfungen prüfen"-Card im Konten-Screen mit Chip (gold/grün) + Modal mit Liste verdächtiger Verknüpfungen + "Verdächtige lösen"-Button. 6 zusätzliche Tests in `matcher.test.js`.
 - [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
 
 ### 🟠 Größer (Halb-/Ganztag, optional)
@@ -20,6 +12,17 @@ Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sorti
 
 ### 🔵 Architektonisch (für die Drift-Fans)
 - [ ] `CARD_MERCHANTS` + `RECURRING_RULES` als geteilte JSON-Datei — gleiches Pattern wie `analyze-bon.md`. `data/merchants.json` + `data/recurring.json`. Letzte Drift-Quellen eliminieren. Mittlerer JS-Refactor (~1 h).
+
+---
+
+## Erledigt (v1.5.1 – v1.5.3, 2026-05-22) — Roadmap-Sprint
+
+Quick-Wins + Mid-Size Features aus der Drift-Audit-Session (2026-05-21):
+
+- [x] **R1** CI-Gate für Tests (PR #10) — `.github/workflows/ci.yml` läuft Python (`unittest`) und JS (`node tests/run.node.mjs`) bei jedem PR/Push. 49 Python- + 33 JS-Tests grün.
+- [x] **R2** Personal-Config zentralisiert (PR #11) — `js/personalConfig.js` mit `LANDLORD = { vendorPattern, mieteKeywords }`. Helvetia/Rennweg/Hausverwaltung-Logik aus `parser.js` und `categories.js` raus, einmal zentral. Python-Mirror in `gmail_finance_importer.py` mit Sync-Kommentar. 5 zusätzliche Tests in `TestLandlord` (TestPython 49 total).
+- [x] **R3** Monatsvergleich-Karte auf Dashboard (PR #13) — `renderMonthlyComparison(txs)` in `app.js`, neue Karte unter "Top Kategorien". Zeigt Top 5 Kategorien mit ▲/▼ Chip + Prozent-Veränderung vs. Vormonat + Vormonats-Betrag. "neu"-Chip für Kategorien ohne Vormonats-Daten. `_prevMonth(ym)` mit Jahreswechsel-Support.
+- [x] **R4** Re-Match-Maintenance-Button (PR #12) — `analyzeBonLinks(transactions)` in `matcher.js` re-evaluiert alle Bank-Tx-↔-Bon-Verknüpfungen gegen den aktuellen Matcher. "Bon-Verknüpfungen prüfen"-Card im Konten-Screen mit Chip (gold/grün) + Modal mit Liste verdächtiger Verknüpfungen + "Verdächtige lösen"-Button. 6 zusätzliche Tests in `matcher.test.js`.
 
 ---
 
