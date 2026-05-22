@@ -215,6 +215,32 @@ class TestAiGet(unittest.TestCase):
         )
 
 
+class TestLandlord(unittest.TestCase):
+    """Vermieter-Erkennung (sync mit js/personalConfig.js)."""
+
+    def setUp(self):
+        self.landlord = H["LANDLORD"]
+
+    def test_structure(self):
+        self.assertIn("vendor_pattern", self.landlord)
+        self.assertIn("miete_keywords", self.landlord)
+
+    def test_vendor_matches(self):
+        self.assertTrue(self.landlord["vendor_pattern"].search("Helvetia Versicherungen AG"))
+        self.assertTrue(self.landlord["vendor_pattern"].search("helvetia"))
+
+    def test_vendor_doesnt_match_random(self):
+        self.assertFalse(self.landlord["vendor_pattern"].search("Wiener Städtische"))
+
+    def test_miete_keywords(self):
+        for kw in ("Vorschreibung", "Miete", "Betriebskosten", "Hausverwaltung", "Rennweg"):
+            self.assertTrue(self.landlord["miete_keywords"].search(kw),
+                            f"miete_keywords sollte '{kw}' matchen")
+
+    def test_miete_keywords_dont_match_random(self):
+        self.assertFalse(self.landlord["miete_keywords"].search("Unfallversicherung"))
+
+
 class TestBonPrompt(unittest.TestCase):
     def test_loaded(self):
         self.assertIn("BON_PROMPT", H)

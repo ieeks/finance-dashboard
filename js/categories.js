@@ -1,5 +1,7 @@
 // categories.js — Kanonische Kategorie-Konfiguration
 
+import { LANDLORD } from './personalConfig.js';
+
 export const CAT_CONFIG = {
   'Supermarkt':          { icon: '🛒', color: '#7B5723' },
   'Restaurant / Café':   { icon: '🍽️', color: '#c44b28' },
@@ -46,7 +48,7 @@ export const ALL_SUBCATEGORIES = Object.keys(SUBCAT_ICONS);
 // Amount-based subscription rules — applied after parsing
 // amount: exact absolute value to match (±0.01 tolerance)
 export const RECURRING_RULES = [
-  { pattern: /Miete \/ Hausverwaltung|Helvetia/i, label: 'Miete' },
+  { pattern: new RegExp(`Miete \\/ Hausverwaltung|${LANDLORD.vendorPattern.source}`, 'i'), label: 'Miete' },
   { pattern: /Magenta Mobil/i,                                        label: 'Magenta Mobil',       category: 'Telekommunikation' },
   { pattern: /Magenta Festnetz/i,                                     label: 'Magenta Festnetz',    category: 'Telekommunikation' },
   { pattern: /Allianz.*Elementar|AEV\d+|Allianz KFZ/i,               label: 'Allianz KFZ',         category: 'Mobilität / Auto' },

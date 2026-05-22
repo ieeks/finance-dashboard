@@ -6,7 +6,7 @@ Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sorti
 
 ### 🟢 Quick Wins
 - [x] **R1** CI-Gate für Tests — `.github/workflows/ci.yml` läuft Python (`unittest`) und JS (`node tests/run.node.mjs`) bei jedem PR/Push. 44 Python- + 27 JS-Tests grün lokal.
-- [ ] **R2** Personal-Config zentralisieren — `js/personalConfig.js` (gitignored, mit `.example`-Template) mit `LANDLORD = { vendor: /Helvetia/i, keywords: [...] }`. Aktuell ist Helvetia/Rennweg/Hausverwaltung an mehreren Stellen hardcodiert (`parser.js`, `gmail_finance_importer.py`). Damit wird der Code für andere Nutzer brauchbar UND testbar.
+- [x] **R2** Personal-Config zentralisieren — `js/personalConfig.js` mit `LANDLORD = { vendorPattern, mieteKeywords }`. Helvetia/Rennweg/Hausverwaltung-Logik aus `parser.js` und `categories.js` raus, einmal zentral. Python-Mirror in `gmail_finance_importer.py` mit Sync-Kommentar. 5 zusätzliche Tests in `TestLandlord` (TestPython 49 total).
 
 ### 🟡 Mittel (1–2 h)
 - [ ] **R3** Monatsvergleich-Karte auf Dashboard — pro Top-Kategorie "Supermarkt €858 (▲12% vs. April)". Daten alle vorhanden (`getAvailableMonths`), nur UI fehlt. Direkter User-Wert.
