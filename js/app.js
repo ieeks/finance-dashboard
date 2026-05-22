@@ -68,6 +68,7 @@ function renderDashboard() {
 
   document.getElementById('db-cta').style.display = txs.length ? 'none' : 'block';
   renderDashboardCategories(txs);
+  renderMonthlyComparison(txs);
   renderBonBreakdown(txs);
   renderFixkosten(txs);
   renderInsight(txs);
@@ -145,6 +146,68 @@ function renderDashboardCategories(txs) {
       <div style="flex:1;min-width:0;">${legend}</div>
     </div>
     ${bars}`;
+}
+
+function _prevMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 2, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function _spendByCat(txs) {
+  const bycat = {};
+  txs.filter(t => t.amount < 0).forEach(t => {
+    const c = t.category || 'Sonstiges';
+    bycat[c] = (bycat[c] || 0) + Math.abs(t.amount);
+  });
+  return bycat;
+}
+
+function renderMonthlyComparison(txs) {
+  const el = document.getElementById('db-monthly-compare');
+  if (!el) return;
+
+  const prev = _prevMonth(state.currentMonth);
+  const prevTxs = getTransactionsForMonth(prev).filter(t => t.source !== 'gmail_import');
+  if (!prevTxs.length || !txs.length) { el.style.display = 'none'; return; }
+
+  const cur  = _spendByCat(txs);
+  const last = _spendByCat(prevTxs);
+  const topCats = Object.entries(cur).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (!topCats.length) { el.style.display = 'none'; return; }
+
+  const prevLabel = getMonthLabel(prev);
+
+  const rows = topCats.map(([cat, amt]) => {
+    const cfg     = CAT_CONFIG[cat] || CAT_CONFIG['Sonstiges'];
+    const lastAmt = last[cat] || 0;
+    let chip;
+    if (lastAmt === 0) {
+      chip = `<span class="chip" style="background:var(--surface-container-high);color:var(--text-muted);">neu</span>`;
+    } else {
+      const pct = Math.round(((amt - lastAmt) / lastAmt) * 100);
+      const up  = pct > 0;
+      const cls = up ? 'chip-red' : (pct < 0 ? 'chip-green' : '');
+      const arrow = up ? '▲' : (pct < 0 ? '▼' : '·');
+      chip = `<span class="chip ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
+    }
+    return `<div class="cat-row" style="cursor:default;">
+      <div class="cat-icon-wrap">${cfg.icon}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="cat-label">${escHtml(cat)}</div>
+        <div style="font-size:0.68rem;color:var(--text-muted);">${formatEur(lastAmt)} im ${escHtml(prevLabel)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+        <div class="cat-amount">${formatEur(amt)}</div>
+        ${chip}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="section-label" style="margin-top:16px;">Monatsvergleich</div>
+    <div class="card" style="padding:16px 20px;">${rows}</div>`;
 }
 
 function renderBonBreakdown(txs) {
