@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v1.5.4 — 2026-05-22
+
+### Added
+- **Dashboard → Buchungen Drill-Down** — Klick auf eine Top-Kategorie oder
+  Monatsvergleich-Zeile springt zum Buchungen-Tab mit gesetztem
+  Kategorie-Filter (`_buchFilter.cats = [cat]`, `typ = 'aus'`). Search-
+  Input wird zurückgesetzt damit der Filter sicher greift. Chevron-Pfeil
+  (›) als visueller Affordance-Hinweis.
+
+---
+
 ## v1.5.3 — 2026-05-22
 
 ### Added
