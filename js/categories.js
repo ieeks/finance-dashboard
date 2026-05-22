@@ -45,6 +45,24 @@ export const SUBCAT_ICONS = {
 export const ALL_CATEGORIES    = Object.keys(CAT_CONFIG);
 export const ALL_SUBCATEGORIES = Object.keys(SUBCAT_ICONS);
 
+// Alte/abweichende Subkat-Namen → kanonisch.
+// Mirror von `_SUBCAT_ALIASES` in gmail_finance_importer.py.
+export const SUBCAT_ALIASES = {
+  'Brot & Backwaren':    'Backwaren',
+  'Hygiene':             'Hygiene & Drogerie',
+  'Fleisch':             'Fleisch & Wurst',
+  'Reis':                'Nudeln & Reis',
+  'Süßwaren':            'Süßwaren / Naschen',
+  'Fisch':               'Fisch / Meeresfrüchte',
+};
+
+// Mappt Alias auf kanonisch. Unbekannte Werte bleiben unverändert
+// (kein Sonstiges-Fallback — wir wollen keine echten Daten verlieren).
+export function normalizeSubcategory(value) {
+  const v = String(value || '').trim();
+  return SUBCAT_ALIASES[v] || v;
+}
+
 // Amount-based subscription rules — applied after parsing
 // amount: exact absolute value to match (±0.01 tolerance)
 export const RECURRING_RULES = [

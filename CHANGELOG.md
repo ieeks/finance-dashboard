@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v1.5.6 — 2026-05-22
+
+### Fixed
+- **Subkat-Drift in Bon-Aufschlüsselung** — "Brot & Backwaren" und
+  "Backwaren" tauchten beide nebeneinander auf (genauso "Hygiene"/
+  "Hygiene & Drogerie" etc.), weil ältere Imports noch die alten Namen
+  trugen. Neue `SUBCAT_ALIASES`-Map in `categories.js` + Mirror der
+  Python-Aliasliste. `normalizeSubcategory(value)` mappt Alias →
+  kanonisch (kein Sonstiges-Fallback, damit echte Daten erhalten
+  bleiben). `renderBonBreakdown` normalisiert beim Rendern. Zusätzlich
+  läuft `_migrateSubcatAliases` einmalig nach `loadAllData()` und
+  schreibt korrigierte Subkategorien zurück nach Firestore (no-op
+  sobald clean).
+
+---
+
 ## v1.5.5 — 2026-05-22
 
 ### Fixed
