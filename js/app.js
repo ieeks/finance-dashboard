@@ -8,7 +8,7 @@ import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
          fsSaveSubcategoryOverrides } from './firebaseService.js';
-import { findMatch, matchLabel } from './matcher.js';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -814,7 +814,83 @@ function renderKonten() {
   }).join('');
   const total = accountData.filter(a=>a.txCount>0).reduce((s,a)=>s+a.computedBalance, 0);
   document.getElementById('gesamtvermoegen').textContent = state.transactions.length ? formatEur(total) : '—';
+
+  _renderDatenpflege();
 }
+
+function _renderDatenpflege() {
+  const chip      = document.getElementById('datenpflege-chip');
+  const subtitle  = document.getElementById('datenpflege-subtitle');
+  if (!chip || !subtitle) return;
+  const report = analyzeBonLinks(state.transactions);
+  if (report.total === 0) {
+    chip.style.display = 'none';
+    subtitle.textContent = 'Noch keine Bon-Verknüpfungen vorhanden';
+    return;
+  }
+  if (report.stale.length === 0) {
+    chip.className = 'chip chip-green';
+    chip.textContent = `${report.ok.length} ✓`;
+    chip.style.display = 'inline-block';
+    subtitle.textContent = `Alle ${report.ok.length} Verknüpfungen sind gültig`;
+  } else {
+    chip.className = 'chip chip-gold';
+    chip.textContent = `${report.stale.length} verdächtig`;
+    chip.style.display = 'inline-block';
+    subtitle.textContent = `${report.stale.length} von ${report.total} Verknüpfungen würden vom aktuellen Matcher nicht akzeptiert`;
+  }
+}
+
+window.openRematchDialog = function() {
+  const report      = analyzeBonLinks(state.transactions);
+  const modal       = document.getElementById('rematch-modal');
+  const summary     = document.getElementById('rematch-summary');
+  const list        = document.getElementById('rematch-stale-list');
+  const commitBtn   = document.getElementById('rematch-commit-btn');
+  if (!modal || !summary || !list || !commitBtn) return;
+
+  summary.textContent = report.total === 0
+    ? 'Keine Bon-Verknüpfungen vorhanden.'
+    : report.stale.length === 0
+      ? `Alle ${report.ok.length} Verknüpfungen sind gültig — kein Cleanup nötig.`
+      : `${report.stale.length} von ${report.total} Verknüpfungen würden vom aktuellen Matcher nicht mehr akzeptiert. Du kannst sie hier lösen — die Bank-Buchungen selbst bleiben unverändert.`;
+
+  list.innerHTML = report.stale.map(s => {
+    const tx = s.tx;
+    return `<div class="card" style="padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;">
+        <div style="font-size:0.85rem;font-weight:700;">${escHtml(tx.description)}</div>
+        <div style="font-family:var(--serif);font-weight:700;font-size:0.85rem;">${formatEur(tx.amount)}</div>
+      </div>
+      <div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:6px;">${formatDate(tx.date)}</div>
+      <div style="font-size:0.7rem;color:var(--secondary);">
+        ✗ Bon: ${escHtml(s.bonStore || '?')} · ${formatEur(-Math.abs(s.bonTotal || 0))}
+      </div>
+    </div>`;
+  }).join('');
+
+  commitBtn.style.display = report.stale.length > 0 ? 'block' : 'none';
+  modal.classList.add('open');
+};
+
+window.closeRematchDialog = function() {
+  document.getElementById('rematch-modal')?.classList.remove('open');
+};
+
+window.commitRematch = async function() {
+  const report = analyzeBonLinks(state.transactions);
+  if (!report.stale.length) { window.closeRematchDialog(); return; }
+  for (const s of report.stale) {
+    s.tx.bon = null;
+    updateTx(s.tx.id, { bon: null }).catch(() => {});
+  }
+  saveState();
+  window.closeRematchDialog();
+  showToast(`✅ ${report.stale.length} Verknüpfung${report.stale.length === 1 ? '' : 'en'} gelöst`);
+  renderDashboard();
+  renderKonten();
+  if (typeof window._refreshBuchUI === 'function') window._refreshBuchUI();
+};
 
 // ── PDF Upload ──
 let selectedPdfFiles = [];

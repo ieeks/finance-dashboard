@@ -1,5 +1,5 @@
 // matcher.test.js — Score-Logik gegen reale Match-Szenarien
-import { findMatch, matchLabel } from '../js/matcher.js';
+import { findMatch, matchLabel, analyzeBonLinks } from '../js/matcher.js';
 import { suite, test, eq, ok, isNull } from './harness.js';
 
 const tx = (date, amount, description, id = `tx_${Math.random()}`) =>
@@ -138,5 +138,59 @@ suite('matcher — Input-Validation', () => {
 
   test('Leere TX-Liste → null', () => {
     isNull(findMatch(bon('2026-05-03', 15.99, 'Billa'), []));
+  });
+});
+
+suite('analyzeBonLinks — Re-Match Maintenance (R4)', () => {
+  const bondedTx = (id, date, amount, description, bonStore, bonTotal, bonDate) => ({
+    id, date, amount, description,
+    bon: { vendor: bonStore, total: bonTotal, date: bonDate || date },
+  });
+
+  test('passende Verknüpfung bleibt OK', () => {
+    const t = bondedTx('a', '2026-05-03', -15.99, 'Billa', 'Billa', 15.99);
+    const r = analyzeBonLinks([t]);
+    eq(r.total, 1);
+    eq(r.ok.length, 1);
+    eq(r.stale.length, 0);
+  });
+
+  test('McDonalds-Bug: Billa-Bon auf McDonalds-Tx wird als stale erkannt', () => {
+    const t = bondedTx('a', '2026-05-03', -19.00, "McDonald's", 'Billa', 19.78);
+    const r = analyzeBonLinks([t]);
+    eq(r.stale.length, 1);
+    eq(r.stale[0].tx.id, 'a');
+  });
+
+  test('Tx ohne bon wird komplett ignoriert', () => {
+    const t = { id: 'a', date: '2026-05-03', amount: -15.99, description: 'Billa' };
+    const r = analyzeBonLinks([t]);
+    eq(r.total, 0);
+    eq(r.ok.length, 0);
+    eq(r.stale.length, 0);
+  });
+
+  test('Eingang (positives amount) wird ignoriert auch mit bon', () => {
+    const t = bondedTx('a', '2026-05-03', 15.99, 'Gutschrift', 'Billa', 15.99);
+    const r = analyzeBonLinks([t]);
+    eq(r.total, 0);
+  });
+
+  test('Mischung aus OK und stale wird korrekt aufgeteilt', () => {
+    const a = bondedTx('a', '2026-05-03', -15.99, 'Billa',     'Billa', 15.99);
+    const b = bondedTx('b', '2026-05-04', -19.00, "McDonald's", 'Billa', 19.78);
+    const c = bondedTx('c', '2026-05-05', -4.20,  'Hofer',     'Hofer',  4.20);
+    const r = analyzeBonLinks([a, b, c]);
+    eq(r.total, 3);
+    eq(r.ok.length, 2);
+    eq(r.stale.length, 1);
+    eq(r.stale[0].tx.id, 'b');
+  });
+
+  test('stale-Eintrag enthält Bon-Details für UI', () => {
+    const t = bondedTx('a', '2026-05-03', -19.00, "McDonald's", 'Billa', 19.78);
+    const r = analyzeBonLinks([t]);
+    eq(r.stale[0].bonStore, 'Billa');
+    eq(r.stale[0].bonTotal, 19.78);
   });
 });

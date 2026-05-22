@@ -10,7 +10,7 @@ Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sorti
 
 ### 🟡 Mittel (1–2 h)
 - [ ] **R3** Monatsvergleich-Karte auf Dashboard — pro Top-Kategorie "Supermarkt €858 (▲12% vs. April)". Daten alle vorhanden (`getAvailableMonths`), nur UI fehlt. Direkter User-Wert.
-- [ ] **R4** Re-Match-Maintenance-Button — wir haben Self-Healing für Gmail-Bons, aber **Pending-Bons** + manuelle Verknüpfungen nicht. "Bon-Verknüpfungen neu evaluieren"-Button im Settings prüft alle bestehenden Links gegen den aktuellen Matcher.
+- [x] **R4** Re-Match-Maintenance-Button — `analyzeBonLinks(transactions)` in `matcher.js` re-evaluiert alle Bank-Tx-↔-Bon-Verknüpfungen gegen den aktuellen Matcher. "Bon-Verknüpfungen prüfen"-Card im Konten-Screen mit Chip (gold/grün) + Modal mit Liste verdächtiger Verknüpfungen + "Verdächtige lösen"-Button. 6 zusätzliche Tests in `matcher.test.js`.
 - [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
 
 ### 🟠 Größer (Halb-/Ganztag, optional)

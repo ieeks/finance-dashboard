@@ -1,5 +1,26 @@
 # CHANGELOG
 
+## v1.5.2 — 2026-05-22
+
+### Added
+- **Re-Match-Maintenance** (R4) — Neue Karte "Bon-Verknüpfungen prüfen" im
+  Konten-Screen. Pure Funktion `analyzeBonLinks(transactions)` in
+  `matcher.js` re-evaluiert alle Bank-Tx-↔-Bon-Links gegen den aktuellen
+  Matcher (Single-Candidate-`findMatch`, MIN_SCORE 60). Chip zeigt
+  grün/gold + Anzahl. Modal listet verdächtige Verknüpfungen (Tx vs.
+  Bon-Vendor/Betrag) und bietet "Verdächtige lösen". Bank-Buchungen
+  bleiben unverändert — nur `tx.bon` wird auf `null` gesetzt.
+- 6 neue Tests in `tests/matcher.test.js`: `analyzeBonLinks` — OK-Match,
+  McDonald's-Bug-Stale, Tx ohne Bon ignoriert, positive Tx ignoriert,
+  Mischung OK+stale, stale-Details für UI.
+
+### Notes
+- Self-Healing für Gmail-Bons (PR #4) macht das Tool für Gmail-Imports
+  unnötig — aber für manuell verknüpfte und Pending-Bon-Auto-Links ist
+  es der einzige Weg, ohne Firestore-Console aufzuräumen.
+
+---
+
 ## v1.5.1 — 2026-05-22
 
 ### Refactored
