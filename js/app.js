@@ -1,6 +1,6 @@
 // app.js — Entry Point
 import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES } from './categories.js';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js';
 import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js';
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
@@ -237,7 +237,8 @@ function renderBonBreakdown(txs) {
   const itemsBySubcat = {};
   bonTxs.forEach(t => {
     (t.bon.items).forEach(item => {
-      const sc    = item.subcategory || item.subkategorie || 'Sonstiges';
+      const raw   = item.subcategory || item.subkategorie || 'Sonstiges';
+      const sc    = normalizeSubcategory(raw);
       const price = item.price ?? item.gesamt ?? 0;
       bySubcat[sc] = (bySubcat[sc] || 0) + price;
       if (!itemsBySubcat[sc]) itemsBySubcat[sc] = [];
@@ -1871,6 +1872,11 @@ async function _bootWithFirebase() {
       state.currentMonth      = getCurrentMonth();
       setInMemoryKeys(data.apiKeys);
 
+      // Einmalige Subkat-Drift-Migration: alte Aliase auf kanonische Namen
+      // mappen und in Firestore persistieren. Läuft jeden Login still im
+      // Hintergrund — no-op sobald die Daten clean sind.
+      _migrateSubcatAliases().catch(e => console.warn('Subcat migration:', e));
+
     } catch(e) {
       console.warn('Firestore load error:', e);
       showToast('⚠️ Firestore nicht erreichbar — lokale Daten werden verwendet');
@@ -1899,6 +1905,31 @@ window.firebaseLogout = async function() {
   setInMemoryKeys({ anthropic: '', openai: '' });
   document.getElementById('login-screen')?.classList.add('visible');
 };
+
+async function _migrateSubcatAliases() {
+  const aliasKeys = Object.keys(SUBCAT_ALIASES);
+  const dirty = [];
+  state.transactions.forEach(tx => {
+    if (!tx.bon?.items?.length) return;
+    let changed = false;
+    const items = tx.bon.items.map(item => {
+      const raw = item.subcategory || item.subkategorie;
+      if (!raw || !aliasKeys.includes(String(raw).trim())) return item;
+      changed = true;
+      const normalized = normalizeSubcategory(raw);
+      const next = { ...item, subcategory: normalized };
+      delete next.subkategorie;
+      return next;
+    });
+    if (changed) {
+      tx.bon = { ...tx.bon, items };
+      dirty.push(tx);
+    }
+  });
+  if (!dirty.length) return;
+  console.log(`[subcat-migration] ${dirty.length} Tx mit Subkat-Aliasen normalisiert`);
+  await Promise.all(dirty.map(tx => updateTx(tx.id, { bon: tx.bon })));
+}
 
 function _autoLinkGmailBons() {
   const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
