@@ -213,14 +213,24 @@ function renderMonthlyComparison(txs) {
     <div class="card" style="padding:16px 20px;">${rows}</div>`;
 }
 
+// Nur Kategorien, in denen Bons strukturell mehrere Items haben.
+// Miete/Versicherung/Strom/Telekom sind Einzeilen-Rechnungen — die Items
+// dort sind keine echten Subkategorien und würden "Sonstiges" aufblähen.
+const BON_BREAKDOWN_CATS = new Set([
+  'Supermarkt', 'Restaurant / Café', 'Drogerie',
+  'Online Shopping', 'Freizeit', 'Gesundheit',
+]);
+
 function renderBonBreakdown(txs) {
   const el = document.getElementById('db-bon-breakdown');
   if (!el) return;
 
-  const bonTxs = txs.filter(t =>
-    t.bon?.items?.length &&
-    !BON_EXCLUDED_COMPANIES.some(exc => (t.description || '').includes(exc))
-  );
+  const bonTxs = txs.filter(t => {
+    if (!t.bon?.items?.length) return false;
+    if (!BON_BREAKDOWN_CATS.has(t.category)) return false;
+    const haystacks = [t.description, t.bon.vendor, t.bon.store].filter(Boolean);
+    return !BON_EXCLUDED_COMPANIES.some(exc => haystacks.some(h => h.includes(exc)));
+  });
   if (!bonTxs.length) { el.style.display = 'none'; return; }
 
   const bySubcat = {};
