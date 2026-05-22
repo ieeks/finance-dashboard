@@ -86,11 +86,22 @@ SUBCATEGORIES = [
     "Elektronik", "Dienstleistung", "Sonstiges",
 ]
 
+# Persönliche Konfiguration — sync mit js/personalConfig.js.
+# Vermieter-Name und Miete-Keywords; verhindert dass Helvetia/Rennweg
+# durch den Code verstreut sind. Bei Änderungen IMMER beide Seiten anfassen.
+LANDLORD = {
+    "vendor_pattern": re.compile(r"Helvetia", re.I),
+    "miete_keywords": re.compile(
+        r"Vorschreibung|Miete|Betriebskosten|Hausverwaltung|Rennweg", re.I
+    ),
+}
+
 # Wiederkehrende Buchungen — sync mit RECURRING_RULES in js/categories.js.
 # isRecurring=True erlaubt es dem Browser-Dashboard die Tx in der
 # "Fixkosten"-Karte zu zeigen (renderFixkosten in app.js).
 RECURRING_RULES: list[dict] = [
-    {"pattern": re.compile(r"Miete / Hausverwaltung|Helvetia", re.I),
+    {"pattern": re.compile(
+        rf"Miete / Hausverwaltung|{LANDLORD['vendor_pattern'].pattern}", re.I),
      "label": "Miete"},
     {"pattern": re.compile(r"Magenta Mobil", re.I),
      "label": "Magenta Mobil",         "category": "Telekommunikation"},
@@ -614,20 +625,18 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 
     items_list  = _ai_get(ai_data, "items", "positionen", default=[]) or []
 
-    # Kategorie-Override: Helvetia Versicherungen ist hier der Hausverwalter
-    # (kassiert Miete), nicht eine Versicherung. Same Logik wie parser.js.
+    # Kategorie-Override: Vermieter (in unserem Fall Helvetia Versicherungen
+    # AG als Hausverwalter, NICHT als Versicherer). Same Logik wie parser.js.
     # JS-Markdown-Prompt liefert kein "beschreibung"-Feld mehr — stattdessen
     # nutzen wir Store + ggf. rohen PDF-Text (via _raw_text vom Caller).
-    helvetia_text = " ".join([
+    landlord_text = " ".join([
         raw_store,
         str(ai_data.get("_raw_text") or ""),
         " ".join(str(p.get("name") or "") for p in items_list if isinstance(p, dict)),
-    ]).lower()
+    ])
     category = str(_ai_get(ai_data, "category", "kategorie", default="Sonstiges"))
-    if "helvetia" in helvetia_text and any(
-        k in helvetia_text for k in
-        ("vorschreibung", "miete", "betriebskosten", "hausverwaltung", "rennweg")
-    ):
+    if (LANDLORD["vendor_pattern"].search(landlord_text)
+            and LANDLORD["miete_keywords"].search(landlord_text)):
         category = "Wohnen / Miete"
 
     # Wiederkehrende Buchung erkennen (Netflix, Spotify, Allianz, Miete, ...).

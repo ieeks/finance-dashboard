@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## v1.5.1 — 2026-05-22
+
+### Refactored
+- **Personal-Config zentralisiert** — `js/personalConfig.js` neu mit
+  `LANDLORD = { vendorPattern, mieteKeywords }`. Helvetia-Hausverwalter-
+  Logik aus `parser.js` (`_extractDesc`-Branch für Helvetia) und
+  `categories.js` (`RECURRING_RULES` "Miete"-Eintrag) raus, einmal
+  zentral. Python-Mirror in `gmail_finance_importer.py` (`LANDLORD`-Dict)
+  mit Sync-Kommentar.
+- 5 zusätzliche Tests in `TestLandlord` (Vermieter-Pattern + Miete-Keywords).
+
+### Notes
+- Bei Open-Source-Veröffentlichung kann `personalConfig.js` gitignored
+  und durch `personalConfig.example.js` ersetzt werden.
+
+---
+
 ## v1.5.0 — 2026-05-21
 
 ### Fixed (Browser)

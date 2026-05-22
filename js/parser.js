@@ -3,6 +3,7 @@
 import { loadKeys } from './ui.js';
 import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js';
 import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js';
+import { LANDLORD } from './personalConfig.js';
 
 // Debug-Logs via window.DEBUG_PARSER = true aktivieren.
 const _DBG = typeof window !== 'undefined' && window.DEBUG_PARSER === true;
@@ -445,8 +446,8 @@ function _extractDesc(rawDesc, contLines, amount) {
   if (/WE\s+Vertrieb|Wien\s+Energie/i.test(allText))  return 'Wien Energie';
   if (/\bAMAZON\b/i.test(allText))                    return 'Amazon';
   if (/PAYPAL|PPLX/i.test(allText))                   return 'PayPal';
-  if (/Helvetia/i.test(allText)) {
-    if (/Vorschreibung|Miete|Betriebskosten|Rennweg|Hausverwaltung/i.test(allText))
+  if (LANDLORD.vendorPattern.test(allText)) {
+    if (LANDLORD.mieteKeywords.test(allText))
       return 'Miete / Hausverwaltung';
     return 'Helvetia Versicherung';
   }
