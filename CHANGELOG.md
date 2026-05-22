@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## v1.5.5 — 2026-05-22
+
+### Fixed
+- **Bon-Aufschlüsselung: zu viel in "Sonstiges"** — Rechnungs-Bons (Miete-
+  Helvetia, Strom, Telekom, Versicherung) wurden als einzelnes Item mit
+  dem vollen Rechnungsbetrag mitgezählt und landeten in "Sonstiges".
+  Zwei Fixes: (1) Neue Allowlist `BON_BREAKDOWN_CATS` beschränkt die
+  Aufschlüsselung auf Kategorien mit strukturell mehrteiligen Bons
+  (Supermarkt, Restaurant, Drogerie, Online Shopping, Freizeit,
+  Gesundheit). (2) `BON_EXCLUDED_COMPANIES`-Check matcht jetzt auch
+  gegen `bon.vendor`/`bon.store`, nicht nur gegen die Bank-Tx-
+  Description (die durch Helvetia-→-Miete-Rewrite die Original-Vendor-
+  Info verliert). Bestehende Daten werden ohne Re-Import korrekt
+  angezeigt.
+
+---
+
 ## v1.5.4 — 2026-05-22
 
 ### Added
