@@ -18,21 +18,66 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   ]
 }
 
-Erlaubte subcategory-Werte:
-Milchprodukte | Süßwaren / Naschen | Backwaren | Getränke |
-Fleisch & Wurst | Fisch / Meeresfrüchte | Obst & Gemüse | Nudeln & Reis | Öl | Aufstriche & Butter |
-Gewürze & Saucen | Konserven | Tiefkühl | Hygiene & Drogerie |
-Putzmittel | Pfand | Elektronik | Dienstleistung | Sonstiges
-
-Hinweise:
-- Pfand-Erkennung (IMMER → "Pfand", egal wie geschrieben):
+Erlaubte subcategory-Werte (mit typischen Beispielen):
+- **Milchprodukte**: Milch, Joghurt, Käse, Topfen, Schlagobers, Sauerrahm,
+  Mozzarella, Parmesan, Feta, Buttermilch, Kefir
+- **Süßwaren / Naschen**: Schokolade, Kekse, Bonbons, Eis, Riegel, Donut,
+  Krapfen, Götterspeise, Pudding, Sahnepudding, Mousse, Kaugummi, Gummi-
+  bärchen, Müsliriegel, Schokoriegel, Bounty, Snickers, Manner, Milka
+- **Backwaren**: Brot, Semmel, Gebäck, Croissant, Striezel, Brioche,
+  Kornspitz, Toast, Vollkornbrot, Baguette, Laugengebäck, Weckerl, Hand-
+  semmel
+- **Getränke**: Mineralwasser, Saft, Limo, Bier, Wein, Sekt, Kaffee, Tee,
+  Energy-Drink, Cola, Almdudler, Soda, Smoothie
+- **Fleisch & Wurst**: Hendl, Hähnchen, Faschiertes, Wurst, Schinken,
+  Speck, Salami, Putenfleisch, Schweinefleisch, Rindfleisch, Leberkäse,
+  Kotelett, Steak, Burger-Patty (frisch)
+- **Fisch / Meeresfrüchte**: Lachs, Thunfisch (frisch), Forelle, Garnelen,
+  Sardinen (frisch), Hering, Kalmar
+- **Obst & Gemüse**: Apfel, Banane, Tomate, Gurke, Salat, Zwiebel, Kartoffel,
+  Erdäpfel, Karotte, Paprika, Zucchini, Pilze, Zitrone, Orange, Avocado
+- **Nudeln & Reis**: Spaghetti, Penne, Rigatoni, Tagliatelle, Lasagne,
+  Reis, Couscous, Bulgur, Gnocchi, Spätzle, Ramen, Tortellini
+- **Öl**: Olivenöl, Sonnenblumenöl, Rapsöl, Kürbiskernöl, Sesamöl
+- **Aufstriche & Butter**: Butter, Margarine, Marmelade, Konfitüre, Honig,
+  Nutella, Liptauer, Frischkäse, Erdnussbutter, Topfenaufstrich
+- **Gewürze & Saucen**: Salz, Pfeffer, Senf, Ketchup, Mayo, Vegeta, Maggi,
+  Sojasauce, Essig, Currypaste, Pesto, Tabasco, Knoblauchpulver
+- **Konserven**: Dosentomaten, Mais (Dose), Bohnen (Dose), Thunfisch (Dose),
+  Sauerkraut, eingelegtes Gemüse, Apfelmus (Glas), Ravioli (Dose)
+- **Tiefkühl**: TK-Pizza, Pommes, Wedges, TK-Gemüse, TK-Fisch, TK-Spinat,
+  TK-Beeren, Speiseeis, Hühnerstreifen knusprig, Chicken Nuggets,
+  Fertiglasagne (TK), Mozzarella-Sticks. Achtung Abkürzungen: "HUEHNERSTR"
+  / "HUHN.STR" = Hühnerstreifen, "PIZZA TK" = Tiefkühl-Pizza
+- **Hygiene & Drogerie**: Shampoo, Zahnpasta, Klopapier, Damenhygiene,
+  Deo, Creme, Q-tips, Duschgel, Seife, Rasierer, Zahnbürste, Windeln,
+  Make-up, Tampons, Binden
+- **Putzmittel**: Spülmittel, WC-Reiniger, Bodenreiniger, Müllsäcke,
+  Schwämme, Lappen, Allzweckreiniger, Geschirrspül-Tabs, Waschmittel
+- **Pfand** (IMMER → "Pfand", egal wie geschrieben):
   PFAND | Pfand | pfand | PFAND EW | PFAND MW | Pfand Einweg | Pfand Mehrweg |
   DPG | DPG EINWEG | DPG Einweg | ePfand | EPFAND |
-  Leergut | LEERGUT | Leergutbon | MEHRWEGPFAND | EINWEGPFAND | Pfandartikel | PFANDARTIKEL | Pfand Artikel |
+  Leergut | LEERGUT | Leergutbon | MEHRWEGPFAND | EINWEGPFAND |
+  Pfandartikel | PFANDARTIKEL | Pfand Artikel |
   Pfandrückgabe | PFANDRÜCKGABE | Pfand 0,25 | Pfand 0,09 | Pfand 0,15
-- Apotheke, Drogerie, Körperpflege → "Hygiene & Drogerie"
-- Wenn keine Einzelpositionen erkennbar: items: [], Gesamtbetrag unter "Sonstiges"
-- subcategory immer auf Englisch (kein "subkategorie")
-- card_last4: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
+- **Elektronik**: Batterien, Akkus, Glühbirnen, LED-Lampen, Ladekabel,
+  USB-Stick, Verlängerungskabel, Steckdosen, Kopfhörer
+- **Dienstleistung**: Reinigung, Reparatur, Service, Wartung, Lieferung
+- **Sonstiges**: NUR als letzte Option, wenn wirklich nichts anderes passt.
+  Versuche IMMER zuerst eine konkrete Subkategorie zu finden.
+
+Hinweise zur Item-Erkennung:
+- **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark
+  abgekürzt. Versuche die Abkürzung zu dekodieren bevor du Sonstiges wählst:
+  - "LANDL." / "LANDL " → Landliebe (Marke, sagt nichts über Subkat)
+  - "SPAR HUEHNERSTR.KNUS" → Hühnerstreifen knusprig → Tiefkühl
+  - "GOETTERSPEISE" → Götterspeise (Wackelpudding) → Süßwaren / Naschen
+  - "MANNER NEAP" → Manner Neapolitaner → Süßwaren / Naschen
+  - "BIO ZW" → Bio Zwiebel → Obst & Gemüse
+  - "FT HALBR" → Faschiertes halb-und-halb → Fleisch & Wurst
+- **Apotheke, Drogerie, Körperpflege** → "Hygiene & Drogerie"
+- **Wenn keine Einzelpositionen erkennbar**: items: [], Gesamtbetrag unter "Sonstiges"
+- **subcategory immer auf Englisch** (Feldname, kein "subkategorie")
+- **card_last4**: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
   Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
   Falls keine Kartennummer vorhanden (Bar, PayPal, etc.): null
