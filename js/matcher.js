@@ -106,3 +106,34 @@ export function matchLabel(score) {
   if (score >= 65) return { label: 'Möglicher Match', chip: 'chip-gold'  };
   return             { label: 'Schwacher Match',  chip: 'chip-red'   };
 }
+
+/**
+ * Re-evaluiert alle bestehenden Bon-↔-Bank-Tx-Verknüpfungen gegen den
+ * aktuellen Matcher. Pure Funktion ohne Side-Effects — der Caller
+ * entscheidet ob er die stale-Liste löschen will.
+ *
+ * @param {Array} transactions  - state.transactions
+ * @returns {{ total, ok, stale }} — `ok`/`stale` enthalten { tx, score }
+ */
+export function analyzeBonLinks(transactions) {
+  const bonded = transactions.filter(t => t.bon && t.amount < 0);
+  const ok    = [];
+  const stale = [];
+  for (const tx of bonded) {
+    const bon = tx.bon;
+    const bonObj = {
+      date:  bon.date || tx.date,
+      total: Math.abs(Number(bon.total ?? bon.gesamt) || Math.abs(tx.amount)),
+      store: bon.vendor || bon.store || tx.description,
+    };
+    // Single-Candidate-Match: liefert null wenn die aktuelle Verknüpfung
+    // den MIN_SCORE-Threshold (60) nicht mehr erreichen würde.
+    const result = findMatch(bonObj, [tx]);
+    if (result) {
+      ok.push({ tx, score: result.score });
+    } else {
+      stale.push({ tx, bonStore: bonObj.store, bonTotal: bonObj.total, bonDate: bonObj.date });
+    }
+  }
+  return { total: bonded.length, ok, stale };
+}
