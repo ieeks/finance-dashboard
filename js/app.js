@@ -130,13 +130,16 @@ function renderDashboardCategories(txs) {
   const bars = sorted.map(([cat, amt], i) => {
     const cfg = CAT_CONFIG[cat] || CAT_CONFIG['Sonstiges'];
     const pct = Math.round((amt / max) * 100);
-    return `<div class="cat-row">
+    return `<div class="cat-row" onclick="filterByCategory('${escHtml(cat)}')" style="cursor:pointer;">
       <div class="cat-icon-wrap">${cfg.icon}</div>
       <div style="flex:1;">
         <div class="cat-label">${cat}</div>
         <div class="cat-bar-wrap"><div class="cat-bar" style="width:${pct}%;background:${DONUT_COLORS[i]||'var(--outline)'}"></div></div>
       </div>
-      <div class="cat-amount">${formatEur(amt)}</div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="cat-amount">${formatEur(amt)}</div>
+        <span style="font-size:0.65rem;color:var(--text-muted);">›</span>
+      </div>
     </div>`;
   }).join('');
 
@@ -191,7 +194,7 @@ function renderMonthlyComparison(txs) {
       const arrow = up ? '▲' : (pct < 0 ? '▼' : '·');
       chip = `<span class="chip ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
     }
-    return `<div class="cat-row" style="cursor:default;">
+    return `<div class="cat-row" onclick="filterByCategory('${escHtml(cat)}')" style="cursor:pointer;">
       <div class="cat-icon-wrap">${cfg.icon}</div>
       <div style="flex:1;min-width:0;">
         <div class="cat-label">${escHtml(cat)}</div>
@@ -481,6 +484,13 @@ window.applyQuickFilter = function(key, val) {
 // ── Buchungen ──
 let _buchFilter = {
   konto: 'alle', beleg: 'alle', typ: 'alle', cats: [], quelle: 'alle'
+};
+
+window.filterByCategory = function(cat) {
+  _buchFilter = { konto: 'alle', beleg: 'alle', typ: 'aus', cats: [cat], quelle: 'alle' };
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.value = '';
+  window.showScreen('buchungen');
 };
 
 function renderBuchQuickChips() {
