@@ -1,5 +1,9 @@
 // harness.js — schlanker Test-Runner ohne Framework
 //
+// Läuft in zwei Modi:
+//   - Browser:  tests/run.html — Resultat als HTML in DOM
+//   - Node/CI:  tests/run.node.mjs — Resultat in stdout, exit-Code 1 bei Fehler
+//
 // Verwendung:
 //   import { suite, test, eq, ok } from './harness.js';
 //   suite('Mein Modul', () => {
@@ -44,6 +48,11 @@ export function approx(actual, expected, delta = 0.01, msg = '') {
 }
 
 export function runAll() {
+  const isBrowser = typeof document !== 'undefined';
+  return isBrowser ? _runInBrowser() : _runInNode();
+}
+
+function _runInBrowser() {
   const root      = document.getElementById('results');
   const summaryEl = document.getElementById('summary');
   let totalPass = 0, totalFail = 0;
@@ -62,17 +71,17 @@ export function runAll() {
       try {
         t.fn();
         row.classList.add('pass');
-        row.innerHTML = `<span class="test-status">✓</span><span class="test-msg">${escape(t.name)}</span>`;
+        row.innerHTML = `<span class="test-status">✓</span><span class="test-msg">${_escape(t.name)}</span>`;
         pass++;
       } catch (e) {
         row.classList.add('fail');
         const msg = e instanceof AssertionError ? e.message : `${e.name}: ${e.message}`;
-        row.innerHTML = `<span class="test-status">✗</span><span class="test-msg">${escape(t.name)}\n   ${escape(msg)}</span>`;
+        row.innerHTML = `<span class="test-status">✗</span><span class="test-msg">${_escape(t.name)}\n   ${_escape(msg)}</span>`;
         fail++;
       }
       suiteEl.appendChild(row);
     }
-    head.innerHTML = `<span>${escape(s.name)}</span><span>${pass} ✓ ${fail ? `· ${fail} ✗` : ''}</span>`;
+    head.innerHTML = `<span>${_escape(s.name)}</span><span>${pass} ✓ ${fail ? `· ${fail} ✗` : ''}</span>`;
     root.appendChild(suiteEl);
     totalPass += pass; totalFail += fail;
   }
@@ -83,7 +92,31 @@ export function runAll() {
     : `✅ Alle ${totalPass} Tests bestanden`;
 }
 
-function escape(s) {
+function _runInNode() {
+  let totalPass = 0, totalFail = 0;
+  for (const s of _suites) {
+    let pass = 0, fail = 0;
+    console.log(`\n${s.name}`);
+    for (const t of s.tests) {
+      try {
+        t.fn();
+        console.log(`  ✓ ${t.name}`);
+        pass++;
+      } catch (e) {
+        const msg = e instanceof AssertionError ? e.message : `${e.name}: ${e.message}`;
+        console.log(`  ✗ ${t.name}\n    ${msg}`);
+        fail++;
+      }
+    }
+    totalPass += pass; totalFail += fail;
+  }
+  console.log(`\n${totalFail ? '❌' : '✅'} ${totalPass}/${totalPass + totalFail} bestanden`);
+  if (typeof process !== 'undefined' && process.exit) {
+    process.exit(totalFail ? 1 : 0);
+  }
+}
+
+function _escape(s) {
   return String(s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

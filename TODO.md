@@ -5,7 +5,7 @@
 Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sortiert:
 
 ### 🟢 Quick Wins
-- [ ] **R1** CI-Gate für Tests — `.github/workflows/test.yml`, läuft Browser-Test-Runner (`tests/run.html` via Playwright/Puppeteer ODER node-Variante) und Python `py_compile + Inline-Tests` bei jedem PR. Verhindert dass Bugs wie der McDonald's-Matcher durchrutschen.
+- [x] **R1** CI-Gate für Tests — `.github/workflows/ci.yml` läuft Python (`unittest`) und JS (`node tests/run.node.mjs`) bei jedem PR/Push. 44 Python- + 27 JS-Tests grün lokal.
 - [ ] **R2** Personal-Config zentralisieren — `js/personalConfig.js` (gitignored, mit `.example`-Template) mit `LANDLORD = { vendor: /Helvetia/i, keywords: [...] }`. Aktuell ist Helvetia/Rennweg/Hausverwaltung an mehreren Stellen hardcodiert (`parser.js`, `gmail_finance_importer.py`). Damit wird der Code für andere Nutzer brauchbar UND testbar.
 
 ### 🟡 Mittel (1–2 h)

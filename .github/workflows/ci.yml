@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  python-tests:
+    name: Python (gmail_finance_importer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Syntax check
+        run: python -m py_compile gmail_finance_importer.py
+
+      - name: Unit tests
+        # AST-basiert — keine externen deps (pdfplumber, anthropic, ...) nötig
+        run: python -m unittest tests.test_python_importer -v
+
+  js-tests:
+    name: JS (matcher, owners)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run tests
+        run: node tests/run.node.mjs

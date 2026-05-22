@@ -1,30 +1,58 @@
 # Tests
 
-Schlanker Browser-Test-Runner ohne Build-System / Framework. Reine ES-Modules.
+Schlanker Test-Runner ohne Build-System / Framework. Reine ES-Modules + stdlib Python.
 
-## Ausführen
+## CI
 
+Läuft automatisch bei jedem PR und Push auf `main` —
+siehe `.github/workflows/ci.yml`.
+
+- Python: `python -m unittest tests.test_python_importer`
+- JS:     `node tests/run.node.mjs`
+
+## Lokal ausführen
+
+### JS — Browser
 ```bash
-# Beliebigen statischen Server starten (z.B. python)
+# Beliebigen statischen Server starten
 python3 -m http.server 8000
-
-# Dann öffnen:
+# Öffnen:
 # http://localhost:8000/tests/run.html
 ```
 
-Ergebnis erscheint direkt auf der Seite (grün/rot). Keine Konsole nötig.
+Ergebnis erscheint direkt auf der Seite (grün/rot).
+
+### JS — Node (gleicher Output wie CI)
+```bash
+node tests/run.node.mjs
+# oder
+npm test
+```
+
+### Python
+```bash
+python3 -m unittest tests.test_python_importer -v
+```
 
 ## Struktur
 
-- `harness.js` — Test-DSL (`suite`, `test`, `eq`, `ok`, `isNull`, `approx`)
-- `*.test.js` — Tests pro Modul
-- `run.html` — lädt alle Tests, rendert Resultate
+- `harness.js` — Test-DSL (`suite`/`test`/`eq`/`ok`/`isNull`/`approx`),
+  läuft im Browser UND in node (Auto-Detect)
+- `*.test.js` — JS-Tests pro Modul
+- `test_python_importer.py` — Python-Tests (unittest, AST-basiert ohne
+  externe Deps)
+- `run.html` — Browser-Entry mit DOM-Output
+- `run.node.mjs` — Node-Entry mit Console-Output + exit-Code
 
 ## Tests hinzufügen
 
-1. Datei `tests/MODUL.test.js` anlegen, Pattern aus `matcher.test.js` kopieren
-2. In `run.html` per `import './MODUL.test.js'` einbinden
-3. Browser-Tab reloaden — fertig
+**JS:**
+1. `tests/MODUL.test.js` anlegen, Pattern aus `matcher.test.js` kopieren
+2. In `run.html` UND `run.node.mjs` per `import './MODUL.test.js'` einbinden
+
+**Python:**
+- Neue `TestCase`-Klasse in `test_python_importer.py` ergänzen.
+  Helper über `H["name"]` zugreifen (AST-extrahiert).
 
 ## Bekannte Lücken
 
