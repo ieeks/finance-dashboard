@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v1.5.3 — 2026-05-22
+
+### Added
+- **Monatsvergleich-Karte** (R3) — Neue Dashboard-Karte zeigt für die Top
+  5 Ausgaben-Kategorien des aktuellen Monats die Veränderung gegenüber
+  dem Vormonat. Chip mit ▲ (rot, mehr ausgegeben) / ▼ (grün, weniger)
+  und Prozentsatz, plus Vormonats-Betrag als Sub-Label. Neue Kategorien
+  ohne Vormonats-Daten erhalten einen "neu"-Chip. Karte wird ausgeblendet
+  wenn der Vormonat leer ist oder noch keine Daten im aktuellen Monat
+  liegen. `_prevMonth(ym)`-Helper handhabt Jahreswechsel via
+  `new Date()`-Konstruktor.
+
+---
+
 ## v1.5.2 — 2026-05-22
 
 ### Added

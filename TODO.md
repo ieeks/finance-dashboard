@@ -9,7 +9,7 @@ Empfehlungen aus der Drift-Audit-Session (2026-05-21), nach Bang-für-Buck sorti
 - [x] **R2** Personal-Config zentralisieren — `js/personalConfig.js` mit `LANDLORD = { vendorPattern, mieteKeywords }`. Helvetia/Rennweg/Hausverwaltung-Logik aus `parser.js` und `categories.js` raus, einmal zentral. Python-Mirror in `gmail_finance_importer.py` mit Sync-Kommentar. 5 zusätzliche Tests in `TestLandlord` (TestPython 49 total).
 
 ### 🟡 Mittel (1–2 h)
-- [ ] **R3** Monatsvergleich-Karte auf Dashboard — pro Top-Kategorie "Supermarkt €858 (▲12% vs. April)". Daten alle vorhanden (`getAvailableMonths`), nur UI fehlt. Direkter User-Wert.
+- [x] **R3** Monatsvergleich-Karte auf Dashboard — `renderMonthlyComparison(txs)` in `app.js`, neue Karte unter "Top Kategorien". Zeigt Top 5 Kategorien mit ▲/▼ Chip + Prozent-Veränderung vs. Vormonat + Vormonats-Betrag. "neu"-Chip für Kategorien ohne Vormonats-Daten. `_prevMonth(ym)` mit Jahreswechsel-Support.
 - [x] **R4** Re-Match-Maintenance-Button — `analyzeBonLinks(transactions)` in `matcher.js` re-evaluiert alle Bank-Tx-↔-Bon-Verknüpfungen gegen den aktuellen Matcher. "Bon-Verknüpfungen prüfen"-Card im Konten-Screen mit Chip (gold/grün) + Modal mit Liste verdächtiger Verknüpfungen + "Verdächtige lösen"-Button. 6 zusätzliche Tests in `matcher.test.js`.
 - [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
 
