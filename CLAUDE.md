@@ -47,9 +47,17 @@ TODO.md
 /prompts
   parse-transactions.md  # Claude-Prompt für PDF-Parsing
   analyze-bon.md         # Claude-Prompt für Bon-Analyse
+/scripts
+  delete_firestore_prefixes.js  # Maintenance: löscht pdf_/img_ Docs aus Firestore
+/.github/workflows
+  gmail_finance_sync.yml          # täglich, Gmail → Firestore
+  delete_firestore_prefixes.yml   # manuell, Firestore Cleanup (pdf_/img_)
+  ci.yml                          # Tests bei PR/Push
 /docs
   mockup-v2.html      # UI-Mockup (Referenz)
 ```
+
+Maintenance-Workflow „Delete Firestore Prefixes" wird manuell via GitHub Actions ausgelöst (oder über Einstellungen → "🧹 PDF-/Bild-Buchungen aufräumen" in der App). Löscht alle Docs aus `household/main/transactions`, deren ID mit `pdf_` oder `img_` beginnt. Nutzt Secret `FIREBASE_SERVICE_ACCOUNT`.
 
 Kategorien ändern: immer in BEIDEN Stellen:
 1. `CAT_CONFIG` in `js/categories.js`
