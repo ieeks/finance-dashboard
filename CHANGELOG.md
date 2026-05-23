@@ -1,5 +1,52 @@
 # CHANGELOG
 
+## v1.6.0 — 2026-05-23
+
+### Added
+- **Maintenance-Workflow „Delete Firestore Prefixes"** — Neuer
+  GitHub-Actions-Workflow `.github/workflows/delete_firestore_prefixes.yml`
+  (manuell via `workflow_dispatch`) löscht alle Docs aus
+  `household/main/transactions`, deren ID mit `pdf_` oder `img_` beginnt.
+  Node-20 + `firebase-admin` (ESM), 500er-Batches, loggt Anzahl + „Fertig".
+  Nutzt das bestehende Secret `FIREBASE_SERVICE_ACCOUNT` via env
+  `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
+- **Aufräum-Button im Einstellungen-Modal** — Neuer Ghost-Link
+  „🧹 PDF-/Bild-Buchungen aufräumen (Actions)" öffnet die Run-Workflow-Seite
+  in einem neuen Tab. Kein Token im Client, Auslösung bleibt im GitHub-Auth-
+  Kontext.
+- **README + CLAUDE.md** dokumentieren den Maintenance-Workflow und seine
+  beiden Auslöse-Wege (App-Button oder direkt Actions-Tab).
+- **Diagnose-Step im Gmail-Sync-Workflow** — Printet vor dem Importer die
+  Länge (nicht den Wert) von `OPENAI_API_KEY` und `ANTHROPIC_API_KEY`.
+  Macht sofort sichtbar, wenn ein Secret leer ankommt.
+
+### Changed
+- **Importer-Dedup vor AI-Call** — `process_pdf` und `process_image` in
+  `gmail_finance_importer.py` checken jetzt `is_duplicate(doc_id)` als
+  ersten Schritt. Bei Treffer wird der AI-Call übersprungen. Da die
+  `doc_id` deterministisch aus den File-Bytes (SHA-256) gebildet wird,
+  ist der Check vor dem AI-Call korrekt. Im täglichen Cron-Lauf werden
+  jetzt nur noch wirklich neue Mails durch die AI gejagt — bei 308
+  Anhängen im 30-Tage-Fenster sind das typisch 2–3 pro Tag statt 308.
+- **AI-Parse-Fehler loggen Provider + Snippet** —
+  `_parse_ai_response(text, provider)` printet bei fehlgeschlagenem
+  Parse die ersten 200 Zeichen der Roh-Antwort + Provider-Name (OpenAI /
+  Anthropic / OpenAI Vision / Anthropic Vision). Damit klar wird, ob
+  das Modell Markdown-Drumherum, eine Erklärung statt JSON oder einen
+  Auth-Fehler zurückgibt.
+
+### Fixed
+- **ESM-Import im Cleanup-Script** — `scripts/delete_firestore_prefixes.js`
+  scheiterte initial mit `ReferenceError: require is not defined` weil
+  das Repo `"type": "module"` in `package.json` setzt. Auf
+  `import admin from 'firebase-admin'` umgestellt.
+- **ANTHROPIC_API_KEY-Fallback funktionierte nicht** — Secret war leer im
+  Workflow-Env, daher schlug jeder Anthropic-Fallback nach OpenAI-Fail
+  stumm fehl. Secret neu hinterlegt (Repository Secret); Diagnose-Step
+  zeigt jetzt die Key-Länge.
+
+---
+
 ## v1.5.6 — 2026-05-22
 
 ### Fixed
