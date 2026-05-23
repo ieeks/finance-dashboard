@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+import admin from 'firebase-admin';
 
 const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 if (!credsJson) {
