@@ -378,7 +378,7 @@ def _call_openai_vision(image_path: Path) -> dict | None:
                 {"type": "text", "text": VISION_PROMPT},
             ],
         }],
-        "max_tokens": 1500,
+        "max_tokens": 4096,
     }).encode()
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
@@ -399,7 +399,7 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1500,
+        max_tokens=4096,
         system=VISION_SYSTEM,
         messages=[{
             "role": "user",
@@ -467,7 +467,7 @@ def _call_openai(prompt: str) -> dict | None:
     body = json.dumps({
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1024,
+        "max_tokens": 4096,
     }).encode()
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
@@ -487,7 +487,7 @@ def _call_anthropic(prompt: str) -> dict | None:
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
+        max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
     return _parse_ai_response(message.content[0].text, provider="Anthropic")
