@@ -390,7 +390,7 @@ def _call_openai_vision(image_path: Path) -> dict | None:
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         data = json.loads(resp.read())
-    return _parse_ai_response(data["choices"][0]["message"]["content"])
+    return _parse_ai_response(data["choices"][0]["message"]["content"], provider="OpenAI Vision")
 
 
 def _call_anthropic_vision(image_path: Path) -> dict | None:
@@ -410,7 +410,7 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
             ],
         }],
     )
-    return _parse_ai_response(message.content[0].text)
+    return _parse_ai_response(message.content[0].text, provider="Anthropic Vision")
 
 
 def extract_image_with_ai(image_path: Path) -> dict | None:
@@ -449,13 +449,17 @@ def _build_prompt(pdf_text: str, filename: str) -> str:
     )
 
 
-def _parse_ai_response(text: str) -> dict | None:
+def _parse_ai_response(text: str, provider: str = "") -> dict | None:
     match = re.search(r'\{[\s\S]*\}', text)
     if not match:
+        snippet = (text or "")[:200].replace("\n", " ")
+        print(f"  AI {provider}: keine '{{...}}' in Antwort — Snippet: {snippet}")
         return None
     try:
         return json.loads(match.group(0))
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as exc:
+        snippet = match.group(0)[:200].replace("\n", " ")
+        print(f"  AI {provider}: JSON-Decode-Fehler ({exc}) — Snippet: {snippet}")
         return None
 
 
@@ -475,7 +479,7 @@ def _call_openai(prompt: str) -> dict | None:
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
-    return _parse_ai_response(data["choices"][0]["message"]["content"])
+    return _parse_ai_response(data["choices"][0]["message"]["content"], provider="OpenAI")
 
 
 def _call_anthropic(prompt: str) -> dict | None:
@@ -486,7 +490,7 @@ def _call_anthropic(prompt: str) -> dict | None:
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
-    return _parse_ai_response(message.content[0].text)
+    return _parse_ai_response(message.content[0].text, provider="Anthropic")
 
 
 def extract_with_ai(pdf_text: str, filename: str) -> dict | None:
