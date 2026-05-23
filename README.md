@@ -57,6 +57,16 @@ Für den Gmail-Import zusätzlich:
 - GitHub Secrets setzen: `GMAIL_APP_PASSWORD`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `FIREBASE_SERVICE_ACCOUNT`
 - GitHub Actions Workflow (`.github/workflows/gmail_finance_sync.yml`) läuft täglich 07:00 UTC
 
+## Wartung: PDF-/Bild-Buchungen aufräumen
+
+Buchungen, die aus einem importierten PDF (`pdf_…`) oder Bon-Bild (`img_…`) stammen, können bei Bedarf gesammelt aus Firestore entfernt werden. Der Workflow `.github/workflows/delete_firestore_prefixes.yml` löscht alle Dokumente mit diesen Präfixen aus `household/main/transactions`.
+
+Auslösen:
+- In der App: Einstellungen → "🧹 PDF-/Bild-Buchungen aufräumen (Actions)" — öffnet GitHub Actions, dort "Run workflow" klicken
+- Oder direkt: Repo → Actions → "Delete Firestore Prefixes" → "Run workflow"
+
+Benötigt das Secret `FIREBASE_SERVICE_ACCOUNT` (gleiches Secret wie der Gmail-Import).
+
 ## Datenschutz
 
 - PDF-Inhalt und Bon-Bilder werden nur zur Analyse an die gewählte KI-API gesendet

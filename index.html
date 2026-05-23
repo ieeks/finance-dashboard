@@ -1382,6 +1382,7 @@ html, body {
     <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:24px;">Daten verwalten und App zurücksetzen.</p>
     <div style="display:flex;flex-direction:column;gap:10px;">
       <button class="btn-ghost" onclick="exportCSV()">📊 Buchungen als CSV exportieren</button>
+      <a class="btn-ghost" href="https://github.com/ieeks/finance-dashboard/actions/workflows/delete_firestore_prefixes.yml" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:block;">🧹 PDF-/Bild-Buchungen aufräumen (Actions)</a>
       <button onclick="clearTransactions(); closeClearModal();" style="width:100%;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);padding:14px;font-family:var(--sans);font-size:0.85rem;font-weight:600;cursor:pointer;">🗑️ Alle Buchungen löschen</button>
       <button onclick="closeClearModal();" class="btn-ghost" style="margin-top:4px;">Abbrechen</button>
     </div>
