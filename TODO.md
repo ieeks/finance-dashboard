@@ -2,6 +2,10 @@
 
 ## Roadmap (offen)
 
+### 🟢 Klein (≤30 min)
+- [ ] **Spar/Eurospar-Prompt prüfen** — Im Workflow-Lauf vom 2026-05-23 sind ~13 PDFs der Form `264200041…` an OpenAI *und* Anthropic gescheitert. Mit dem Logging-Fix aus v1.6.0 sehen wir beim nächsten Run das Response-Snippet — vermutlich Markdown-Codeblock oder Erklärungstext. Prompt entsprechend nachschärfen oder Regex in `_parse_ai_response` flexibler machen.
+- [ ] **Image-only PDFs (z.B. Denzel Reifen)** — `pdfplumber.extract_text()` liefert leer für gescannte PDFs, der AI-Call wird übersprungen. Optionen: OCR-Layer (z.B. `pytesseract`) oder Routing auf die Vision-API wenn kein Text gefunden wird.
+
 ### 🟡 Mittel (1–2 h)
 - [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
 
@@ -12,6 +16,16 @@
 
 ### 🔵 Architektonisch (für die Drift-Fans)
 - [ ] `CARD_MERCHANTS` + `RECURRING_RULES` als geteilte JSON-Datei — gleiches Pattern wie `analyze-bon.md`. `data/merchants.json` + `data/recurring.json`. Letzte Drift-Quellen eliminieren. Mittlerer JS-Refactor (~1 h).
+
+---
+
+## Erledigt (v1.6.0, 2026-05-23) — Maintenance-Sprint
+
+- [x] **Maintenance-Workflow „Delete Firestore Prefixes"** (PR #19, #20) — `delete_firestore_prefixes.yml` + `scripts/delete_firestore_prefixes.js` löschen `pdf_`/`img_`-Docs in 500er-Batches via firebase-admin (ESM).
+- [x] **Aufräum-Button + Doku** (PR #21) — Link-Button im Settings-Modal öffnet die Workflow-Run-Seite; README + CLAUDE.md beschreiben Feature und Trigger-Wege.
+- [x] **Importer-Dedup vor AI-Call** (PR #23) — `is_duplicate(doc_id)` läuft jetzt am Anfang von `process_pdf`/`process_image`; bei 308 Anhängen im Test-Lauf nur 2 echte AI-Calls statt 308.
+- [x] **Secret-Length-Check im Workflow** (PR #23) — Diagnose-Step zeigt die Längen der API-Keys, damit leere Secrets sofort sichtbar sind.
+- [x] **AI-Parse-Fehler loggen Provider + Snippet** (PR #24) — `_parse_ai_response` printet bei Parse-Fail Provider-Name + erste 200 Zeichen der Antwort.
 
 ---
 
