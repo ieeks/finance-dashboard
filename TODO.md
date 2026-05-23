@@ -3,7 +3,6 @@
 ## Roadmap (offen)
 
 ### 🟡 Mittel (1–2 h)
-- [ ] **Importer-Dedup vor AI-Call** — `gmail_finance_importer.py:712-760`: `process_pdf` und `process_image` rufen erst die AI (Claude/OpenAI) und prüfen *danach* `is_duplicate(doc_id)`. Da `doc_id` deterministisch aus den Bytes (SHA-256) gebildet wird, kann der Check ganz an den Anfang. Bei 30 Mails/Tag und ~1 neuer/Tag spart das ~97% der API-Calls des täglichen Workflows.
 - [ ] **R5** `aiProvider.js`-Abstraktion (D1 aus Code Review) — `bonAnalyzer.js` hat 4 fast-identische Fetch-Funktionen (Anthropic Image / PDF, OpenAI Image / PDF). Gemeinsame `callAI(provider, modality, prompt, payload)` reduziert Drift-Risiko.
 
 ### 🟠 Größer (Halb-/Ganztag, optional)

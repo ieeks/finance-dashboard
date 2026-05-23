@@ -19,6 +19,14 @@ jobs:
       - name: Install dependencies
         run: pip install pdfplumber anthropic firebase-admin python-dotenv
 
+      - name: Check secret lengths
+        env:
+          OPENAI_API_KEY:    ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          echo "OPENAI_API_KEY length=${#OPENAI_API_KEY}"
+          echo "ANTHROPIC_API_KEY length=${#ANTHROPIC_API_KEY}"
+
       - name: Run importer
         env:
           GMAIL_APP_PASSWORD:       ${{ secrets.GMAIL_APP_PASSWORD }}
