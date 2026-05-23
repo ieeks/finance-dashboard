@@ -710,8 +710,15 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 # ── Haupt-Orchestrierung ───────────────────────────────────────────────────────
 
 def process_pdf(pdf_path: Path) -> bool:
-    """PDF verarbeiten: Text → AI → Duplikat-Check → Firestore."""
+    """PDF verarbeiten: Duplikat-Check → Text → AI → Firestore."""
     print(f"  Verarbeite PDF: {pdf_path.name}")
+
+    # Dedup zuerst — doc_id ist deterministisch aus den PDF-Bytes, kein AI-Call
+    # nötig um zu wissen ob wir das Dokument schon haben.
+    doc_id = _pdf_doc_id(pdf_path)
+    if is_duplicate(doc_id):
+        print(f"  Übersprungen (Firestore-Duplikat): {doc_id}")
+        return False
 
     text = extract_pdf_text(pdf_path)
     if not text.strip():
@@ -733,14 +740,18 @@ def process_pdf(pdf_path: Path) -> bool:
     date       = ai_data.get("date") or ai_data.get("rechnungsdatum") or "?"
     print(f"  Erkannt: {store} — {total} EUR — {date}{items_info}")
 
-    doc_id = _pdf_doc_id(pdf_path)
-    is_new = not is_duplicate(doc_id)
-    return save_to_firestore(ai_data, pdf_path.name, doc_id, is_new)
+    return save_to_firestore(ai_data, pdf_path.name, doc_id)
 
 
 def process_image(image_path: Path) -> bool:
-    """Bild-Bon verarbeiten: Vision-AI → Duplikat-Check → Firestore."""
+    """Bild-Bon verarbeiten: Duplikat-Check → Vision-AI → Firestore."""
     print(f"  Verarbeite Bild: {image_path.name}")
+
+    # Dedup zuerst — doc_id aus Bild-Bytes, gleiche Logik wie PDF.
+    doc_id = "img_" + hashlib.sha256(image_path.read_bytes()).hexdigest()[:20]
+    if is_duplicate(doc_id):
+        print(f"  Übersprungen (Firestore-Duplikat): {doc_id}")
+        return False
 
     ai_data = extract_image_with_ai(image_path)
     if not ai_data:
@@ -754,10 +765,7 @@ def process_image(image_path: Path) -> bool:
     date       = ai_data.get("date") or ai_data.get("rechnungsdatum") or "?"
     print(f"  Erkannt: {store} — {total} EUR — {date}{items_info}")
 
-    # doc_id aus Bild-Bytes — gleiche Logik wie PDF
-    doc_id = "img_" + hashlib.sha256(image_path.read_bytes()).hexdigest()[:20]
-    is_new = not is_duplicate(doc_id)
-    return save_to_firestore(ai_data, image_path.name, doc_id, is_new)
+    return save_to_firestore(ai_data, image_path.name, doc_id)
 
 
 def imap_connect() -> imaplib.IMAP4_SSL:
