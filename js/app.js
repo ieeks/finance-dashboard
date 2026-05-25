@@ -351,7 +351,7 @@ function renderBelegStatus(txs) {
   const el = document.getElementById('db-beleg-status');
   if (!el) return;
   const pendingCount = (state.pendingBons || []).length;
-  const ohneBeleg = txs.filter(t => t.amount < 0 && !t.bon).length;
+  const ohneBeleg = txs.filter(needsBon).length;
   if (!pendingCount && !ohneBeleg) { el.style.display = 'none'; return; }
   el.style.display = '';
   const rows = [];
@@ -528,7 +528,7 @@ function renderBuchungen() {
   }
   if (_buchFilter.konto !== 'alle') txs = txs.filter(t => t.cardHolder === _buchFilter.konto);
   if (_buchFilter.beleg === 'linked') txs = txs.filter(t => !!t.bon);
-  if (_buchFilter.beleg === 'open')   txs = txs.filter(t => !t.bon && t.amount < 0);
+  if (_buchFilter.beleg === 'open')   txs = txs.filter(needsBon);
   if (_buchFilter.typ === 'aus')      txs = txs.filter(t => t.amount < 0);
   if (_buchFilter.typ === 'ein')      txs = txs.filter(t => t.amount > 0);
   if (_buchFilter.cats.length)        txs = txs.filter(t => _buchFilter.cats.includes(t.category));
@@ -591,12 +591,15 @@ const BON_RELEVANT_CATS = new Set([
   'Freizeit', 'Mobilität / Auto', 'Gesundheit', 'Telekommunikation', 'Energie / Strom'
 ]);
 
+function needsBon(tx) {
+  return tx.amount < 0 && !tx.bon && !tx.isRecurring && BON_RELEVANT_CATS.has(tx.category);
+}
+
 function belegStatusTag(tx) {
   if (tx.amount >= 0) return '';
   if (tx.bon)
     return '<div style="font-size:0.58rem;color:var(--green);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">✅ Bon</div>';
-  if (tx.isRecurring) return '';
-  if (BON_RELEVANT_CATS.has(tx.category))
+  if (needsBon(tx))
     return '<div style="font-size:0.58rem;color:var(--secondary);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">⚠️ kein Bon</div>';
   return '';
 }
