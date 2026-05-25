@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v1.6.2 — 2026-05-25
+
+### Changed
+- **Kein „⚠️ kein Bon" mehr bei Fixkosten** — Daueraufträge/Abos
+  (`isRecurring`) zeigen das Warn-Tag nicht mehr, weil sie per Definition
+  keinen Kassenbon haben. Betrifft u.a. Magenta, Allianz KFZ, BYD/Raiffeisen
+  Leasing, Netflix, Spotify. `belegStatusTag` in `js/app.js`.
+- **PayPal-Abos als wiederkehrend markiert** — `SUBSCRIPTION_RULES`
+  (Netflix/Spotify/Amazon Prime via PayPal) setzen jetzt `isRecurring`, damit
+  auch sie kein „kein Bon"-Tag bekommen und konsistent in den Fixkosten
+  erscheinen. `_applySubscriptionRules` in `js/parser.js`.
+
 ## v1.6.1 — 2026-05-25
 
 ### Changed

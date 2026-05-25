@@ -595,6 +595,7 @@ function belegStatusTag(tx) {
   if (tx.amount >= 0) return '';
   if (tx.bon)
     return '<div style="font-size:0.58rem;color:var(--green);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">✅ Bon</div>';
+  if (tx.isRecurring) return '';
   if (BON_RELEVANT_CATS.has(tx.category))
     return '<div style="font-size:0.58rem;color:var(--secondary);font-weight:700;text-align:right;margin-top:3px;white-space:nowrap;">⚠️ kein Bon</div>';
   return '';

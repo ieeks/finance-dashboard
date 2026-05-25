@@ -34,6 +34,8 @@ function _applySubscriptionRules(txs) {
       description: rule.name,
       category: rule.category,
       aiCategorized: false,
+      isRecurring: true,
+      recurringLabel: rule.name,
     };
   });
 }
