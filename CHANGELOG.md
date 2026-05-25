@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## v1.6.3 — 2026-05-25
+
+### Changed
+- **„Ohne Bon"-Filter & Dashboard-Zähler an Tag-Logik gekoppelt** — Der
+  Filter „Ohne Bon" und das Dashboard-Widget „X Buchungen ohne Bon" zeigen
+  jetzt exakt die Buchungen, die auch sichtbar „⚠️ kein Bon" tragen
+  (Ausgabe · kein Bon · nicht wiederkehrend · bon-relevante Kategorie).
+  Fixkosten/Abos sowie Familientransfer & Gebühren fallen damit aus
+  Filter und Zähler — keine Drift mehr zwischen Tag und Filter. Neue
+  gemeinsame `needsBon()`-Funktion in `js/app.js`.
+
 ## v1.6.2 — 2026-05-25
 
 ### Changed
