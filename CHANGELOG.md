@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v1.6.1 — 2026-05-25
+
+### Changed
+- **„Als offen speichern" hervorgehoben** — Wenn beim Bon-Scan keine
+  passende Buchung gefunden wird, ist die Aktion jetzt ein gefüllter
+  Primary-Button (dunkelrot) statt eines dezenten gestrichelten Ghost-
+  Buttons. Verbessert die Auffindbarkeit der Funktion in `js/app.js`
+  (`renderConciergeResult`, No-Match-Fall).
+
 ## v1.6.0 — 2026-05-23
 
 ### Added
