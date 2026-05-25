@@ -1417,7 +1417,7 @@ function renderConciergeResult(bon) {
   } else {
     matchSection.innerHTML = `
       <div style="font-size:0.82rem;color:var(--text-muted);text-align:center;padding:12px 0 10px;">Keine passende Buchung gefunden.</div>
-      <button onclick="savePendingBon()" style="width:100%;padding:14px;border-radius:12px;border:1.5px dashed var(--outline-variant);background:transparent;color:var(--on-surface-variant);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:var(--sans);line-height:1.4;">⏳ Als offen speichern<br><span style="font-weight:400;font-size:0.7rem;">Wird automatisch verknüpft sobald der Kontoauszug importiert wird</span></button>
+      <button onclick="savePendingBon()" style="width:100%;padding:16px;border-radius:12px;border:none;background:var(--primary-container);color:var(--on-primary);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:var(--sans);line-height:1.4;">⏳ Als offen speichern<br><span style="font-weight:400;font-size:0.7rem;opacity:0.8;">Wird automatisch verknüpft sobald der Kontoauszug importiert wird</span></button>
     `;
   }
 
