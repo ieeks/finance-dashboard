@@ -7,7 +7,7 @@ import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI }
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides } from './firebaseService.js';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js';
 import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js';
 
 function _addDays(dateStr, days) {
@@ -1182,10 +1182,14 @@ window.setProvider = function(p) {
 };
 
 function setProviderUI(p) {
-  document.getElementById('btn-anthropic').className = 'provider-btn ' + (p === 'anthropic' ? 'active' : '');
-  document.getElementById('btn-openai').className    = 'provider-btn ' + (p === 'openai'    ? 'active' : '');
-  document.getElementById('anthropic-key-wrap').style.display = p === 'anthropic' ? 'block' : 'none';
-  document.getElementById('openai-key-wrap').style.display    = p === 'openai'    ? 'block' : 'none';
+  const antBtn  = document.getElementById('btn-anthropic');
+  const oaiBtn  = document.getElementById('btn-openai');
+  const antWrap = document.getElementById('anthropic-key-wrap');
+  const oaiWrap = document.getElementById('openai-key-wrap');
+  if (antBtn)  antBtn.className  = 'provider-btn ' + (p === 'anthropic' ? 'active' : '');
+  if (oaiBtn)  oaiBtn.className  = 'provider-btn ' + (p === 'openai'    ? 'active' : '');
+  if (antWrap) antWrap.style.display = p === 'anthropic' ? 'block' : 'none';
+  if (oaiWrap) oaiWrap.style.display = p === 'openai'    ? 'block' : 'none';
 }
 
 // ── Demo Data ──
@@ -1247,11 +1251,27 @@ window.exportCSV = function() {
 };
 
 // ── API Keys ──
-window.saveKeys = function() {
-  const ak = document.getElementById('anthropic-key-input').value.trim();
-  const ok = document.getElementById('openai-key-input').value.trim();
-  saveKey('anthropic', ak);
-  saveKey('openai', ok);
+// Schreibt einen Patch ({ anthropic?, openai? }) in den In-Memory-Store und
+// persistiert ihn nach Firestore (household/main/config/apiKeys).
+async function persistKeys(patch) {
+  setInMemoryKeys({ ...loadKeys(), ...patch });
+  await fsSaveApiKeys(patch);
+}
+
+window.saveKeys = async function() {
+  const patch = {};
+  const ak = document.getElementById('anthropic-key-input')?.value.trim();
+  const ok = document.getElementById('openai-key-input')?.value.trim();
+  if (ak != null) patch.anthropic = ak;
+  if (ok != null) patch.openai    = ok;
+  if (!Object.keys(patch).length) { showToast('Bitte einen API Key eingeben'); return; }
+  try {
+    await persistKeys(patch);
+    showToast('✓ API Key gespeichert');
+  } catch(e) {
+    console.warn('saveKeys error:', e);
+    showToast('⚠️ Key konnte nicht gespeichert werden');
+  }
 };
 
 // ── Concierge / Bon ──
@@ -1259,21 +1279,38 @@ let _bonProvider = 'anthropic';
 
 window.setBonProvider = function(p) {
   _bonProvider = p;
-  document.getElementById('bon-btn-anthropic').style.background  = p === 'anthropic' ? 'var(--primary)' : 'transparent';
-  document.getElementById('bon-btn-anthropic').style.color       = p === 'anthropic' ? '#fff' : 'var(--on-surface)';
-  document.getElementById('bon-btn-anthropic').style.borderColor = p === 'anthropic' ? 'var(--primary)' : 'var(--outline-variant)';
-  document.getElementById('bon-btn-openai').style.background     = p === 'openai'    ? 'var(--primary)' : 'transparent';
-  document.getElementById('bon-btn-openai').style.color          = p === 'openai'    ? '#fff' : 'var(--on-surface)';
-  document.getElementById('bon-btn-openai').style.borderColor    = p === 'openai'    ? 'var(--primary)' : 'var(--outline-variant)';
-  document.getElementById('bon-anthropic-key').style.display     = p === 'anthropic' ? 'block' : 'none';
-  document.getElementById('bon-openai-key').style.display        = p === 'openai'    ? 'block' : 'none';
+  const antBtn = document.getElementById('bon-btn-anthropic');
+  const oaiBtn = document.getElementById('bon-btn-openai');
+  if (antBtn) {
+    antBtn.style.background  = p === 'anthropic' ? 'var(--primary)' : 'transparent';
+    antBtn.style.color       = p === 'anthropic' ? '#fff' : 'var(--on-surface)';
+    antBtn.style.borderColor = p === 'anthropic' ? 'var(--primary)' : 'var(--outline-variant)';
+  }
+  if (oaiBtn) {
+    oaiBtn.style.background  = p === 'openai' ? 'var(--primary)' : 'transparent';
+    oaiBtn.style.color       = p === 'openai' ? '#fff' : 'var(--on-surface)';
+    oaiBtn.style.borderColor = p === 'openai' ? 'var(--primary)' : 'var(--outline-variant)';
+  }
+  const antWrap = document.getElementById('bon-anthropic-key-wrap');
+  const oaiWrap = document.getElementById('bon-openai-key-wrap');
+  if (antWrap) antWrap.style.display = p === 'anthropic' ? 'block' : 'none';
+  if (oaiWrap) oaiWrap.style.display = p === 'openai'    ? 'block' : 'none';
 };
 
-window.saveBonKey = function() {
-  const ak = document.getElementById('bon-anthropic-key').value;
-  const ok = document.getElementById('bon-openai-key').value;
-  if (ak) saveKey('anthropic', ak);
-  if (ok) saveKey('openai', ok);
+window.saveBonKey = async function() {
+  const patch = {};
+  const ak = document.getElementById('bon-anthropic-key')?.value.trim();
+  const ok = document.getElementById('bon-openai-key')?.value.trim();
+  if (ak) patch.anthropic = ak;
+  if (ok) patch.openai    = ok;
+  if (!Object.keys(patch).length) { showToast('Bitte einen API Key eingeben'); return; }
+  try {
+    await persistKeys(patch);
+    showToast('✓ API Key gespeichert');
+  } catch(e) {
+    console.warn('saveBonKey error:', e);
+    showToast('⚠️ Key konnte nicht gespeichert werden');
+  }
 };
 
 window.resetConcierge = function() {
@@ -2066,6 +2103,15 @@ function _initApp() {
 
   _autoLinkGmailBons();
   setProviderUI(state.aiProvider);
+
+  // Bon-Key-Felder mit gespeicherten Keys vorbefüllen + Provider-Toggle setzen
+  const _keys = loadKeys();
+  const _antKeyEl = document.getElementById('bon-anthropic-key');
+  const _oaiKeyEl = document.getElementById('bon-openai-key');
+  if (_antKeyEl && _keys.anthropic) _antKeyEl.value = _keys.anthropic;
+  if (_oaiKeyEl && _keys.openai)    _oaiKeyEl.value = _keys.openai;
+  window.setBonProvider(_bonProvider);
+
   renderDashboard();
   renderKonten();
   window.showScreen('dashboard');

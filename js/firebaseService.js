@@ -126,3 +126,11 @@ export async function fsSaveSubcategoryOverrides(overrides) {
   await setDoc(doc(db, `${HH}/config`, 'subcategoryOverrides'), { overrides });
 }
 
+// ── API Keys ──────────────────────────────────────────────────────────────
+
+// Speichert API-Keys (Anthropic / OpenAI) in Firestore. patch wird gemerged,
+// d.h. nur die übergebenen Felder werden überschrieben.
+export async function fsSaveApiKeys(patch) {
+  await setDoc(doc(db, `${HH}/config`, 'apiKeys'), patch, { merge: true });
+}
+

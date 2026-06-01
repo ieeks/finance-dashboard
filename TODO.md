@@ -19,6 +19,12 @@
 
 ---
 
+## Erledigt (v1.7.0, 2026-06-01) — Bon-Key-Eingabe
+
+- [x] **API-Key-Eingabe für Bon-Analyse repariert** — `saveKey()` war undefiniert (`ReferenceError`) und das Eingabefeld fehlte im Concierge-Screen → Claude Vision war nicht nutzbar. Neues Passwort-Feld + Speichern-Button, Persistenz via neuer `fsSaveApiKeys()` nach `household/main/config/apiKeys`, Vorbefüllung beim Login, null-sichere Provider-Handler.
+
+---
+
 ## Erledigt (v1.6.0, 2026-05-23) — Maintenance-Sprint
 
 - [x] **Maintenance-Workflow „Delete Firestore Prefixes"** (PR #19, #20) — `delete_firestore_prefixes.yml` + `scripts/delete_firestore_prefixes.js` löschen `pdf_`/`img_`-Docs in 500er-Batches via firebase-admin (ESM).

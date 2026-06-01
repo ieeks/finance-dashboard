@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.6.3`
+Aktuelle Version: `v1.7.0`
 
 ## Commit-Konventionen
 
@@ -163,7 +163,7 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 ## Wichtige Hinweise
 
 - **Kein Build-System**: Alles bleibt Vanilla JS / CDN-Imports
-- **API Keys**: Nur in `localStorage` speichern, nie in Code committen
+- **API Keys**: In Firestore unter `household/main/config/apiKeys` (Felder `anthropic` / `openai`) gespeichert, nach Login per `setInMemoryKeys()` in den In-Memory-Store geladen. Eingabe über Concierge-Screen (Bon-Analyse). Nie in Code committen.
 - **Firebase Config**: in `firebase-config.js` auslagern → in `.gitignore`
 - **AI Provider**: Anthropic (Claude Haiku) + OpenAI (gpt-4o-mini) — beide unterstützt
 
