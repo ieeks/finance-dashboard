@@ -5,6 +5,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "store": "Händlername",
   "date": "YYYY-MM-DD",
   "total": 43.20,
+  "tip": 0,
   "currency": "EUR",
   "card_last4": "1234",
   "items": [
@@ -17,6 +18,13 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
     }
   ]
 }
+
+Hinweise zu Trinkgeld & Betrag:
+- **tip** = Trinkgeld, falls ausgewiesen. Erkenne „Trinkgeld", „Trinkgeld
+  (unbar)", „Tip", „Gratuity", „Service". Ohne Trinkgeld: `0`.
+- **total** = die ausgewiesene Rechnungssumme der Positionen (z.B. „Summe
+  inkl. USt."), OHNE Trinkgeld. Das Trinkgeld kommt separat in `tip`.
+  Der tatsächlich von der Karte abgebuchte Betrag ist dann `total + tip`.
 
 Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Milchprodukte**: Milch, Joghurt, Käse, Topfen, Schlagobers, Sauerrahm,

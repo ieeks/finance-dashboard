@@ -690,8 +690,12 @@ window.openTxModal = function(id) {
           <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;margin-left:12px;">${formatEur(item.gesamt ?? item.price ?? 0)}</div>
         </div>`;
       }).join('')}
+      ${(Number(tx.bon.tip) || 0) > 0 ? `
+      <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:0.8rem;color:var(--text-muted);">
+        <span>💝 Trinkgeld</span><span>${formatEur(tx.bon.tip)}</span>
+      </div>` : ''}
       <div style="display:flex;justify-content:space-between;padding-top:10px;font-family:var(--serif);font-size:0.95rem;font-weight:700;">
-        <span>Gesamt</span><span>${formatEur(tx.bon.total)}</span>
+        <span>${(Number(tx.bon.tip) || 0) > 0 ? 'Bezahlt' : 'Gesamt'}</span><span>${formatEur(tx.bon.total + (Number(tx.bon.tip) || 0))}</span>
       </div>
     </div>` : ''}
     <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
@@ -1450,10 +1454,23 @@ function renderConciergeResult(bon) {
       </div>`;
     }).join('')}
     <div class="bon-divider"></div>
+    ${(Number(bon.tip) || 0) > 0 ? `
+    <div class="bon-row">
+      <div class="bon-item">Summe</div>
+      <div class="bon-price">${formatEur(bon.total)}</div>
+    </div>
+    <div class="bon-row">
+      <div class="bon-item">💝 Trinkgeld</div>
+      <div class="bon-price">${formatEur(bon.tip)}</div>
+    </div>
+    <div class="bon-row">
+      <div class="bon-total">Bezahlt</div>
+      <div class="bon-total">${formatEur(bon.total + Number(bon.tip))}</div>
+    </div>` : `
     <div class="bon-row">
       <div class="bon-total">Gesamt</div>
       <div class="bon-total">${formatEur(bon.total)}</div>
-    </div>`;
+    </div>`}`;
 
   const breakdown = document.getElementById('bon-breakdown');
   const bySubcat  = {};
