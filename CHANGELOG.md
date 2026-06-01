@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## v1.7.0 — 2026-06-01
+
+### Fixed
+- **API-Key-Eingabe für Bon-Analyse repariert** — Die „Speichern"-Handler
+  (`saveKeys`, `saveBonKey`) riefen eine nirgends definierte Funktion
+  `saveKey()` auf (`ReferenceError`), und im Concierge-Screen fehlte das
+  Eingabefeld komplett. Damit war Claude Vision für die Bon-Analyse faktisch
+  nicht nutzbar. Jetzt funktionierend.
+
+### Added
+- **Key-Eingabefeld im Concierge-Screen** — Pro Anbieter (Anthropic / OpenAI)
+  ein Passwort-Feld + „API Key speichern"-Button. Der Key wird via neuer
+  `fsSaveApiKeys()` nach Firestore (`household/main/config/apiKeys`, merge)
+  geschrieben und sofort in den In-Memory-Store übernommen.
+- **Vorbefüllung beim Login** — Bereits gespeicherte Keys erscheinen beim
+  Start in den Feldern (`_initApp`).
+
+### Changed
+- **Null-sichere Provider-Handler** — `setProviderUI` und `setBonProvider`
+  greifen nicht mehr ungeprüft auf DOM-Elemente zu (verhinderte zuvor einen
+  möglichen Init-Crash).
+
 ## v1.6.3 — 2026-05-25
 
 ### Changed

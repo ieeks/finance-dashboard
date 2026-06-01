@@ -1252,6 +1252,23 @@ html, body {
             OpenAI
           </button>
         </div>
+
+        <!-- API Key -->
+        <div id="bon-anthropic-key-wrap" style="margin-top:12px;">
+          <input id="bon-anthropic-key" type="password" placeholder="Claude API Key (sk-ant-…)" autocomplete="off"
+            style="width:100%;padding:12px 14px;border:1.5px solid var(--outline-soft);border-radius:var(--radius-sm);background:var(--surface-low);font-family:var(--sans);font-size:0.82rem;color:var(--text);outline:none;box-sizing:border-box;">
+        </div>
+        <div id="bon-openai-key-wrap" style="margin-top:12px;display:none;">
+          <input id="bon-openai-key" type="password" placeholder="OpenAI API Key (sk-…)" autocomplete="off"
+            style="width:100%;padding:12px 14px;border:1.5px solid var(--outline-soft);border-radius:var(--radius-sm);background:var(--surface-low);font-family:var(--sans);font-size:0.82rem;color:var(--text);outline:none;box-sizing:border-box;">
+        </div>
+        <button onclick="saveBonKey()"
+          style="width:100%;margin-top:10px;padding:10px;border-radius:8px;border:none;background:var(--primary);color:var(--on-primary);font-family:var(--sans);font-size:0.75rem;font-weight:700;cursor:pointer;">
+          API Key speichern
+        </button>
+        <div style="font-size:0.62rem;color:var(--text-muted);margin-top:8px;line-height:1.4;">
+          Der Key wird in Firestore (Konto-geschützt) gespeichert und nur im Browser für die Analyse verwendet — nie im Code.
+        </div>
       </div>
 
       <div class="concierge-scan-area" onclick="document.getElementById('bon-input').click()">
