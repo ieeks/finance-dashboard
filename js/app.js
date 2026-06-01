@@ -1432,13 +1432,19 @@ function renderConciergeResult(bon) {
   const dateStr  = bon.date ? formatDate(bon.date) : '';
   preview.innerHTML = `
     <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
-    ${(bon.items||[]).map(item => {
-      const sc = item.subcategory || item.subkategorie || 'Sonstiges';
+    ${(bon.items||[]).map((item, idx) => {
+      const sc   = item.subcategory || item.subkategorie || 'Sonstiges';
+      const opts = Object.keys(SUBCAT_ICONS).map(s =>
+        `<option value="${escHtml(s)}"${s === sc ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
+      ).join('');
       return `
       <div class="bon-row">
         <div>
           <div class="bon-item">${escHtml(item.name)}</div>
-          <div><span class="sub-cat-chip">${SUBCAT_ICONS[sc]||'📦'} ${escHtml(sc)}</span></div>
+          <select onchange="updateCurrentBonItemSubcat(${idx}, this.value)"
+            style="font-size:0.62rem;color:var(--text-muted);background:var(--surface-high);border:1px solid var(--outline-soft);border-radius:100px;padding:3px 9px;margin-top:4px;outline:none;cursor:pointer;-webkit-appearance:auto;max-width:200px;">
+            ${opts}
+          </select>
         </div>
         <div class="bon-price">${formatEur(item.price ?? item.gesamt ?? 0)}</div>
       </div>`;
@@ -1500,6 +1506,25 @@ function renderConciergeResult(bon) {
 }
 
 let _currentBon = null;
+
+// Subkategorie eines Postens direkt im Scan-Ergebnis ändern (vor dem
+// Verknüpfen). Merkt die Wahl als Override für künftige Bons mit gleichem Item.
+window.updateCurrentBonItemSubcat = function(idx, newSubcat) {
+  if (!_currentBon?.items?.[idx]) return;
+  const item = _currentBon.items[idx];
+  item.subcategory = newSubcat;
+  if ('subkategorie' in item) item.subkategorie = newSubcat;
+
+  const key = (item.name || '').toLowerCase().trim();
+  if (key) {
+    const ov = { ...(state.subcategoryOverrides || {}), [key]: newSubcat };
+    state.subcategoryOverrides = ov;
+    fsSaveSubcategoryOverrides(ov).catch(() => {});
+  }
+
+  renderConciergeResult(_currentBon);
+  showToast('Subkategorie geändert & gemerkt');
+};
 
 window.linkBon = function(txId) {
   if (!_currentBon) return;

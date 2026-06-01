@@ -81,9 +81,9 @@ MAIN_CATEGORIES = [
 SUBCATEGORIES = [
     "Milchprodukte", "Süßwaren / Naschen", "Backwaren", "Getränke",
     "Fleisch & Wurst", "Fisch / Meeresfrüchte", "Obst & Gemüse",
-    "Nudeln & Reis", "Öl", "Aufstriche & Butter", "Gewürze & Saucen",
-    "Konserven", "Tiefkühl", "Hygiene & Drogerie", "Putzmittel", "Pfand",
-    "Elektronik", "Dienstleistung", "Sonstiges",
+    "Nudeln & Reis", "Restaurant / Gericht", "Öl", "Aufstriche & Butter",
+    "Gewürze & Saucen", "Konserven", "Tiefkühl", "Hygiene & Drogerie",
+    "Putzmittel", "Pfand", "Elektronik", "Dienstleistung", "Sonstiges",
 ]
 
 # Persönliche Konfiguration — sync mit js/personalConfig.js.

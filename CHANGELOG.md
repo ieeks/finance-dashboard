@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## v1.8.0 — 2026-06-01
+
+### Added
+- **Subkategorie „Restaurant / Gericht" 🍽️** — Die Subkat-Taxonomie war rein
+  supermarkt-orientiert; zubereitete Gastro-Gerichte (Tempura, Bulgogi,
+  Bibimbap …) landeten zwangsläufig in „Sonstiges". Neue Subkategorie in
+  `js/categories.js` (`SUBCAT_ICONS`), `prompts/analyze-bon.md` und der
+  Python-Spiegelliste `SUBCATEGORIES` in `gmail_finance_importer.py`.
+- **Subkategorie-Editor im Bon-Scan-Screen** — Im Concierge-Ergebnis
+  („Kassenbon verknüpfen") lässt sich die Subkategorie jetzt pro Posten
+  direkt per Dropdown ändern (`updateCurrentBonItemSubcat`), inkl. Merken als
+  Override. Bisher war das nur in der Buchungs-Detailansicht möglich.
+
+### Fixed
+- **Datum falsch interpretiert (TT.MM ↔ MM.TT)** — Bei österreichischen Bons
+  las das Modell „01.06.2026" teils als 6. Jänner statt 1. Juni. Der
+  Bon-Prompt enthält jetzt einen expliziten Hinweis auf das `TT.MM.JJJJ`-Format.
+
 ## v1.7.1 — 2026-06-01
 
 ### Fixed
