@@ -29,6 +29,7 @@ export const SUBCAT_ICONS = {
   'Fisch / Meeresfrüchte': '🐟',
   'Obst & Gemüse':         '🥦',
   'Nudeln & Reis':         '🍝',
+  'Restaurant / Gericht':  '🍽️',
   'Öl':                    '🫙',
   'Aufstriche & Butter':   '🧈',
   'Gewürze & Saucen':      '🧂',

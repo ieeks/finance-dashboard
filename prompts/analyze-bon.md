@@ -38,6 +38,13 @@ Erlaubte subcategory-Werte (mit typischen Beispielen):
   Erdäpfel, Karotte, Paprika, Zucchini, Pilze, Zitrone, Orange, Avocado
 - **Nudeln & Reis**: Spaghetti, Penne, Rigatoni, Tagliatelle, Lasagne,
   Reis, Couscous, Bulgur, Gnocchi, Spätzle, Ramen, Tortellini
+- **Restaurant / Gericht**: zubereitete Speisen/Gerichte auf einer Gastro-
+  Rechnung (Restaurant, Café, Imbiss, Lieferdienst). Beispiele: Tempura,
+  Sushi, Bibimbap, Bulgogi, Ramen-Schale, Pizza (Lokal), Burger (Lokal),
+  Pasta-Gericht, Schnitzel, Curry, Bowl, Suppe, Vorspeise, Dessert,
+  Tagesmenü. Faustregel: Wenn der Beleg ein Restaurant/Café/Imbiss ist und
+  die Position ein fertig zubereitetes Gericht/Getränk zum Verzehr ist →
+  hierher, NICHT "Sonstiges". Getränke im Lokal dürfen auch "Getränke".
 - **Öl**: Olivenöl, Sonnenblumenöl, Rapsöl, Kürbiskernöl, Sesamöl
 - **Aufstriche & Butter**: Butter, Margarine, Marmelade, Konfitüre, Honig,
   Nutella, Liptauer, Frischkäse, Erdnussbutter, Topfenaufstrich
@@ -65,6 +72,11 @@ Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Dienstleistung**: Reinigung, Reparatur, Service, Wartung, Lieferung
 - **Sonstiges**: NUR als letzte Option, wenn wirklich nichts anderes passt.
   Versuche IMMER zuerst eine konkrete Subkategorie zu finden.
+
+Hinweise zum Datum:
+- **Datumsformat ist TT.MM.JJJJ** (Tag zuerst, europäisch/österreichisch).
+  "01.06.2026" = 1. Juni 2026, NICHT 6. Jänner. Gib `date` immer als
+  "YYYY-MM-DD" zurück — hier also "2026-06-01".
 
 Hinweise zur Item-Erkennung:
 - **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark

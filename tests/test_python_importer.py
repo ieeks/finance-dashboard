@@ -46,10 +46,13 @@ class TestConstants(unittest.TestCase):
         self.assertIn("Wohnen / Miete", H["MAIN_CATEGORIES"])
 
     def test_subcategories_count(self):
-        self.assertEqual(len(H["SUBCATEGORIES"]), 19)
+        self.assertEqual(len(H["SUBCATEGORIES"]), 20)
 
     def test_subcategories_has_pfand(self):
         self.assertIn("Pfand", H["SUBCATEGORIES"])
+
+    def test_subcategories_has_restaurant_gericht(self):
+        self.assertIn("Restaurant / Gericht", H["SUBCATEGORIES"])
 
     def test_subcategories_canonical_names(self):
         # v1.3.2 dedup: keine Aliase mehr
