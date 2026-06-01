@@ -60,7 +60,14 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
     .filter(tx => tx.amount < 0)
     .filter(tx => !excludeIds || !excludeIds.has(tx.id))
     .map(tx => {
-      const amountDiff = Math.abs(Math.abs(tx.amount) - bon.total);
+      // Trinkgeld (unbar) wird oft zusätzlich von der Karte abgebucht, steht
+      // aber nicht im Bon-Total. Daher gegen total UND total+tip matchen.
+      const tip        = Number(bon.tip) || 0;
+      const txAbs      = Math.abs(tx.amount);
+      const amountDiff = Math.min(
+        Math.abs(txAbs - bon.total),
+        tip ? Math.abs(txAbs - (bon.total + tip)) : Infinity
+      );
       const signedDays = (new Date(tx.date) - new Date(bon.date)) / 86400000;
       const days       = Math.abs(signedDays);
       const nameScore  = nameSimilarity(tx.description, bon.store);
@@ -124,6 +131,7 @@ export function analyzeBonLinks(transactions) {
     const bonObj = {
       date:  bon.date || tx.date,
       total: Math.abs(Number(bon.total ?? bon.gesamt) || Math.abs(tx.amount)),
+      tip:   Number(bon.tip) || 0,
       store: bon.vendor || bon.store || tx.description,
     };
     // Single-Candidate-Match: liefert null wenn die aktuelle Verknüpfung

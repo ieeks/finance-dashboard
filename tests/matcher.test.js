@@ -141,6 +141,33 @@ suite('matcher — Input-Validation', () => {
   });
 });
 
+suite('matcher — Trinkgeld (unbar)', () => {
+  test('Restaurant-Bon 59,20 + Trinkgeld 5,80 matcht Karten-Tx 65,00', () => {
+    const result = findMatch(
+      { date: '2026-06-01', total: 59.20, tip: 5.80, store: 'David Chi Nijo' },
+      [tx('2026-06-01', -65.00, 'David Chi Nijo')]
+    );
+    ok(result, 'sollte über total+tip matchen');
+    ok(result.score >= 95, `score ${result.score} < 95`);
+  });
+
+  test('Bon mit Trinkgeld matcht auch Tx ohne Trinkgeld (nur Summe gebucht)', () => {
+    const result = findMatch(
+      { date: '2026-06-01', total: 59.20, tip: 5.80, store: 'David Chi Nijo' },
+      [tx('2026-06-01', -59.20, 'David Chi Nijo')]
+    );
+    ok(result, 'min(diff) deckt auch total ohne tip ab');
+  });
+
+  test('Ohne tip-Feld unverändert: 65,00-Tx matcht 59,20-Bon NICHT', () => {
+    const result = findMatch(
+      bon('2026-06-01', 59.20, 'David Chi Nijo'),
+      [tx('2026-06-01', -65.00, 'David Chi Nijo')]
+    );
+    isNull(result, 'ohne tip > 2 € Differenz → Hard-Out');
+  });
+});
+
 suite('analyzeBonLinks — Re-Match Maintenance (R4)', () => {
   const bondedTx = (id, date, amount, description, bonStore, bonTotal, bonDate) => ({
     id, date, amount, description,

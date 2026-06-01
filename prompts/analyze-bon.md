@@ -5,6 +5,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "store": "Händlername",
   "date": "YYYY-MM-DD",
   "total": 43.20,
+  "tip": 0,
   "currency": "EUR",
   "card_last4": "1234",
   "items": [
@@ -17,6 +18,13 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
     }
   ]
 }
+
+Hinweise zu Trinkgeld & Betrag:
+- **tip** = Trinkgeld, falls ausgewiesen. Erkenne „Trinkgeld", „Trinkgeld
+  (unbar)", „Tip", „Gratuity", „Service". Ohne Trinkgeld: `0`.
+- **total** = die ausgewiesene Rechnungssumme der Positionen (z.B. „Summe
+  inkl. USt."), OHNE Trinkgeld. Das Trinkgeld kommt separat in `tip`.
+  Der tatsächlich von der Karte abgebuchte Betrag ist dann `total + tip`.
 
 Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Milchprodukte**: Milch, Joghurt, Käse, Topfen, Schlagobers, Sauerrahm,
@@ -38,7 +46,7 @@ Erlaubte subcategory-Werte (mit typischen Beispielen):
   Erdäpfel, Karotte, Paprika, Zucchini, Pilze, Zitrone, Orange, Avocado
 - **Nudeln & Reis**: Spaghetti, Penne, Rigatoni, Tagliatelle, Lasagne,
   Reis, Couscous, Bulgur, Gnocchi, Spätzle, Ramen, Tortellini
-- **Restaurant / Gericht**: zubereitete Speisen/Gerichte auf einer Gastro-
+- **Restaurant**: zubereitete Speisen/Gerichte auf einer Gastro-
   Rechnung (Restaurant, Café, Imbiss, Lieferdienst). Beispiele: Tempura,
   Sushi, Bibimbap, Bulgogi, Ramen-Schale, Pizza (Lokal), Burger (Lokal),
   Pasta-Gericht, Schnitzel, Curry, Bowl, Suppe, Vorspeise, Dessert,

@@ -19,10 +19,12 @@ function _safeParseObject(raw) {  const clean = raw.replace(/```json|```/g, '').
   } catch {
     throw new Error('KI-Antwort ist kein gültiges JSON — bitte nochmal versuchen');
   }
+  const tipRaw = obj.tip ?? obj.trinkgeld ?? obj.gratuity ?? 0;
   return {
     store:   obj.store   || obj.händler || obj.shop || 'Unbekannt',
     date:    obj.date    || obj.datum   || null,
     total:   typeof obj.total === 'number' ? obj.total : parseFloat(obj.total || obj.gesamt || 0) || 0,
+    tip:     typeof tipRaw === 'number' ? tipRaw : parseFloat(tipRaw) || 0,
     items:   Array.isArray(obj.items)   ? obj.items   : [],
     category: obj.category || obj.kategorie || null,
   };

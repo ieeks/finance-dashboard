@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## v1.8.2 — 2026-06-01
+
+### Changed
+- **Subkategorie „Restaurant / Gericht" → „Restaurant"** umbenannt (kürzer,
+  passt besser). Aktualisiert in `js/categories.js`, `prompts/analyze-bon.md`
+  und `gmail_finance_importer.py`. Alias `Restaurant / Gericht → Restaurant`
+  in beiden Seiten ergänzt, damit bereits gespeicherte Posten automatisch
+  mitwandern.
+
+## v1.8.1 — 2026-06-01
+
+### Fixed
+- **Trinkgeld (unbar) → Bon matchte nie** — Bei Restaurant-Bons wird das
+  Trinkgeld separat von der Karte abgebucht (z.B. Summe 59,20 + Trinkgeld
+  5,80 = Belastung 65,00), stand aber nicht im Bon-Total. Der Matcher
+  verglich nur gegen 59,20 → Abstand 5,80 € → Hard-Out, kein Match möglich.
+  Jetzt:
+  - **Trinkgeld-Erkennung** — neues `tip`-Feld im Bon-Prompt
+    (`prompts/analyze-bon.md`) + Parsing in `js/bonAnalyzer.js`
+    (`tip`/`trinkgeld`/`gratuity`).
+  - **Matcher** — `findMatch`/`analyzeBonLinks` matchen gegen `total` UND
+    `total + tip` (kleinerer Abstand gewinnt). 3 neue Tests.
+  - **Anzeige** — Concierge-Ergebnis und Buchungs-Detail zeigen
+    „Summe · 💝 Trinkgeld · Bezahlt" wenn ein Trinkgeld erkannt wurde.
+
 ## v1.8.0 — 2026-06-01
 
 ### Added

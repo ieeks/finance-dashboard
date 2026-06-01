@@ -29,7 +29,7 @@ export const SUBCAT_ICONS = {
   'Fisch / Meeresfrüchte': '🐟',
   'Obst & Gemüse':         '🥦',
   'Nudeln & Reis':         '🍝',
-  'Restaurant / Gericht':  '🍽️',
+  'Restaurant':            '🍽️',
   'Öl':                    '🫙',
   'Aufstriche & Butter':   '🧈',
   'Gewürze & Saucen':      '🧂',
@@ -55,6 +55,7 @@ export const SUBCAT_ALIASES = {
   'Reis':                'Nudeln & Reis',
   'Süßwaren':            'Süßwaren / Naschen',
   'Fisch':               'Fisch / Meeresfrüchte',
+  'Restaurant / Gericht':'Restaurant',
 };
 
 // Mappt Alias auf kanonisch. Unbekannte Werte bleiben unverändert
