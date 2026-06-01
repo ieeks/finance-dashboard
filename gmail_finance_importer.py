@@ -81,7 +81,7 @@ MAIN_CATEGORIES = [
 SUBCATEGORIES = [
     "Milchprodukte", "Süßwaren / Naschen", "Backwaren", "Getränke",
     "Fleisch & Wurst", "Fisch / Meeresfrüchte", "Obst & Gemüse",
-    "Nudeln & Reis", "Restaurant / Gericht", "Öl", "Aufstriche & Butter",
+    "Nudeln & Reis", "Restaurant", "Öl", "Aufstriche & Butter",
     "Gewürze & Saucen", "Konserven", "Tiefkühl", "Hygiene & Drogerie",
     "Putzmittel", "Pfand", "Elektronik", "Dienstleistung", "Sonstiges",
 ]
@@ -576,6 +576,7 @@ _SUBCAT_ALIASES = {
     "Reis":             "Nudeln & Reis",
     "Süßwaren":         "Süßwaren / Naschen",
     "Fisch":            "Fisch / Meeresfrüchte",
+    "Restaurant / Gericht": "Restaurant",
 }
 
 

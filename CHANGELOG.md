@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v1.8.2 — 2026-06-01
+
+### Changed
+- **Subkategorie „Restaurant / Gericht" → „Restaurant"** umbenannt (kürzer,
+  passt besser). Aktualisiert in `js/categories.js`, `prompts/analyze-bon.md`
+  und `gmail_finance_importer.py`. Alias `Restaurant / Gericht → Restaurant`
+  in beiden Seiten ergänzt, damit bereits gespeicherte Posten automatisch
+  mitwandern.
+
 ## v1.8.1 — 2026-06-01
 
 ### Fixed
