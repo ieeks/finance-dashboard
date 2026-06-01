@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## v1.7.1 — 2026-06-01
+
+### Fixed
+- **Anthropic „API 400" bei Bon-Bildern** — Zwei anbieter-spezifische
+  Ursachen behoben, die nur Claude (nicht OpenAI) betrafen:
+  1. **media_type** — Anthropic akzeptiert nur exakt
+     `image/jpeg|png|gif|webp`. Handys liefern oft `image/jpg` (ohne „e")
+     oder leeren Typ → 400. Neue `_normalizeMediaType()` in
+     `js/bonAnalyzer.js` mappt das korrekt.
+  2. **Bildgröße** — Anthropic limitiert auf 5 MB / ~1568px lange Kante;
+     Handy-Fotos sprengen das. Neue `downscaleImage()` in `js/app.js`
+     verkleinert & re-encodet Bilder vor dem Upload als JPEG (Fallback:
+     Original-Bytes). Beschleunigt auch den OpenAI-Pfad.
+- **Echte API-Fehlermeldung im Toast** — Statt „API 400" wird jetzt der
+  Fehler-Body von Anthropic/OpenAI ausgelesen und angezeigt
+  (`_apiError()`), z.B. „Anthropic 400: messages.0… image exceeds 5 MB".
+
 ## v1.7.0 — 2026-06-01
 
 ### Fixed

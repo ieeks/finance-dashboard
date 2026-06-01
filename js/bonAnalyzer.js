@@ -10,8 +10,7 @@ async function _loadPrompt() {
   return resp.text();
 }
 
-function _safeParseObject(raw) {
-  const clean = raw.replace(/```json|```/g, '').trim();
+function _safeParseObject(raw) {  const clean = raw.replace(/```json|```/g, '').trim();
   const match = clean.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('KI hat kein JSON zurückgegeben — bitte nochmal versuchen');
   let obj;
@@ -27,6 +26,28 @@ function _safeParseObject(raw) {
     items:   Array.isArray(obj.items)   ? obj.items   : [],
     category: obj.category || obj.kategorie || null,
   };
+}
+
+// Anthropic akzeptiert nur exakt diese media_types. Viele Handys liefern
+// 'image/jpg' (ohne 'e') oder leeren Typ → Anthropic antwortet sonst mit 400.
+const _ALLOWED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+function _normalizeMediaType(mimeType) {
+  let mt = (mimeType || '').toLowerCase().trim();
+  if (mt === 'image/jpg') mt = 'image/jpeg';
+  return _ALLOWED_MEDIA.includes(mt) ? mt : 'image/jpeg';
+}
+
+// Liest den Fehler-Body aus und baut eine sprechende Error-Message.
+async function _apiError(resp, provider) {
+  let detail = '';
+  try {
+    const body = await resp.text();
+    try {
+      const j = JSON.parse(body);
+      detail = j?.error?.message || j?.message || body;
+    } catch { detail = body; }
+  } catch { /* Body nicht lesbar */ }
+  return new Error(`${provider} ${resp.status}${detail ? ': ' + String(detail).slice(0, 240) : ''}`);
 }
 
 // ── Bild-Bon via Claude Vision ──
@@ -48,13 +69,13 @@ export async function analyzeBonImage(base64, mimeType) {
       messages:   [{
         role:    'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } },
+          { type: 'image', source: { type: 'base64', media_type: _normalizeMediaType(mimeType), data: base64 } },
           { type: 'text',  text: promptText },
         ],
       }],
     }),
   });
-  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  if (!resp.ok) throw await _apiError(resp, 'Anthropic');
   const data = await resp.json();
   return _safeParseObject(data.content[0].text);
 }
@@ -79,7 +100,7 @@ export async function analyzeBonPdf(pdfText) {
       messages:   [{ role: 'user', content: fullPrompt }],
     }),
   });
-  if (!resp.ok) throw new Error(`API ${resp.status}`);
+  if (!resp.ok) throw await _apiError(resp, 'Anthropic');
   const data = await resp.json();
   return _safeParseObject(data.content[0].text);
 }
@@ -107,7 +128,7 @@ export async function analyzeBonOpenAI(base64, mimeType) {
       }],
     }),
   });
-  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  if (!resp.ok) throw await _apiError(resp, 'OpenAI');
   const data = await resp.json();
   return _safeParseObject(data.choices[0].message.content);
 }
@@ -130,7 +151,7 @@ export async function analyzeBonPdfOpenAI(pdfText) {
       messages:   [{ role: 'user', content: fullPrompt }],
     }),
   });
-  if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+  if (!resp.ok) throw await _apiError(resp, 'OpenAI');
   const data = await resp.json();
   return _safeParseObject(data.choices[0].message.content);
 }

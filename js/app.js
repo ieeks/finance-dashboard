@@ -1329,6 +1329,34 @@ function fileToBase64(file) {
   });
 }
 
+// Verkleinert & re-encodet ein Bild als JPEG. Anthropic limitiert Bilder auf
+// 5 MB / ~1568px lange Kante — Handy-Fotos sprengen das oft (→ API 400).
+// Liefert { base64, mimeType } oder null bei Fehler (z.B. nicht dekodierbar).
+function downscaleImage(file, maxDim = 1568, quality = 0.85) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width  * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        URL.revokeObjectURL(url);
+        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+      } catch {
+        URL.revokeObjectURL(url);
+        resolve(null);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+
 
 window.handleBonUpload = async function(input) {
   const file = input.files[0];
@@ -1354,19 +1382,25 @@ window.handleBonUpload = async function(input) {
 
   showLoading('Bon wird analysiert…');
   try {
+    // Bild einmal vorbereiten (verkleinern → JPEG). Fallback: Original-Bytes.
+    let imgBase64 = null, imgMime = mimeType;
+    if (isImage) {
+      const down = await downscaleImage(file);
+      if (down) { imgBase64 = down.base64; imgMime = down.mimeType; }
+      else      { imgBase64 = await fileToBase64(file); }
+    }
+
     let bonData;
     if (_bonProvider === 'anthropic') {
       if (isImage) {
-        const base64 = await fileToBase64(file);
-        bonData = await analyzeBonImage(base64, mimeType);
+        bonData = await analyzeBonImage(imgBase64, imgMime);
       } else {
         const pdfText = await extractPdfText(file);
         bonData = await analyzeBonPdf(pdfText);
       }
     } else {
       if (isImage) {
-        const base64 = await fileToBase64(file);
-        bonData = await analyzeBonOpenAI(base64, mimeType);
+        bonData = await analyzeBonOpenAI(imgBase64, imgMime);
       } else {
         const pdfText = await extractPdfText(file);
         bonData = await analyzeBonPdfOpenAI(pdfText);
