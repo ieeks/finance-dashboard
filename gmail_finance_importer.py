@@ -730,6 +730,45 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         print(f"  Firestore-Fehler: {exc}")
         return False
 
+# ── PDF-OCR Fallback via Claude native PDF-Support ────────────────────────────
+
+def extract_pdf_with_claude_ocr(pdf_path: Path) -> dict | None:
+    """Scanned/Bild-PDF via Claude Haiku PDF-Vision extrahieren (kein pdfplumber-Text nötig)."""
+    if not ANTHROPIC_API_KEY:
+        print("  OCR: Anthropic API-Key fehlt.")
+        return None
+    import anthropic
+    b64 = base64.b64encode(pdf_path.read_bytes()).decode("utf-8")
+    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    try:
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=4096,
+            system=VISION_SYSTEM,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "document",
+                        "source": {
+                            "type": "base64",
+                            "media_type": "application/pdf",
+                            "data": b64,
+                        },
+                    },
+                    {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX},
+                ],
+            }],
+        )
+        result = _parse_ai_response(message.content[0].text, provider="Claude PDF-OCR")
+        if result:
+            print("  OCR: Claude Haiku PDF-Vision erfolgreich.")
+        return result
+    except Exception as exc:
+        print(f"  OCR: Claude fehlgeschlagen ({exc}).")
+        return None
+
+
 # ── Haupt-Orchestrierung ───────────────────────────────────────────────────────
 
 def process_pdf(pdf_path: Path) -> bool:
@@ -745,10 +784,13 @@ def process_pdf(pdf_path: Path) -> bool:
 
     text = extract_pdf_text(pdf_path)
     if not text.strip():
-        print("  FEHLER: Kein Text im PDF gefunden.")
-        return False
-
-    ai_data = extract_with_ai(text, pdf_path.name)
+        print("  Kein Text im PDF — versuche Claude PDF-OCR …")
+        ai_data = extract_pdf_with_claude_ocr(pdf_path)
+        if not ai_data:
+            print("  FEHLER: PDF-OCR fehlgeschlagen.")
+            return False
+    else:
+        ai_data = extract_with_ai(text, pdf_path.name)
     if not ai_data:
         print("  FEHLER: AI-Extraktion fehlgeschlagen.")
         return False
