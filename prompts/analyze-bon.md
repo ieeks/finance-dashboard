@@ -8,6 +8,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "tip": 0,
   "currency": "EUR",
   "card_last4": "1234",
+  "iban": null,
   "items": [
     {
       "name": "Produktname max 40 Zeichen",
@@ -101,3 +102,7 @@ Hinweise zur Item-Erkennung:
 - **card_last4**: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
   Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
   Falls keine Kartennummer vorhanden (Bar, PayPal, etc.): null
+- **iban**: IBAN des Zahlungsempfängers oder Lastschrift-Kontos, falls auf der
+  Rechnung angegeben (z.B. bei Telefonrechnungen, Versicherungen, Energieanbietern).
+  Gib die IBAN ohne Leerzeichen zurück (z.B. "AT611904300234573201"). Falls keine
+  IBAN erkennbar: null

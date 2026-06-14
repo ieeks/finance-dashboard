@@ -103,6 +103,9 @@ RECURRING_RULES: list[dict] = [
     {"pattern": re.compile(
         rf"Miete / Hausverwaltung|{LANDLORD['vendor_pattern'].pattern}", re.I),
      "label": "Miete"},
+    {"pattern": re.compile(r"T-Mobile Austria", re.I),
+     "label": "T-Mobile",              "category": "Telekommunikation",
+     "account": "haushalt"},
     {"pattern": re.compile(r"Magenta Mobil", re.I),
      "label": "Magenta Mobil",         "category": "Telekommunikation"},
     {"pattern": re.compile(r"Magenta Festnetz", re.I),
@@ -657,9 +660,24 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     if card_last4:
         card_last4 = card_last4[-4:].zfill(4)
     account = CARD_ACCOUNT_MAP.get(card_last4, "unbekannt") if card_last4 else "unbekannt"
+
+    # Fallback: IBAN aus Rechnung (Lastschrift-Rechnungen wie T-Mobile)
+    if account == "unbekannt":
+        iban_raw = str(ai_data.get("iban") or "").strip().replace(" ", "").upper()
+        if iban_raw:
+            iban_suffix = iban_raw[-4:]
+            account = CARD_ACCOUNT_MAP.get(iban_suffix, "unbekannt")
+            if account != "unbekannt":
+                print(f"  IBAN: …{iban_suffix} → {account}")
+
+    # Fallback: Konto aus RECURRING_RULES (z.B. T-Mobile → haushalt)
+    if account == "unbekannt" and recurring and "account" in recurring:
+        account = recurring["account"]
+        print(f"  Konto aus Recurring-Regel: {recurring['label']} → {account}")
+
     if card_last4:
         print(f"  Karte: …{card_last4} → {account}")
-    else:
+    elif account == "unbekannt":
         print("  Karte: nicht erkannt → account=unbekannt")
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
