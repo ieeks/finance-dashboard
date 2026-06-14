@@ -8,6 +8,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "tip": 0,
   "currency": "EUR",
   "card_last4": "1234",
+  "iban": null,
   "items": [
     {
       "name": "Produktname max 40 Zeichen",
@@ -85,6 +86,9 @@ Hinweise zum Datum:
 - **Datumsformat ist TT.MM.JJJJ** (Tag zuerst, europäisch/österreichisch).
   "01.06.2026" = 1. Juni 2026, NICHT 6. Jänner. Gib `date` immer als
   "YYYY-MM-DD" zurück — hier also "2026-06-01".
+- **Zweistellige Jahreszahlen**: "25/05/26" oder "25.05.26" bedeutet Jahr 2026,
+  NICHT 2023. Regel: Jahreszahl < 50 → 2000er (26 → 2026, 25 → 2025). Nie als
+  Monat oder Tag interpretieren — das dritte Element im Datum ist immer das Jahr.
 
 Hinweise zur Item-Erkennung:
 - **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark
@@ -101,3 +105,7 @@ Hinweise zur Item-Erkennung:
 - **card_last4**: letzte 4 Ziffern der Zahlungskarte, falls am Bon erkennbar.
   Erkenne beide Formate: "XXXX XXXX XXXX 1234" und "############1234"
   Falls keine Kartennummer vorhanden (Bar, PayPal, etc.): null
+- **iban**: IBAN des Zahlungsempfängers oder Lastschrift-Kontos, falls auf der
+  Rechnung angegeben (z.B. bei Telefonrechnungen, Versicherungen, Energieanbietern).
+  Gib die IBAN ohne Leerzeichen zurück (z.B. "AT611904300234573201"). Falls keine
+  IBAN erkennbar: null

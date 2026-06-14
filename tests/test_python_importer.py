@@ -63,7 +63,7 @@ class TestConstants(unittest.TestCase):
         self.assertNotIn("Hygiene", H["SUBCATEGORIES"])
 
     def test_recurring_rules_count(self):
-        self.assertEqual(len(H["RECURRING_RULES"]), 8)
+        self.assertEqual(len(H["RECURRING_RULES"]), 9)
 
     def test_card_merchants_count(self):
         # parser.js hat 52 Patterns. Schwelle locker: > 40
