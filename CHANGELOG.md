@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.8.5 — 2026-07-01
+
+### Added
+- **Konto-Filter im Rechnungen-Screen** — Chip-Reihe zum Filtern der
+  E-Mail-Rechnungen nach Konto (Haushalt/Privatkonto Olga/Privatkonto
+  Manuel), analog zum Quick-Filter in Buchungen. Chips erscheinen nur,
+  wenn Rechnungen aus mehr als einem Konto vorliegen.
+
 ## v1.8.4 — 2026-07-01
 
 ### Added
