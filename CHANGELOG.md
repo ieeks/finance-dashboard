@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## v1.8.4 — 2026-07-01
+
+### Added
+- **„Offene Rechnungen"-Tabelle im Rechnungen-Screen** — Zeigt die noch
+  nicht mit einer Buchung verknüpften E-Mail-Rechnungen (Gmail-Import)
+  als kompakte Tabelle (Händler, Rechnungsdatum, Brutto) oberhalb der
+  bestehenden Detail-Liste, analog zur „Offene Belege"-Tabelle im
+  Concierge-Screen.
+
 ## v1.8.3 — 2026-07-01
 
 ### Changed
