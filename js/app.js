@@ -420,6 +420,34 @@ function renderRechnungenTeaser(txs) {
   `;
 }
 
+function renderOffeneRechnungenTable(month) {
+  const el = document.getElementById('rechnungen-open-table');
+  if (!el) return;
+  const open = month.filter(t => !findRechnungMatch(t)).sort((a, b) => b.date.localeCompare(a.date));
+  if (!open.length) { el.innerHTML = ''; return; }
+  const cols = 'grid-template-columns:1fr auto auto 26px;';
+  el.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="section-label" style="margin:0;">Offene Rechnungen</div>
+        <span class="chip chip-gold" style="font-size:0.6rem;padding:2px 8px;">${open.length} unverknüpft</span>
+      </div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:14px;">Noch keiner Buchung zugeordnet.</div>
+      <div style="display:grid;${cols}gap:10px;padding:0 14px 6px;font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);">
+        <span>Händler</span><span>Rechnungsdatum</span><span style="text-align:right;">Brutto</span><span></span>
+      </div>
+      ${open.map(t => `
+        <div class="card" style="padding:12px 14px;margin-bottom:8px;display:grid;${cols}gap:10px;align-items:center;">
+          <div style="font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description)}</div>
+          <div style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap;">${formatDate(t.date)}</div>
+          <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${formatEur(Math.abs(t.amount))}</div>
+          <button onclick="searchRechnungInBuchungen('${Math.abs(t.amount).toFixed(2).replace('.',',')}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">→</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderRechnungen() {
   updateMonthTriggers();
   const listEl    = document.getElementById('rechnungen-list');
@@ -429,6 +457,8 @@ function renderRechnungen() {
   const month = getTransactionsForMonth(state.currentMonth).filter(t => t.source === 'gmail_import');
   const matched   = month.filter(t => findRechnungMatch(t)).length;
   const unmatched = month.length - matched;
+
+  renderOffeneRechnungenTable(month);
 
   if (summaryEl) {
     summaryEl.innerHTML = month.length
