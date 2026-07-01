@@ -390,6 +390,27 @@ window.goToOhneBeleg = function() {
 };
 
 // ── Rechnungen (Gmail-Import) ──
+let _rechnungenFilter = { konto: 'alle' };
+
+function renderRechnungenKontoChips() {
+  const el = document.getElementById('rechnungen-konto-chips');
+  if (!el) return;
+  const accountIds = [...new Set(
+    state.transactions.filter(t => t.source === 'gmail_import').map(t => t.account).filter(Boolean)
+  )];
+  if (accountIds.length <= 1) { el.innerHTML = ''; return; }
+  const label = id => state.accounts.find(a => a.id === id)?.name || id;
+  el.innerHTML = ['alle', ...accountIds].map(id => `
+    <button class="bs-chip${_rechnungenFilter.konto === id ? ' active' : ''}" onclick="applyRechnungenKontoFilter('${id}')">${id === 'alle' ? 'Alle Konten' : escHtml(label(id))}</button>
+  `).join('');
+}
+
+window.applyRechnungenKontoFilter = function(id) {
+  _rechnungenFilter.konto = id;
+  renderRechnungenKontoChips();
+  renderRechnungen();
+};
+
 function findRechnungMatch(rechnung) {
   const bon = { date: rechnung.date, total: Math.abs(rechnung.amount), store: rechnung.description };
   return findMatch(bon, state.transactions.filter(t => t.source !== 'gmail_import')) || null;
@@ -450,11 +471,13 @@ function renderOffeneRechnungenTable(month) {
 
 function renderRechnungen() {
   updateMonthTriggers();
+  renderRechnungenKontoChips();
   const listEl    = document.getElementById('rechnungen-list');
   const summaryEl = document.getElementById('rechnungen-summary');
   if (!listEl) return;
 
-  const month = getTransactionsForMonth(state.currentMonth).filter(t => t.source === 'gmail_import');
+  let month = getTransactionsForMonth(state.currentMonth).filter(t => t.source === 'gmail_import');
+  if (_rechnungenFilter.konto !== 'alle') month = month.filter(t => t.account === _rechnungenFilter.konto);
   const matched   = month.filter(t => findRechnungMatch(t)).length;
   const unmatched = month.length - matched;
 
