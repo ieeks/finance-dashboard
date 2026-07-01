@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.8.3 — 2026-07-01
+
+### Changed
+- **„Offene Belege" als Tabelle** — Die Liste unverknüpfter Belege im
+  Concierge-Screen zeigt jetzt Händler, Rechnungsdatum und Bruttobetrag
+  in klar ausgerichteten Spalten (statt Freitext-Card), sortiert nach
+  Rechnungsdatum absteigend.
+
 ## v1.8.2 — 2026-06-01
 
 ### Changed
