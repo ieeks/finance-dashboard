@@ -570,6 +570,26 @@ def is_duplicate(doc_id: str) -> bool:
     return col.document(doc_id).get().exists
 
 
+def _is_semantic_duplicate(
+    existing: list[dict], description: str, date_val: str, total_val: float, account: str
+) -> bool:
+    """Fallback-Dedup für erneut verschickte digitale Kassenbons.
+
+    Manche Händler (z.B. Billa) senden denselben Kauf gelegentlich als zwei
+    technisch unterschiedliche PDFs (abweichende Erzeugungs-Metadaten) —
+    der Byte-Hash in _pdf_doc_id()/is_duplicate() erkennt das dann nicht.
+    Prüft stattdessen auf Store+Datum+Betrag+Konto-Übereinstimmung gegen
+    bereits importierte Gmail-Rechnungen.
+    """
+    for doc in existing:
+        if (doc.get("description") == description
+                and doc.get("date") == date_val
+                and doc.get("account") == account
+                and abs(abs(doc.get("amount", 0)) - total_val) < 0.005):
+            return True
+    return False
+
+
 # Aliase aus alten AI-Outputs/Prompts → kanonische Subkategorie.
 # JS-Seite hat diese in v1.3.2 dedup'd, Python hatte sie noch.
 _SUBCAT_ALIASES = {
@@ -679,6 +699,20 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         print(f"  Karte: …{card_last4} → {account}")
     elif account == "unbekannt":
         print("  Karte: nicht erkannt → account=unbekannt")
+
+    # Fallback-Dedup gegen erneut verschickte digitale Kassenbons (siehe
+    # _is_semantic_duplicate) — Byte-Hash-Dedup oben greift nur bei
+    # identischen PDF-Bytes, nicht bei inhaltlich gleichen Re-Sends.
+    try:
+        existing = [d.to_dict() for d in col.where("source", "==", "gmail_import")
+                                             .where("date", "==", date_val)
+                                             .stream()]
+    except Exception as exc:
+        print(f"  Semantik-Dedup-Check fehlgeschlagen: {exc}")
+        existing = []
+    if _is_semantic_duplicate(existing, description, date_val, total_val, account):
+        print(f"  Übersprungen (inhaltliches Duplikat): {description} · {date_val} · {total_val} EUR · {account}")
+        return False
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
     bon = None

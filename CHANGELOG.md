@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v1.8.6 — 2026-07-01
+
+### Fixed
+- **Doppelte Gmail-Rechnungen bei erneut verschickten Kassenbons** —
+  `_pdf_doc_id()` dedupliziert nur über den SHA256-Hash der PDF-Bytes.
+  Manche Händler (z.B. Billa) verschicken denselben Kauf gelegentlich
+  als zwei technisch unterschiedliche PDFs (abweichende
+  Erzeugungs-Metadaten), wodurch der Hash-Dedup sie nicht erkennt und
+  die Rechnung doppelt in Firestore landet. Neuer Fallback
+  `_is_semantic_duplicate()` prüft zusätzlich auf
+  Store+Datum+Betrag+Konto-Übereinstimmung gegen bereits importierte
+  Gmail-Rechnungen und überspringt inhaltliche Duplikate. Betrifft nur
+  künftige Importe — bereits doppelt importierte Rechnungen müssen
+  manuell bereinigt werden.
+
 ## v1.8.5 — 2026-07-01
 
 ### Added
