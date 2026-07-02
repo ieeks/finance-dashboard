@@ -219,6 +219,39 @@ class TestAiGet(unittest.TestCase):
         )
 
 
+class TestSemanticDuplicate(unittest.TestCase):
+    """Fallback-Dedup für re-gesendete digitale Kassenbons (unterschiedliche
+    PDF-Bytes, gleicher Kauf) — siehe _is_semantic_duplicate."""
+
+    def setUp(self):
+        self.fn = H["_is_semantic_duplicate"]
+        self.existing = [
+            {"description": "Billa", "date": "2026-05-08", "amount": -13.63, "account": "unbekannt"},
+            {"description": "T-Mobile Austria GmbH", "date": "2026-05-07", "amount": -24.44, "account": "haushalt"},
+        ]
+
+    def test_exact_match_is_duplicate(self):
+        self.assertTrue(self.fn(self.existing, "Billa", "2026-05-08", 13.63, "unbekannt"))
+
+    def test_different_amount_not_duplicate(self):
+        self.assertFalse(self.fn(self.existing, "Billa", "2026-05-08", 22.15, "unbekannt"))
+
+    def test_different_date_not_duplicate(self):
+        self.assertFalse(self.fn(self.existing, "Billa", "2026-05-09", 13.63, "unbekannt"))
+
+    def test_different_store_not_duplicate(self):
+        self.assertFalse(self.fn(self.existing, "Spar", "2026-05-08", 13.63, "unbekannt"))
+
+    def test_different_account_not_duplicate(self):
+        self.assertFalse(self.fn(self.existing, "Billa", "2026-05-08", 13.63, "haushalt"))
+
+    def test_empty_existing_not_duplicate(self):
+        self.assertFalse(self.fn([], "Billa", "2026-05-08", 13.63, "unbekannt"))
+
+    def test_amount_rounding_tolerance(self):
+        self.assertTrue(self.fn(self.existing, "Billa", "2026-05-08", 13.630001, "unbekannt"))
+
+
 class TestLandlord(unittest.TestCase):
     """Vermieter-Erkennung (sync mit js/personalConfig.js)."""
 
