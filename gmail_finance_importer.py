@@ -53,6 +53,7 @@ CARD_ACCOUNT_MAP: dict[str, str] = {
     "5676": "haushalt",       # Olga physische Karte (Easybank Haushalt)
     "6562": "haushalt",       # Manuel physische Karte (Easybank Haushalt)
     "0522": "haushalt",       # Manuel Apple Watch (Easybank Haushalt)
+    "0678": "haushalt",       # Olga Debit Mastercard (Easybank Haushalt)
     "6351": "privat_olga",    # Olga Privatkonto (Easybank)
     "4575": "privat_manuel",  # Manuel iPhone (Erste Bank Privat)
 }

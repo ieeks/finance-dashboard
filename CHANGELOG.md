@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v1.8.7 — 2026-07-01
+
+### Fixed
+- **Karte …0678 (Olga, Haushaltskonto) ergänzt** — Neue Debit-Mastercard
+  fehlte in `CARD_ACCOUNT_MAP` (gmail_finance_importer.py) und
+  `CARD_CONFIG` (js/state.js), wodurch Rechnungen dieser Karte als
+  Konto „unbekannt" importiert wurden.
+
 ## v1.8.6 — 2026-07-01
 
 ### Fixed

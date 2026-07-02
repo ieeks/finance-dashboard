@@ -8,6 +8,7 @@ export const CARD_CONFIG = {
   '5676': { accountId: 'haushalt',      owner: 'Olga',               },
   '6562': { accountId: 'haushalt',      owner: 'Manuel',             },
   '0522': { accountId: 'haushalt',      owner: 'Manuel (Apple Watch)'},
+  '0678': { accountId: 'haushalt',      owner: 'Olga',               },
   '6351': { accountId: 'privat_olga',   owner: 'Olga',               },
   '4575': { accountId: 'privat_manuel', owner: 'Manuel (iPhone)',     },
 };
