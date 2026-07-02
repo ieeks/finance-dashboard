@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v1.8.8 — 2026-07-02
+
+### Added
+- **Lösch-Button pro E-Mail-Rechnung** — Sowohl in der „Offene
+  Rechnungen"-Tabelle als auch in der Detail-Liste kann jede
+  Gmail-Rechnung jetzt einzeln gelöscht werden (🗑, mit
+  Bestätigungsdialog). Löscht das Firestore-Dokument dauerhaft
+  (`deleteTx()` in firebaseService.js) — praktisch zum Bereinigen von
+  Duplikaten. Dank des semantischen Dedup-Fallbacks (v1.8.6) kommt eine
+  gelöschte Duplikat-Kopie beim nächsten Gmail-Sync nicht zurück,
+  solange die andere Kopie erhalten bleibt.
+
 ## v1.8.7 — 2026-07-01
 
 ### Fixed

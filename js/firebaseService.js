@@ -87,6 +87,10 @@ export async function updateTx(txId, patch) {
   }
 }
 
+export async function deleteTx(txId) {
+  await deleteDoc(doc(db, `${HH}/transactions`, txId));
+}
+
 // ── Import-History ────────────────────────────────────────────────────────
 
 export async function checkImportExists(importId) {
