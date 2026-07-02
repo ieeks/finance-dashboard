@@ -5,7 +5,7 @@ import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, s
 import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js';
 import { login, logout, onAuthChange, currentEmail,
-         loadAllData, saveTxBatch, updateTx, checkImportExists, saveImport,
+         loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
          fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js';
 import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js';
@@ -416,6 +416,21 @@ function findRechnungMatch(rechnung) {
   return findMatch(bon, state.transactions.filter(t => t.source !== 'gmail_import')) || null;
 }
 
+window.deleteRechnung = async function(id) {
+  const tx = state.transactions.find(t => t.id === id);
+  if (!tx) return;
+  if (!confirm(`"${tx.description}" · ${formatDate(tx.date)} · ${formatEur(Math.abs(tx.amount))} wirklich löschen?\n\nWird nur erneut importiert, falls die Original-Mail noch in den letzten 30 Tagen liegt und keine andere Rechnung mit gleichem Händler/Datum/Betrag/Konto mehr existiert.`)) return;
+  state.transactions = state.transactions.filter(t => t.id !== id);
+  saveState();
+  renderRechnungen();
+  try {
+    await deleteTx(id);
+    showToast('🗑️ Rechnung gelöscht');
+  } catch (e) {
+    showToast('⚠️ Löschen in Firestore fehlgeschlagen');
+  }
+};
+
 function renderRechnungenTeaser(txs) {
   const el = document.getElementById('db-rechnungen-teaser');
   if (!el) return;
@@ -446,7 +461,7 @@ function renderOffeneRechnungenTable(month) {
   if (!el) return;
   const open = month.filter(t => !findRechnungMatch(t)).sort((a, b) => b.date.localeCompare(a.date));
   if (!open.length) { el.innerHTML = ''; return; }
-  const cols = 'grid-template-columns:1fr auto auto 26px;';
+  const cols = 'grid-template-columns:1fr auto auto 26px 26px;';
   el.innerHTML = `
     <div style="margin-bottom:20px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -455,7 +470,7 @@ function renderOffeneRechnungenTable(month) {
       </div>
       <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:14px;">Noch keiner Buchung zugeordnet.</div>
       <div style="display:grid;${cols}gap:10px;padding:0 14px 6px;font-size:0.58rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:var(--text-muted);">
-        <span>Händler</span><span>Rechnungsdatum</span><span style="text-align:right;">Brutto</span><span></span>
+        <span>Händler</span><span>Rechnungsdatum</span><span style="text-align:right;">Brutto</span><span></span><span></span>
       </div>
       ${open.map(t => `
         <div class="card" style="padding:12px 14px;margin-bottom:8px;display:grid;${cols}gap:10px;align-items:center;">
@@ -463,6 +478,7 @@ function renderOffeneRechnungenTable(month) {
           <div style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap;">${formatDate(t.date)}</div>
           <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${formatEur(Math.abs(t.amount))}</div>
           <button onclick="searchRechnungInBuchungen('${Math.abs(t.amount).toFixed(2).replace('.',',')}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">→</button>
+          <button onclick="deleteRechnung('${t.id}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">🗑</button>
         </div>
       `).join('')}
     </div>
@@ -523,7 +539,10 @@ function renderRechnungen() {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
             <div style="font-size:0.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description)}</div>
-            <div style="font-family:var(--serif);font-weight:700;white-space:nowrap;">${formatEur(t.amount)}</div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <div style="font-family:var(--serif);font-weight:700;white-space:nowrap;">${formatEur(t.amount)}</div>
+              <button onclick="deleteRechnung('${t.id}')" style="padding:2px 6px;border:none;background:transparent;color:var(--text-muted);font-size:0.8rem;cursor:pointer;line-height:1;">🗑</button>
+            </div>
           </div>
           <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}</div>
         </div>
