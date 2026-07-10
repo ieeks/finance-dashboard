@@ -1528,18 +1528,27 @@ function renderConciergeResult(bon) {
       const opts = Object.keys(SUBCAT_ICONS).map(s =>
         `<option value="${escHtml(s)}"${s === sc ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
       ).join('');
+      const priceVal = (Number(item.price ?? item.gesamt) || 0).toFixed(2).replace('.', ',');
       return `
-      <div class="bon-row">
-        <div>
-          <div class="bon-item">${escHtml(item.name)}</div>
+      <div class="bon-row" style="align-items:flex-start;gap:10px;">
+        <div style="flex:1;min-width:0;">
+          <input type="text" value="${escHtml(item.name)}" onchange="updateCurrentBonItemName(${idx}, this.value)"
+            style="width:100%;font-family:var(--sans);font-size:0.82rem;font-weight:600;color:var(--text);background:transparent;border:none;border-bottom:1px solid var(--outline-soft);padding:2px 0;outline:none;" />
           <select onchange="updateCurrentBonItemSubcat(${idx}, this.value)"
             style="font-size:0.62rem;color:var(--text-muted);background:var(--surface-high);border:1px solid var(--outline-soft);border-radius:100px;padding:3px 9px;margin-top:4px;outline:none;cursor:pointer;-webkit-appearance:auto;max-width:200px;">
             ${opts}
           </select>
         </div>
-        <div class="bon-price">${formatEur(item.price ?? item.gesamt ?? 0)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+          <input type="text" inputmode="decimal" value="${priceVal}" onchange="updateCurrentBonItemPrice(${idx}, this.value)"
+            style="width:68px;text-align:right;font-family:var(--serif);font-size:0.9rem;font-weight:700;color:var(--text);background:var(--surface-high);border:1px solid var(--outline-soft);border-radius:8px;padding:5px 8px;outline:none;" />
+          <button onclick="deleteCurrentBonItem(${idx})" title="Position löschen" aria-label="Position löschen"
+            style="width:28px;height:28px;flex-shrink:0;border:none;border-radius:8px;background:var(--surface-high);color:var(--red);font-size:0.85rem;cursor:pointer;line-height:1;">✕</button>
+        </div>
       </div>`;
     }).join('')}
+    <button onclick="addCurrentBonItem()"
+      style="width:100%;margin-top:10px;padding:9px;border-radius:var(--radius-sm);border:1.5px dashed var(--outline-soft);background:transparent;color:var(--text-muted);font-family:var(--sans);font-size:0.72rem;font-weight:700;cursor:pointer;">+ Position hinzufügen</button>
     <div class="bon-divider"></div>
     ${(Number(bon.tip) || 0) > 0 ? `
     <div class="bon-row">
@@ -1629,6 +1638,38 @@ window.updateCurrentBonItemSubcat = function(idx, newSubcat) {
 
   renderConciergeResult(_currentBon);
   showToast('Subkategorie geändert & gemerkt');
+};
+
+// Positionen des gescannten Bons manuell korrigieren, wenn die KI falsch
+// ausgelesen hat (doppelte Menü-Kopfzeile, falscher Preis, fehlende Position).
+// So lässt sich die Warnung „Positionen ≠ Total" auflösen.
+window.updateCurrentBonItemName = function(idx, newName) {
+  if (!_currentBon?.items?.[idx]) return;
+  _currentBon.items[idx].name = String(newName).slice(0, 60);
+  renderConciergeResult(_currentBon);
+};
+
+window.updateCurrentBonItemPrice = function(idx, raw) {
+  if (!_currentBon?.items?.[idx]) return;
+  const num   = parseFloat(String(raw).replace(',', '.').replace(/[^0-9.\-]/g, ''));
+  const price = Number.isFinite(num) ? num : 0;
+  const item  = _currentBon.items[idx];
+  item.price  = price;
+  item.gesamt = price;
+  renderConciergeResult(_currentBon);
+};
+
+window.deleteCurrentBonItem = function(idx) {
+  if (!_currentBon?.items?.[idx]) return;
+  _currentBon.items.splice(idx, 1);
+  renderConciergeResult(_currentBon);
+};
+
+window.addCurrentBonItem = function() {
+  if (!_currentBon) return;
+  if (!Array.isArray(_currentBon.items)) _currentBon.items = [];
+  _currentBon.items.push({ name: 'Neue Position', price: 0, gesamt: 0, subcategory: 'Sonstiges' });
+  renderConciergeResult(_currentBon);
 };
 
 window.linkBon = function(txId) {

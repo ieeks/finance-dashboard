@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## v1.9.0 — 2026-07-10
+
+### Added
+- **Bon-Positionen im Concierge editierbar** — Wenn die KI Positionen falsch
+  ausliest (doppelt gezählte Menü-Kopfzeile, falscher Betrag, fehlende
+  Zeile), lässt sich das jetzt direkt korrigieren: pro Position sind **Name
+  und Betrag editierbar**, jede Zeile hat einen **Löschen-Button (✕)**, und
+  über **„+ Position hinzufügen"** kann eine fehlende Zeile ergänzt werden.
+  Warnung und Aufschlüsselung aktualisieren sich live, bis Σ(Positionen) =
+  Total. Neue Handler in js/app.js: `updateCurrentBonItemName`,
+  `updateCurrentBonItemPrice`, `deleteCurrentBonItem`, `addCurrentBonItem`.
+
+### Fixed
+- **Prompt: McDonald's-/Fast-Food-Menü-Bons** (prompts/analyze-bon.md) —
+  Wiederkehrender Fehler, dass die Menü-Kopfzeile („Muff BeefEggM2") mit dem
+  EINZEL-/VKP-Preis der Komponente als eigene Position doppelt gezählt wird.
+  Ergänzt: explizite Zwei-Spalten-Regel (EINZEL vs. GESAMT, immer GESAMT) und
+  ein konkretes Few-Shot-Beispiel mit korrekter vs. falscher Extraktion.
+
 ## v1.8.9 — 2026-07-10
 
 ### Fixed
