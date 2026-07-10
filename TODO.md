@@ -19,6 +19,10 @@
 
 ---
 
+## Erledigt (v1.8.9, 2026-07-10) — Bon-Summen-Konsistenz
+
+- [x] **Aufschlüsselung ≠ Rechnungstotal sichtbar gemacht** — Concierge zeigt jetzt eine Warnung, wenn Σ(Einzelposten) vom ausgewiesenen `total` abweicht (≥ 0,01 €). Ursache waren KI-Extraktionsfehler (doppelt gezählte Menü-Kopfzeilen, unvollständiges Pfand) bei Menü-Bons (z.B. McDonald's). Prompt zusätzlich verschärft: Kopfzeilen ohne GESAMT-Betrag nicht doppeln, GESAMT- statt EINZEL-Spalte, jede Pfand-Zeile einzeln, Σ(items) = total.
+
 ## Erledigt (v1.7.0, 2026-06-01) — Bon-Key-Eingabe
 
 - [x] **API-Key-Eingabe für Bon-Analyse repariert** — `saveKey()` war undefiniert (`ReferenceError`) und das Eingabefeld fehlte im Concierge-Screen → Claude Vision war nicht nutzbar. Neues Passwort-Feld + Speichern-Button, Persistenz via neuer `fsSaveApiKeys()` nach `household/main/config/apiKeys`, Vorbefüllung beim Login, null-sichere Provider-Handler.

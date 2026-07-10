@@ -1506,6 +1506,21 @@ function renderConciergeResult(bon) {
 
   const preview  = document.getElementById('bon-preview-content');
   const dateStr  = bon.date ? formatDate(bon.date) : '';
+
+  // Plausibilitäts-Check: Die Summe der Einzelposten (gesamt) muss zum
+  // ausgewiesenen Rechnungstotal passen. Weicht sie ab, hat die KI Positionen
+  // fehlerhaft ausgelesen (doppelt gezählte Menü-Kopfzeilen, vergessenes Pfand
+  // etc.) — dann stimmt auch die Aufschlüsselung nicht. Sichtbar machen.
+  const itemSum       = (bon.items || []).reduce((s, i) => s + (Number(i.price ?? i.gesamt) || 0), 0);
+  const declaredTotal = Number(bon.total) || 0;
+  const sumDiff       = itemSum - declaredTotal;
+  const sumMismatch   = (bon.items || []).length > 0 && Math.abs(sumDiff) >= 0.01;
+  const mismatchBanner = sumMismatch ? `
+    <div style="margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--red-bg);color:var(--red);font-size:0.68rem;line-height:1.45;">
+      ⚠️ Positionen ergeben <strong>${formatEur(itemSum)}</strong>, ausgewiesen ist <strong>${formatEur(declaredTotal)}</strong>
+      (Differenz ${formatEur(Math.abs(sumDiff))}). Die Aufschlüsselung basiert auf den Einzelposten — bitte prüfen.
+    </div>` : '';
+
   preview.innerHTML = `
     <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
     ${(bon.items||[]).map((item, idx) => {
@@ -1542,7 +1557,8 @@ function renderConciergeResult(bon) {
     <div class="bon-row">
       <div class="bon-total">Gesamt</div>
       <div class="bon-total">${formatEur(bon.total)}</div>
-    </div>`}`;
+    </div>`}
+    ${mismatchBanner}`;
 
   const breakdown = document.getElementById('bon-breakdown');
   const bySubcat  = {};
