@@ -19,6 +19,11 @@
 
 ---
 
+## Erledigt (v1.9.0, 2026-07-10) — Bon-Positionen editierbar + Menü-Prompt
+
+- [x] **Positionen im Concierge korrigierbar** — Name + Betrag editierbar, Löschen-Button pro Zeile, „+ Position hinzufügen". Löst KI-Extraktionsfehler manuell auf; Warnung/Aufschlüsselung aktualisieren live.
+- [x] **Prompt-Few-Shot für McDonald's-Menü-Bons** — Zwei-Spalten-Regel (EINZEL vs. GESAMT) + konkretes Beispiel gegen doppelt gezählte Menü-Kopfzeilen mit EINZEL-Preis.
+
 ## Erledigt (v1.8.9, 2026-07-10) — Bon-Summen-Konsistenz
 
 - [x] **Aufschlüsselung ≠ Rechnungstotal sichtbar gemacht** — Concierge zeigt jetzt eine Warnung, wenn Σ(Einzelposten) vom ausgewiesenen `total` abweicht (≥ 0,01 €). Ursache waren KI-Extraktionsfehler (doppelt gezählte Menü-Kopfzeilen, unvollständiges Pfand) bei Menü-Bons (z.B. McDonald's). Prompt zusätzlich verschärft: Kopfzeilen ohne GESAMT-Betrag nicht doppeln, GESAMT- statt EINZEL-Spalte, jede Pfand-Zeile einzeln, Σ(items) = total.

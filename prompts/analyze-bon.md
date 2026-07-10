@@ -104,6 +104,29 @@ Hinweise zur Summen-Konsistenz (WICHTIG):
 - **Pfand vollständig erfassen**: Kommt „Pfand" mehrfach auf dem Bon vor (z.B.
   je einmal pro Menü), liste JEDE Pfand-Zeile einzeln als eigene Position. Fasse
   sie nicht zu einer zusammen und lass keine aus.
+- **Zwei Preisspalten (EINZEL/VKP vs. GESAMT)**: Fast-Food-Bons drucken pro
+  Zeile ZWEI Zahlen — links den EINZEL-/VKP-Stückpreis, rechts den GESAMT-
+  Betrag. Verwende IMMER nur die RECHTE Zahl (GESAMT). Ein Buchstabe wie „A"
+  oder „B" am Zeilenende ist ein Steuerkennzeichen, KEIN Preis.
+
+Konkretes Beispiel (McDonald's-Menü — genau so extrahieren):
+
+  Rohtext (Spalten: STK BEZEICHNUNG … EINZEL/VKP … GESAMT):
+    1 Muff BeefEggM2
+      1 Muff Beef&E   4.30   4.08 A
+      1 M2-Capp       1.50   1.42 B
+    1 Co Zero 05      3.90   3.90 B
+    1 9er McNuggets   6.20   6.20 A
+    2 Sour Cr Dip     0.00   0.00 A
+    INNEN TOTAL              15.60
+
+  RICHTIG → 5 Positionen (nur GESAMT-Spalte, Kopfzeile „Muff BeefEggM2" wird
+  NICHT gezählt):
+    Muff Beef&E 4.08 · M2-Capp 1.42 · Co Zero 05 3.90 · 9er McNuggets 6.20 ·
+    Sour Cr Dip 0.00 → Summe 15.60 = INNEN TOTAL ✓
+
+  FALSCH → zusätzlich „Muff BeefEggM2" mit 4.30 aufführen (das ist der EINZEL-
+  Preis der Komponente, keine eigene Position) → Summe 19.90 ≠ 15.60 ✗
 
 Hinweise zur Item-Erkennung:
 - **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark
