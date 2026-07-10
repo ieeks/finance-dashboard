@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v1.8.9 — 2026-07-10
+
+### Fixed
+- **Bon-Aufschlüsselung passte nicht zum Rechnungstotal** — Die „Gesamt"-
+  Zeile im Concierge zeigt `bon.total` (die von der KI separat ausgelesene
+  Rechnungssumme), während die Aufschlüsselung die Summe der Einzelposten
+  (`items[].gesamt`) bildet. Bei fehlerhafter KI-Extraktion (doppelt
+  gezählte Menü-Kopfzeilen, vergessenes Pfand) driften beide auseinander,
+  ohne dass es auffiel. `renderConciergeResult` (js/app.js) prüft jetzt
+  Σ(Einzelposten) gegen `total` und zeigt bei Abweichung ≥ 0,01 € eine
+  Warnung mit beiden Beträgen und der Differenz.
+- **Prompt verschärft** (prompts/analyze-bon.md) — Menü-/Kombi-Kopfzeilen
+  ohne eigenen GESAMT-Betrag dürfen nicht zusätzlich gezählt werden, immer
+  GESAMT- statt EINZEL-Spalte verwenden, jede Pfand-Zeile einzeln erfassen,
+  und Σ(items.gesamt) muss `total` ergeben.
+
 ## v1.8.8 — 2026-07-02
 
 ### Added

@@ -90,6 +90,21 @@ Hinweise zum Datum:
   NICHT 2023. Regel: Jahreszahl < 50 → 2000er (26 → 2026, 25 → 2025). Nie als
   Monat oder Tag interpretieren — das dritte Element im Datum ist immer das Jahr.
 
+Hinweise zur Summen-Konsistenz (WICHTIG):
+- Die Summe aller `items[].gesamt` MUSS exakt `total` ergeben (ohne `tip`).
+  Rechne am Ende nach und korrigiere die Positionen, falls sie nicht aufgehen.
+- **Menü-/Kombi-Bons (McDonald's, Burger, Gastro-Sets)**: Eine Menü-Kopfzeile
+  wie „1 HM 4er Nugg" oder „1 Muf Beef M2" hat KEINEN eigenen Preis in der
+  GESAMT-Spalte — der Preis steht nur bei den eingerückten Einzelkomponenten
+  darunter. Übernimm NUR die Zeilen mit tatsächlichem Betrag in der GESAMT-
+  Spalte. Zähle die Kopfzeile NICHT zusätzlich als eigene Position — sonst wird
+  das Menü doppelt gezählt.
+- Nutze immer den Betrag aus der GESAMT-Spalte (Positionssumme), NICHT den
+  EINZEL-/VKP-Preis (Stückpreis) — bei Menü-Komponenten weichen die stark ab.
+- **Pfand vollständig erfassen**: Kommt „Pfand" mehrfach auf dem Bon vor (z.B.
+  je einmal pro Menü), liste JEDE Pfand-Zeile einzeln als eigene Position. Fasse
+  sie nicht zu einer zusammen und lass keine aus.
+
 Hinweise zur Item-Erkennung:
 - **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark
   abgekürzt. Versuche die Abkürzung zu dekodieren bevor du Sonstiges wählst:
