@@ -105,9 +105,14 @@ Hinweise zur Summen-Konsistenz (WICHTIG):
   je einmal pro Menü), liste JEDE Pfand-Zeile einzeln als eigene Position. Fasse
   sie nicht zu einer zusammen und lass keine aus.
 - **Zwei Preisspalten (EINZEL/VKP vs. GESAMT)**: Fast-Food-Bons drucken pro
-  Zeile ZWEI Zahlen — links den EINZEL-/VKP-Stückpreis, rechts den GESAMT-
-  Betrag. Verwende IMMER nur die RECHTE Zahl (GESAMT). Ein Buchstabe wie „A"
-  oder „B" am Zeilenende ist ein Steuerkennzeichen, KEIN Preis.
+  Zeile ZWEI Zahlen — links den EINZEL-/VKP-Stückpreis (regulärer À-la-carte-
+  Listenpreis der Komponente), rechts den GESAMT-Betrag (was im Menü
+  tatsächlich auf diese Komponente entfällt). Der Menüpreis wird auf die
+  Komponenten aufgeteilt, weil sie unterschiedlich besteuert sind (Essen 10 %
+  = „A", Kaffee/Getränk 20 % = „B") — deshalb weichen links und rechts ab.
+  Verwende IMMER nur die RECHTE Zahl (GESAMT): nur sie summiert sich zum
+  Rechnungstotal. Ein Buchstabe wie „A" oder „B" am Zeilenende ist das
+  Steuerkennzeichen, KEIN Preis.
 
 Konkretes Beispiel (McDonald's-Menü — genau so extrahieren):
 
