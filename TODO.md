@@ -19,6 +19,10 @@
 
 ---
 
+## Erledigt (v1.9.2, 2026-07-14) — Bon-Upload-Crash gefixt
+
+- [x] **`raw.replace`-Crash beim Bon-Upload** — Sonnet stellt oft einen `thinking`-Block vor den Text-Block; `data.content[0].text` war dadurch undefined. Neuer Helper `_anthropicText()` zieht gezielt den Text-Block, `_safeParseObject` gegen leere Antworten abgesichert.
+
 ## Erledigt (v1.9.1, 2026-07-14) — Bon-Analyse auf Sonnet
 
 - [x] **Vision-Modell für Bon-Analyse: Haiku → Sonnet** — Dichte McDonald's-Menü-Bons (zwei Preisspalten, 18+ Zeilen, quer fotografiert) wurden von Haiku trotz Prompt-Fixes wiederholt falsch ausgelesen. `bonAnalyzer.js` nutzt jetzt `claude-sonnet-5` (`_ANTHROPIC_BON_MODEL`). Parser bleibt auf Haiku.

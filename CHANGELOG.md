@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v1.9.2 — 2026-07-14
+
+### Fixed
+- **Bon-Upload crashte mit „undefined is not an object (evaluating
+  'raw.replace')"** — Folgefehler des Sonnet-Umstiegs (v1.9.1): Der Code las
+  die Antwort blind über `data.content[0].text`. Sonnet (Claude-5-Familie)
+  stellt jedoch oft einen `thinking`-Block VOR den Text-Block, sodass
+  `content[0]` kein Text ist und `.text` undefined — `_safeParseObject`
+  crashte dann an `raw.replace`. Neuer Helper `_anthropicText()` sucht gezielt
+  den ersten echten Text-Block (funktioniert für alte und neue
+  Antwort-Formen), und `_safeParseObject` ist gegen leere/fehlende Antworten
+  abgesichert (`String(raw ?? '')`).
+
 ## v1.9.1 — 2026-07-14
 
 ### Changed

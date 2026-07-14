@@ -16,7 +16,18 @@ async function _loadPrompt() {
   return resp.text();
 }
 
-function _safeParseObject(raw) {  const clean = raw.replace(/```json|```/g, '').trim();
+// Holt den Text aus einer Anthropic-Messages-Antwort. Neuere Modelle
+// (Claude-5-Familie / Sonnet) stellen oft einen `thinking`-Block VOR den
+// Text-Block — dann ist content[0] kein Text und content[0].text undefined.
+// Deshalb gezielt den ersten echten Text-Block suchen statt content[0].
+function _anthropicText(data) {
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  const textBlock = blocks.find(b => b?.type === 'text' && typeof b.text === 'string');
+  return textBlock ? textBlock.text : '';
+}
+
+function _safeParseObject(raw) {
+  const clean = String(raw ?? '').replace(/```json|```/g, '').trim();
   const match = clean.match(/\{[\s\S]*\}/);
   if (!match) throw new Error('KI hat kein JSON zurückgegeben — bitte nochmal versuchen');
   let obj;
@@ -85,7 +96,7 @@ export async function analyzeBonImage(base64, mimeType) {
   });
   if (!resp.ok) throw await _apiError(resp, 'Anthropic');
   const data = await resp.json();
-  return _safeParseObject(data.content[0].text);
+  return _safeParseObject(_anthropicText(data));
 }
 
 // ── PDF-Bon via Text-Extraktion ──
@@ -110,7 +121,7 @@ export async function analyzeBonPdf(pdfText) {
   });
   if (!resp.ok) throw await _apiError(resp, 'Anthropic');
   const data = await resp.json();
-  return _safeParseObject(data.content[0].text);
+  return _safeParseObject(_anthropicText(data));
 }
 
 // ── OpenAI GPT-4o Vision — Bild ──
