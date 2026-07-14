@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v1.9.1 — 2026-07-14
+
+### Changed
+- **Bon-Analyse nutzt jetzt Claude Sonnet statt Haiku** (`bonAnalyzer.js`) —
+  Haiku las dichte Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen
+  Zeilen und schräg fotografiert wiederholt falsch aus (Menü-Kopfzeilen mit
+  EINZEL-Preis doppelt gezählt o.ä.), trotz Prompt-Verschärfung. Prompt-Tuning
+  war am Ende des Ertrags — der Engpass ist die visuelle Zahlen-Zuordnung des
+  Modells. Umgestellt auf `claude-sonnet-5` via neuer Konstante
+  `_ANTHROPIC_BON_MODEL` (Bild- und PDF-Pfad). Transaktions-Parsing
+  (`parser.js`) bleibt auf Haiku. Warnung + Editier-UI (v1.8.9/v1.9.0) bleiben
+  als Backstop.
+
 ## v1.9.0 — 2026-07-10
 
 ### Added

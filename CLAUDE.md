@@ -165,7 +165,10 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 - **Kein Build-System**: Alles bleibt Vanilla JS / CDN-Imports
 - **API Keys**: In Firestore unter `household/main/config/apiKeys` (Felder `anthropic` / `openai`) gespeichert, nach Login per `setInMemoryKeys()` in den In-Memory-Store geladen. Eingabe über Concierge-Screen (Bon-Analyse). Nie in Code committen.
 - **Firebase Config**: in `firebase-config.js` auslagern → in `.gitignore`
-- **AI Provider**: Anthropic (Claude Haiku) + OpenAI (gpt-4o-mini) — beide unterstützt
+- **AI Provider**: Anthropic + OpenAI (gpt-4o-mini) — beide unterstützt.
+  Transaktions-Parsing nutzt Claude Haiku; die Bon-/Rechnungs-Analyse
+  (`bonAnalyzer.js`) nutzt Claude Sonnet (`_ANTHROPIC_BON_MODEL`), weil dichte
+  Thermobons mit zwei Preisspalten für Haiku zu fehleranfällig sind.
 
 ## Nach jedem Dev-Session updaten
 
