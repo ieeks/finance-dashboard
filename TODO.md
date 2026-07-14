@@ -19,6 +19,10 @@
 
 ---
 
+## Erledigt (v1.9.1, 2026-07-14) — Bon-Analyse auf Sonnet
+
+- [x] **Vision-Modell für Bon-Analyse: Haiku → Sonnet** — Dichte McDonald's-Menü-Bons (zwei Preisspalten, 18+ Zeilen, quer fotografiert) wurden von Haiku trotz Prompt-Fixes wiederholt falsch ausgelesen. `bonAnalyzer.js` nutzt jetzt `claude-sonnet-5` (`_ANTHROPIC_BON_MODEL`). Parser bleibt auf Haiku.
+
 ## Erledigt (v1.9.0, 2026-07-10) — Bon-Positionen editierbar + Menü-Prompt
 
 - [x] **Positionen im Concierge korrigierbar** — Name + Betrag editierbar, Löschen-Button pro Zeile, „+ Position hinzufügen". Löst KI-Extraktionsfehler manuell auf; Warnung/Aufschlüsselung aktualisieren live.

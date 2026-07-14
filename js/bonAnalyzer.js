@@ -4,6 +4,12 @@ import { loadKeys } from './ui.js';
 
 const _promptUrl = new URL('../prompts/analyze-bon.md', import.meta.url).href;
 
+// Modell für die Bon-Analyse (Anthropic). Sonnet statt Haiku: dichte
+// Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen Zeilen und
+// schräg fotografiert werden von Haiku zu oft falsch ausgelesen — Sonnet
+// ist bei der visuellen Zahlen-Zuordnung deutlich zuverlässiger.
+const _ANTHROPIC_BON_MODEL = 'claude-sonnet-5';
+
 async function _loadPrompt() {
   const resp = await fetch(_promptUrl);
   if (!resp.ok) throw new Error('Prompt-Datei nicht gefunden');
@@ -66,7 +72,7 @@ export async function analyzeBonImage(base64, mimeType) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
+      model:      _ANTHROPIC_BON_MODEL,
       max_tokens: 2000,
       messages:   [{
         role:    'user',
@@ -97,7 +103,7 @@ export async function analyzeBonPdf(pdfText) {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model:      'claude-haiku-4-5-20251001',
+      model:      _ANTHROPIC_BON_MODEL,
       max_tokens: 2000,
       messages:   [{ role: 'user', content: fullPrompt }],
     }),
