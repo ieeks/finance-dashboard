@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## v1.9.3 — 2026-07-14
+
+### Fixed
+- **Cache-Bug: alte Module trotz Deploy** — `index.html` lud `app.js` zwar mit
+  `?t=${Date.now()}` (immer frisch), aber dessen statische Imports
+  (`bonAnalyzer.js` etc.) erbten die Query nicht → der Browser (v.a. iOS
+  Safari) lieferte weiter die alte, gecachte `bonAnalyzer.js` aus. Folge: Der
+  `raw.replace`-Crash-Fix (v1.9.2) kam beim User gar nicht an, die
+  Fehlermeldung blieb identisch. Jetzt trägt JEDER lokale Modul-Import (und die
+  Prompt-URL) eine Versions-Query `?v=1.9.3`, die pro Release hochgezählt wird.
+  Mechanik + Bump-Schritt in CLAUDE.md dokumentiert.
+
 ## v1.9.2 — 2026-07-14
 
 ### Fixed
