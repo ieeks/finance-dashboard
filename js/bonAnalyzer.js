@@ -1,14 +1,20 @@
 // bonAnalyzer.js — Bon/Rechnung Analyse (Bild + PDF) via Claude Vision
 
-import { loadKeys } from './ui.js?v=1.9.3';
+import { loadKeys } from './ui.js?v=1.9.4';
 
-const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.9.3', import.meta.url).href;
+const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.9.4', import.meta.url).href;
 
 // Modell für die Bon-Analyse (Anthropic). Sonnet statt Haiku: dichte
 // Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen Zeilen und
 // schräg fotografiert werden von Haiku zu oft falsch ausgelesen — Sonnet
 // ist bei der visuellen Zahlen-Zuordnung deutlich zuverlässiger.
 const _ANTHROPIC_BON_MODEL = 'claude-sonnet-5';
+
+// Output-Budget für die Bon-Analyse. Lange Bons (18+ Positionen) plus der
+// thinking-Block, den Sonnet oft voranstellt (zählt ins Budget), sprengten die
+// alten 2000 Tokens — das JSON brach mittendrin ab („kein gültiges JSON").
+// max_tokens ist nur eine Obergrenze; abgerechnet wird, was wirklich erzeugt wird.
+const _BON_MAX_TOKENS = 8000;
 
 async function _loadPrompt() {
   const resp = await fetch(_promptUrl);
@@ -84,7 +90,7 @@ export async function analyzeBonImage(base64, mimeType) {
     },
     body: JSON.stringify({
       model:      _ANTHROPIC_BON_MODEL,
-      max_tokens: 2000,
+      max_tokens: _BON_MAX_TOKENS,
       messages:   [{
         role:    'user',
         content: [
@@ -115,7 +121,7 @@ export async function analyzeBonPdf(pdfText) {
     },
     body: JSON.stringify({
       model:      _ANTHROPIC_BON_MODEL,
-      max_tokens: 2000,
+      max_tokens: _BON_MAX_TOKENS,
       messages:   [{ role: 'user', content: fullPrompt }],
     }),
   });
