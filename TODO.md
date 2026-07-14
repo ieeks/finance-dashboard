@@ -19,6 +19,10 @@
 
 ---
 
+## Erledigt (v1.9.4, 2026-07-14) — Token-Limit für lange Bons
+
+- [x] **„kein gültiges JSON" bei langen Bons** — Antwort brach wegen `max_tokens: 2000` mittendrin ab (18+ Positionen + Sonnet-thinking-Block). Neue Konstante `_BON_MAX_TOKENS = 8000` für beide Anthropic-Pfade. Cache-Version → `?v=1.9.4`.
+
 ## Erledigt (v1.9.3, 2026-07-14) — Cache-Busting für ES-Module
 
 - [x] **Alte Module trotz Deploy (iOS Safari)** — Statische Imports erbten die `?t=`-Cache-Bust-Query von `app.js` nicht. Jetzt trägt jeder lokale Import + die Prompt-URL `?v=<version>`, hochgezählt pro Release. Deshalb kam der v1.9.2-Crash-Fix vorher nicht an.

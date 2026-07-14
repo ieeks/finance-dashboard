@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## v1.9.4 — 2026-07-14
+
+### Fixed
+- **Bon-Analyse: „KI-Antwort ist kein gültiges JSON"** — Nach dem Cache-Fix
+  (v1.9.3) lief endlich der neue Code, scheiterte aber am Token-Limit: Lange
+  Bons (18+ Positionen) plus der von Sonnet oft vorangestellte `thinking`-Block
+  (zählt ins Budget) sprengten die alten `max_tokens: 2000` — das JSON brach
+  mittendrin ab. Neue Konstante `_BON_MAX_TOKENS = 8000` für beide Anthropic-
+  Pfade (Bild + PDF). `max_tokens` ist nur eine Obergrenze; abgerechnet wird
+  nur, was tatsächlich erzeugt wird. OpenAI-Pfade unverändert (niedrigere
+  Modell-Limits).
+- Cache-Bust-Version auf `?v=1.9.4` hochgezählt (bonAnalyzer.js geändert).
+
 ## v1.9.3 — 2026-07-14
 
 ### Fixed
