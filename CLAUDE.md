@@ -175,6 +175,19 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 - [ ] CHANGELOG.md
 - [ ] TODO.md
 - [ ] Version in index.html
+- [ ] **Cache-Bust**: `?v=<version>` in ALLEN lokalen Modul-Imports (`js/*.js`)
+      und in der Prompt-URL (`bonAnalyzer.js`) auf die neue Version hochzählen —
+      sonst liefert der Browser (v.a. iOS Safari) alte, gecachte Module aus.
+      Bulk via: `sed -i -E "s/\\?v=[0-9.]+/?v=NEU/g" js/*.js`
+
+## Cache-Busting (KRITISCH bei kein-Build)
+
+Ohne Build-System werden ES-Module direkt geladen. Der Entry in `index.html`
+lädt `app.js` mit `?t=${Date.now()}` (immer frisch), aber **statische Imports
+erben diese Query NICHT** — `import … from './bonAnalyzer.js'` würde die alte
+gecachte Datei ziehen. Deshalb trägt JEDER lokale Import eine Versions-Query
+`?v=<version>`, die pro Release hochgezählt wird. Neue `js/*.js`-Datei →
+Import ebenfalls mit `?v=` versehen.
 
 ## iOS Dark Mode Fix (KRITISCH)
 

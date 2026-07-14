@@ -19,6 +19,10 @@
 
 ---
 
+## Erledigt (v1.9.3, 2026-07-14) — Cache-Busting für ES-Module
+
+- [x] **Alte Module trotz Deploy (iOS Safari)** — Statische Imports erbten die `?t=`-Cache-Bust-Query von `app.js` nicht. Jetzt trägt jeder lokale Import + die Prompt-URL `?v=<version>`, hochgezählt pro Release. Deshalb kam der v1.9.2-Crash-Fix vorher nicht an.
+
 ## Erledigt (v1.9.2, 2026-07-14) — Bon-Upload-Crash gefixt
 
 - [x] **`raw.replace`-Crash beim Bon-Upload** — Sonnet stellt oft einen `thinking`-Block vor den Text-Block; `data.content[0].text` war dadurch undefined. Neuer Helper `_anthropicText()` zieht gezielt den Text-Block, `_safeParseObject` gegen leere Antworten abgesichert.
