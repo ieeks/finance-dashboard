@@ -252,6 +252,104 @@ class TestSemanticDuplicate(unittest.TestCase):
         self.assertTrue(self.fn(self.existing, "Billa", "2026-05-08", 13.630001, "unbekannt"))
 
 
+class TestParseAmount(unittest.TestCase):
+    def setUp(self):
+        self.fn = H["_parse_amount"]
+
+    def test_german_decimal(self):
+        self.assertEqual(self.fn("46,09"), 46.09)
+
+    def test_german_thousands(self):
+        self.assertEqual(self.fn("1.234,56"), 1234.56)
+
+    def test_space_thousands(self):
+        self.assertEqual(self.fn("1 234,56"), 1234.56)
+
+    def test_dot_decimal(self):
+        self.assertEqual(self.fn("46.09"), 46.09)
+
+    def test_invalid(self):
+        self.assertIsNone(self.fn("abc"))
+
+
+class TestExtractDateCandidates(unittest.TestCase):
+    def setUp(self):
+        self.fn = H["_extract_date_candidates"]
+
+    def test_dmy_dotted(self):
+        self.assertIn("2026-05-21", self.fn("Rechnungsdatum: 21.05.2026"))
+
+    def test_iso_passthrough(self):
+        self.assertIn("2026-05-21", self.fn("Datum 2026-05-21"))
+
+    def test_slash_and_dash_formats(self):
+        self.assertIn("2026-06-24", self.fn("24/06/2026"))
+        self.assertIn("2026-06-24", self.fn("24-06-2026"))
+
+    def test_invalid_month_ignored(self):
+        self.assertEqual(self.fn("32.13.2026"), [])
+
+    def test_empty(self):
+        self.assertEqual(self.fn(""), [])
+
+
+class TestExtractTotalCandidates(unittest.TestCase):
+    def setUp(self):
+        self.fn = H["_extract_total_candidates"]
+
+    def test_summe_line(self):
+        text = "Pos 1 12,00\nPos 2 34,09\nSUMME EUR 46,09"
+        self.assertIn(46.09, self.fn(text))
+
+    def test_max_amount_included(self):
+        # größter Betrag wird auch ohne Summen-Keyword als Kandidat geführt
+        text = "Artikel A 3,50\nArtikel B 50,05\nMwSt 8,34"
+        self.assertIn(50.05, self.fn(text))
+
+    def test_rechnungsbetrag_keyword(self):
+        self.assertIn(50.05, self.fn("Rechnungsbetrag: 50,05 EUR"))
+
+    def test_empty(self):
+        self.assertEqual(self.fn(""), [])
+
+
+class TestPrefilterSemanticHit(unittest.TestCase):
+    """Vorab-Dedup vor dem AI-Call — Datum + Betrag + Händler-Substring."""
+
+    def setUp(self):
+        self.fn = H["_prefilter_semantic_hit"]
+        self.existing = [
+            {"description": "Eurospar", "date": "2026-05-21", "amount": -46.09},
+            {"description": "Billa", "date": "2026-05-08", "amount": -13.63},
+        ]
+
+    def test_hit_all_signals_match(self):
+        text = "EUROSPAR Filiale 1030\nSUMME EUR 46,09\nDatum 21.05.2026"
+        hit = self.fn(self.existing, text, ["2026-05-21"], [46.09])
+        self.assertIsNotNone(hit)
+        self.assertEqual(hit["description"], "Eurospar")
+
+    def test_no_hit_store_absent_from_text(self):
+        # gleicher Betrag + Datum, aber Händlername steht nicht im Text
+        text = "Random Bäckerei\nSUMME 46,09\n21.05.2026"
+        self.assertIsNone(self.fn(self.existing, text, ["2026-05-21"], [46.09]))
+
+    def test_no_hit_amount_differs(self):
+        text = "EUROSPAR\nSUMME 99,99\n21.05.2026"
+        self.assertIsNone(self.fn(self.existing, text, ["2026-05-21"], [99.99]))
+
+    def test_no_hit_date_differs(self):
+        text = "EUROSPAR\nSUMME 46,09\n22.05.2026"
+        self.assertIsNone(self.fn(self.existing, text, ["2026-05-22"], [46.09]))
+
+    def test_amount_tolerance(self):
+        text = "EUROSPAR\nSUMME 46,09"
+        self.assertIsNotNone(self.fn(self.existing, text, ["2026-05-21"], [46.090001]))
+
+    def test_empty_existing(self):
+        self.assertIsNone(self.fn([], "EUROSPAR 46,09", ["2026-05-21"], [46.09]))
+
+
 class TestLandlord(unittest.TestCase):
     """Vermieter-Erkennung (sync mit js/personalConfig.js)."""
 
