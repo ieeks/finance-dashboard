@@ -591,6 +591,104 @@ def _is_semantic_duplicate(
     return False
 
 
+# ── Vorab-Dedup (VOR dem AI-Call) ─────────────────────────────────────────────
+# Der Byte-Hash-Dedup (_pdf_doc_id/is_duplicate) fängt nur identische PDF-Bytes.
+# Re-gesendete Bons (Billa/Spar) kommen aber als byte-verschiedene PDFs → jeder
+# Lauf würde erneut einen (teuren) AI-Call zahlen, nur um das Ergebnis danach in
+# _is_semantic_duplicate() wieder zu verwerfen. Um das zu vermeiden, ziehen wir
+# Datum + Summe direkt aus dem PDF-Rohtext (Regex, kein AI) und prüfen gegen
+# bereits importierte Gmail-Buchungen. Trifft nichts → regulärer AI-Pfad läuft
+# inkl. Post-AI-Semantik-Dedup als Sicherheitsnetz.
+
+# Beträge wie "46,09", "1.234,56", "1 234,56" oder "46.09" (2 Nachkommastellen).
+_AMOUNT_RE = re.compile(r"\d{1,3}(?:[.\s]\d{3})*[.,]\d{2}|\d+[.,]\d{2}")
+
+# Zeilen-Marker die eine Rechnungssumme einleiten (bewusst spezifisch, kein
+# nacktes "Betrag" → sonst würden MwSt-/Zwischenbeträge zu Kandidaten).
+_TOTAL_KEYWORDS_RE = re.compile(
+    r"summe|gesamt|zu\s*zahlen|zahlbetrag|rechnungsbetrag|endbetrag|total",
+    re.IGNORECASE,
+)
+
+_DATE_DMY_RE = re.compile(r"\b(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})\b")
+_DATE_ISO_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
+
+
+def _parse_amount(raw: str) -> float | None:
+    """'1.234,56' → 1234.56 · '46,09' → 46.09 · '46.09' → 46.09."""
+    s = raw.strip().replace(" ", "")
+    if "." in s and "," in s:        # deutsches Format: Punkt=Tausender, Komma=Dezimal
+        s = s.replace(".", "").replace(",", ".")
+    elif "," in s:
+        s = s.replace(",", ".")
+    try:
+        return round(float(s), 2)
+    except ValueError:
+        return None
+
+
+def _extract_total_candidates(text: str) -> list[float]:
+    """Mögliche Rechnungssummen aus PDF-Text: Beträge auf Summen-Zeilen plus der
+    größte Betrag im Dokument (bei Kassenbons fast immer die Endsumme)."""
+    if not text:
+        return []
+    cands: set[float] = set()
+    all_amounts: list[float] = []
+    for line in text.splitlines():
+        amounts = [a for a in (_parse_amount(m) for m in _AMOUNT_RE.findall(line))
+                   if a is not None]
+        all_amounts.extend(amounts)
+        if _TOTAL_KEYWORDS_RE.search(line):
+            cands.update(amounts)
+    if all_amounts:
+        cands.add(max(all_amounts))
+    return sorted(cands)
+
+
+def _extract_date_candidates(text: str) -> list[str]:
+    """Datums-Kandidaten als ISO-Strings (yyyy-mm-dd) — deckt dd.mm.yyyy,
+    dd/mm/yyyy, dd-mm-yyyy und bereits-ISO ab. So wie die AI 'date' liefert."""
+    if not text:
+        return []
+    out: set[str] = set()
+    for d, m, y in _DATE_DMY_RE.findall(text):
+        di, mi = int(d), int(m)
+        if 1 <= mi <= 12 and 1 <= di <= 31:
+            out.add(f"{int(y):04d}-{mi:02d}-{di:02d}")
+    for y, m, d in _DATE_ISO_RE.findall(text):
+        mi, di = int(m), int(d)
+        if 1 <= mi <= 12 and 1 <= di <= 31:
+            out.add(f"{int(y):04d}-{mi:02d}-{di:02d}")
+    return sorted(out)
+
+
+def _prefilter_semantic_hit(
+    existing: list[dict], text: str,
+    date_candidates: list[str], total_candidates: list[float],
+) -> dict | None:
+    """Sucht in bereits importierten Gmail-Buchungen einen Treffer, der zum
+    PDF-Text passt: Datum ∈ Kandidaten, Betrag ∈ Kandidaten (±0,5 ct) UND der
+    gespeicherte Händlername steht als Substring im Rohtext. Die drei Signale
+    zusammen machen einen falschen Treffer praktisch aus (Hinweis: Konto wird
+    hier — anders als _is_semantic_duplicate — nicht geprüft, da es erst aus dem
+    AI-Ergebnis kommt; identischer Cent-Betrag beim selben Händler am selben Tag
+    über zwei Karten wäre nötig, um daneben zu greifen)."""
+    if not existing or not date_candidates or not total_candidates:
+        return None
+    tl    = (text or "").lower()
+    dates = set(date_candidates)
+    for doc in existing:
+        if doc.get("date") not in dates:
+            continue
+        desc = str(doc.get("description") or "").strip()
+        if not desc or desc.lower() not in tl:
+            continue
+        amt = abs(doc.get("amount", 0) or 0)
+        if any(abs(amt - t) < 0.005 for t in total_candidates):
+            return doc
+    return None
+
+
 # Aliase aus alten AI-Outputs/Prompts → kanonische Subkategorie.
 # JS-Seite hat diese in v1.3.2 dedup'd, Python hatte sie noch.
 _SUBCAT_ALIASES = {
@@ -806,8 +904,44 @@ def extract_pdf_with_claude_ocr(pdf_path: Path) -> dict | None:
 
 # ── Haupt-Orchestrierung ───────────────────────────────────────────────────────
 
+def _prefilter_pdf_duplicate(text: str) -> bool:
+    """Best-effort Dedup VOR dem AI-Call (siehe Block bei _prefilter_semantic_hit).
+    Extrahiert Datum + Summe aus dem PDF-Text und prüft gegen bereits importierte
+    Gmail-Buchungen. True → Kauf schon vorhanden, AI-Call kann entfallen. Bei
+    fehlenden Kandidaten oder Query-Fehler → False (regulärer AI-Pfad läuft, der
+    Post-AI-Semantik-Dedup fängt den Re-Send dann trotzdem)."""
+    date_candidates  = _extract_date_candidates(text)
+    total_candidates = _extract_total_candidates(text)
+    if not date_candidates or not total_candidates:
+        return False
+    col = _tx_collection()
+    if not col:
+        return False
+    try:
+        existing: list[dict] = []
+        # Firestore 'in' erlaubt max. 10 Werte → in Blöcken abfragen. Nutzt den
+        # gleichen (source, date) Composite-Index wie der Post-AI-Check.
+        for i in range(0, len(date_candidates), 10):
+            chunk = date_candidates[i:i + 10]
+            existing.extend(
+                d.to_dict() for d in col.where("source", "==", "gmail_import")
+                                        .where("date", "in", chunk)
+                                        .stream()
+            )
+    except Exception as exc:
+        print(f"  Vorab-Dedup-Check fehlgeschlagen: {exc}")
+        return False
+    hit = _prefilter_semantic_hit(existing, text, date_candidates, total_candidates)
+    if hit:
+        print(f"  Übersprungen (Vorab-Duplikat, kein AI-Call): "
+              f"{hit.get('description')} · {hit.get('date')} · "
+              f"{abs(hit.get('amount', 0) or 0):.2f} EUR")
+        return True
+    return False
+
+
 def process_pdf(pdf_path: Path) -> bool:
-    """PDF verarbeiten: Duplikat-Check → Text → AI → Firestore."""
+    """PDF verarbeiten: Duplikat-Check → Text → Vorab-Dedup → AI → Firestore."""
     print(f"  Verarbeite PDF: {pdf_path.name}")
 
     # Dedup zuerst — doc_id ist deterministisch aus den PDF-Bytes, kein AI-Call
@@ -825,6 +959,10 @@ def process_pdf(pdf_path: Path) -> bool:
             print("  FEHLER: PDF-OCR fehlgeschlagen.")
             return False
     else:
+        # Vorab-Dedup: byte-verschiedene Re-Sends abfangen, bevor ein AI-Call
+        # anfällt (Byte-Hash-Dedup oben greift dafür nicht).
+        if _prefilter_pdf_duplicate(text):
+            return False
         ai_data = extract_with_ai(text, pdf_path.name)
     if not ai_data:
         print("  FEHLER: AI-Extraktion fehlgeschlagen.")

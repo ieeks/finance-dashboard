@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## v1.9.5 — 2026-07-21
+
+### Changed
+- **Gmail-Importer: Vorab-Dedup vor dem AI-Call** — Re-gesendete Kassenbons
+  (Billa/Spar/Eurospar) kommen als byte-verschiedene PDFs, deshalb griff der
+  Byte-Hash-Dedup nicht und der Importer zahlte bei *jedem* Lauf einen vollen
+  OpenAI-/Claude-Call, nur um das Ergebnis danach in `_is_semantic_duplicate()`
+  wieder zu verwerfen (siehe Log 2026-07-21, E-Mail 223 „Eurospar 46,09"). Neu:
+  `_prefilter_pdf_duplicate()` zieht Datum + Summe per Regex direkt aus dem
+  PDF-Rohtext (`_extract_date_candidates` / `_extract_total_candidates`) und
+  prüft gegen bereits importierte Gmail-Buchungen (`_prefilter_semantic_hit`:
+  Datum + Betrag ±0,5 ct + Händlername als Substring im Text). Treffer →
+  AI-Call entfällt. Bei fehlenden Kandidaten oder Query-Fehler → sauberer
+  Fallback auf den regulären AI-Pfad; der bestehende Post-AI-Semantik-Dedup
+  bleibt als Sicherheitsnetz erhalten.
+- Tests: 15 neue Unit-Tests für die Extraktions- und Match-Helfer
+  (`tests/test_python_importer.py`, reine stdlib via AST-Harness).
+
 ## v1.9.4 — 2026-07-14
 
 ### Fixed
