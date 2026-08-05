@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.9.6`
+Aktuelle Version: `v1.9.7`
 
 ## Commit-Konventionen
 
@@ -169,7 +169,7 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 - **Firebase Config**: in `firebase-config.js` auslagern → in `.gitignore`
 - **Bon-Schema Netto/Brutto**: `total` ist IMMER der Bruttobetrag — der Betrag,
   der so auf dem Kontoauszug steht. `vat` ist die bei Netto-Rechnungen
-  (Ladestrom, Handwerker, Hosting) separat aufgeschlagene USt., bei Kassenbons
+  (VERBUND/Strom, Ladestrom, Handwerker, Hosting) separat aufgeschlagene USt., bei Kassenbons
   `0`. Es gilt `Σ items[].gesamt == total − vat`. Steht dort ein Nettobetrag,
   scheitert das Bon-↔-Buchung-Matching am 2-€-Hard-Out in `findMatch()`.
   Absicherung: `_gross_total_correction()` in `gmail_finance_importer.py`.

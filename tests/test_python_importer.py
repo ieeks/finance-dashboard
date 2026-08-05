@@ -358,6 +358,32 @@ class TestGrossTotalCorrection(unittest.TestCase):
         text = "Leistung 100,00\nZu zahlen 120,00\n"
         self.assertEqual(self.fn(text, 100.00, 100.00), (120.00, 20.00))
 
+    def test_verbund_gesamtsumme(self):
+        # Stromrechnung: Energie/Netz/Abgaben netto, USt. auf die Zwischensumme
+        text = (
+            "Energie 41,20\nNetz 28,90\nAbgaben 4,08\n"
+            "Zwischensumme 74,18\n"
+            "Umsatzsteuer 20 % 14,84\n"
+            "Gesamtsumme 89,02\n"
+        )
+        self.assertEqual(self.fn(text, 74.18, 74.18), (89.02, 14.84))
+
+    def test_gesamtsumme_steuern_still_excluded(self):
+        # "Gesamtsumme Steuern" darf trotz des neuen gesamtsumme-Keywords
+        # nicht als Endbetrag durchgehen (steht so auf der Tesla-Rechnung)
+        text = "Position 17.67\nTeilsumme 17.67\nGesamtsumme Steuern 3.53\n"
+        self.assertIsNone(self.fn(text, 17.67, 17.67))
+
+    def test_weitere_endbetrag_marker(self):
+        for line in ("Zu bezahlen 120,00", "Zahlungsbetrag 120,00",
+                     "Rechnungssumme 120,00", "Summe brutto 120,00",
+                     "Einzugsbetrag 120,00"):
+            with self.subTest(line=line):
+                self.assertEqual(
+                    self.fn(f"Leistung 100,00\n{line}\n", 100.00, 100.00),
+                    (120.00, 20.00),
+                )
+
     def test_german_vat_rate(self):
         text = "Position 100,00\nRechnungsbetrag 119,00\n"
         self.assertEqual(self.fn(text, 100.00, 100.00), (119.00, 19.00))

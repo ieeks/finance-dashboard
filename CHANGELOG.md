@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## v1.9.7 — 2026-08-05
+
+### Fixed
+- **Netto-Falle greift jetzt auch bei Stromrechnungen (VERBUND)** — Nachtrag zu
+  v1.9.6: Dieselbe Netto-Extraktion trifft die VERBUND-Rechnungen. Aus den
+  Importer-Logs:
+  `Erkannt: VERBUND Energy4Customers GmbH — 74.18 EUR — 2026-07-07 · 4 Positionen`
+  (`pdf_8aad2bb3acc206c6a281`) und `— 85.37 EUR —` (`pdf_44f872e2749a24cbe070`).
+  Energie, Netz und Abgaben sind je netto aufgelistet, die USt. kommt einmal auf
+  die Zwischensumme.
+- `_GROSS_TOTAL_RE` deckt jetzt auch die Endbetrags-Bezeichnungen der
+  Energieversorger ab: `Gesamtsumme` (mit Negative-Lookahead, damit die
+  Tesla-Zeile „Gesamtsumme Steuern" weiterhin NICHT trifft), `Zahlungsbetrag`,
+  `Rechnungssumme`, `Bruttosumme`, `Summe brutto`, `Zu bezahlen`,
+  `Einzugsbetrag`, `Abbuchungsbetrag`. Der USt.-Satz-Abgleich bleibt die
+  eigentliche Absicherung — die Keyword-Liste darf deshalb breit sein.
+- Prompt (`prompts/analyze-bon.md`): Strom-/Energieversorger explizit als
+  typisches Netto-Layout genannt, inkl. Aufbau (Energie/Netz/Abgaben netto,
+  USt. auf die Zwischensumme).
+
+### Changed
+- Cache-Version → `?v=1.9.7` (Prompt-Datei geändert → Browser muss neu laden).
+- Tests: 3 neue Fälle (VERBUND-Layout, „Gesamtsumme Steuern" bleibt
+  ausgeschlossen, alle neuen Endbetrags-Marker) → 93 Python-Tests.
+
 ## v1.9.6 — 2026-08-05
 
 ### Fixed
