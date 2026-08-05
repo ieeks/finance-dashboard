@@ -675,10 +675,14 @@ def _extract_date_candidates(text: str) -> list[str]:
 # Zeilen, die den tatsächlich zu zahlenden Endbetrag tragen. Bewusst enger als
 # _TOTAL_KEYWORDS_RE: "Teilsumme"/"Zwischensumme" (netto) und "Gesamtsumme
 # Steuern" (nur die Steuer) dürfen hier NICHT treffen — beide stehen auf der
-# Tesla-Rechnung direkt neben dem echten "Gesamtbetrag".
+# Tesla-Rechnung direkt neben dem echten "Gesamtbetrag". Deshalb trägt
+# "gesamtsumme" einen Negative-Lookahead statt zu fehlen: Energieversorger
+# (VERBUND) beschriften ihre Endsumme genau so.
 _GROSS_TOTAL_RE = re.compile(
-    r"gesamtbetrag|zu\s*zahlen|zahlbetrag|rechnungsbetrag|endbetrag|"
-    r"bruttobetrag|summe\s+inkl",
+    r"gesamtbetrag|gesamtsumme(?!\s*steuern)|zu\s*(?:zahlen|bezahlen)|"
+    r"zahlbetrag|zahlungsbetrag|rechnungsbetrag|rechnungssumme|endbetrag|"
+    r"bruttobetrag|bruttosumme|summe\s+(?:inkl|brutto)|"
+    r"einzugsbetrag|abbuchungsbetrag",
     re.IGNORECASE,
 )
 

@@ -158,8 +158,11 @@ Hinweise zur Wahl des `total`-Betrags (Netto/Brutto — WICHTIG):
   - Eine Spaltenüberschrift **„Total (EUR)" in der Positionstabelle** → das ist
     die Positionssumme (oft netto), NICHT der Rechnungsbetrag. Die Überschrift
     heißt zufällig wie das JSON-Feld — lass dich davon nicht in die Irre führen.
-- Typisches Netto-Layout: Dienstleister- und Firmenrechnungen (Ladestrom,
-  Handwerker, Hosting, Telekom). Typisches Brutto-Layout: jeder Kassenbon.
+- Typisches Netto-Layout: Dienstleister- und Firmenrechnungen — **Strom- und
+  Energieversorger (VERBUND & Co.)**, Ladestrom, Handwerker, Hosting, Telekom.
+  Bei Stromrechnungen sind Energie, Netz und Abgaben je netto aufgelistet, die
+  USt. kommt einmal auf die Zwischensumme. Typisches Brutto-Layout: jeder
+  Kassenbon.
 
 Konkretes Beispiel (Ladestrom-Rechnung mit Netto-Positionen — genau so
 extrahieren):
