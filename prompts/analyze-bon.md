@@ -4,6 +4,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
 {
   "store": "Händlername",
   "date": "YYYY-MM-DD",
+  "debit_date": null,
   "total": 43.20,
   "vat": 0,
   "tip": 0,
@@ -97,6 +98,13 @@ Hinweise zum Datum:
 - **Zweistellige Jahreszahlen**: "25/05/26" oder "25.05.26" bedeutet Jahr 2026,
   NICHT 2023. Regel: Jahreszahl < 50 → 2000er (26 → 2026, 25 → 2025). Nie als
   Monat oder Tag interpretieren — das dritte Element im Datum ist immer das Jahr.
+- **debit_date** = der Tag, an dem das Geld tatsächlich vom Konto abgeht, falls
+  die Rechnung ihn nennt. Bei Lastschrift steht das oft als eigener Satz:
+  „Die Gesamtforderung von 74,18 Euro wird am **02.08.2026** von Ihrem Konto
+  abgebucht" → `"debit_date": "2026-08-02"`. Ebenfalls hierher: „Fälligkeit",
+  „zahlbar bis", „Einzug erfolgt am", „Abbuchung am". Bei Kassenbons und
+  Karten-Sofortzahlung gibt es keinen → `null`. `date` bleibt IMMER das
+  Rechnungs-/Kaufdatum, auch wenn ein debit_date existiert.
 
 Hinweise zur Summen-Konsistenz (WICHTIG):
 - Die Summe aller `items[].gesamt` MUSS exakt `total − vat` ergeben (ohne

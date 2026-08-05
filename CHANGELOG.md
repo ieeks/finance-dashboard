@@ -1,5 +1,50 @@
 # CHANGELOG
 
+## v1.10.0 — 2026-08-05
+
+### Added
+- **Abbuchungsdatum im Matching (`debitDate`)** — Die VERBUND-Rechnungen blieben
+  unverknüpft, aber aus einem anderen Grund als bei Tesla: Der Betrag war
+  korrekt. Der Original-PDF-Text zeigt es:
+
+  ```
+  Rechnungsdatum: 07.07.2026
+  Summe exkl. USt.                61,82
+  + 20 % USt.                     12,36
+  Ihre Gesamtkosten inkl. USt.    74,18
+  Die Gesamtforderung von 74,18 Euro wird am 02.08.2026 abgebucht.
+  ```
+
+  74,18 € ist bereits brutto. Die Buchung liegt aber **26 Tage** nach dem
+  Rechnungsdatum — weit außerhalb von `DATE_MAX_DAYS = 7`, also Hard-Out
+  unabhängig von Betrag und Händlername.
+  Neu: `debit_date` im Bon-Schema (Prompt erkennt „wird am … abgebucht",
+  „Fälligkeit", „zahlbar bis", „Einzug erfolgt am"). `findMatch()` misst über
+  `_bestDateDistance()` gegen Rechnungs- UND Abbuchungsdatum und nimmt das
+  nähere — gleiches Muster wie `total` / `total + tip` beim Betrag. Die
+  Hard-Outs bleiben unangetastet: Liegt keines der Daten im Fenster, gibt es
+  weiterhin keinen Match. Ohne `debitDate` verhält sich der Matcher exakt wie
+  vorher. `date` bleibt das Rechnungsdatum (Anzeige).
+  Gegen den echten Verbund-Beleg: vorher `null`, jetzt **100 Punkte**.
+
+### Changed
+- **Ladestrom → „Mobilität / Auto"** — Drei Tesla-Rechnungen, zwei Kategorien
+  („Energie / Strom" ×2, „Sonstiges" ×1). Laden ist das Pendant zum Tanken,
+  „Energie / Strom" ist der Haushaltsstrom. Neue `CHARGING_KEYWORDS_RE`
+  (Supercharger, Ladestation, Ladepunkt, Ladevorgang, Ladestrom, Charging,
+  Wallbox, Ionity, Smatrics) setzt die Kategorie deterministisch, plus Hinweis
+  im `PYTHON_PROMPT_SUFFIX`. Die Marker sind bewusst ladespezifisch — „kWh"
+  allein würde jede VERBUND-Stromrechnung mitnehmen (per Test abgesichert).
+- Cache-Version → `?v=1.10.0`.
+- Tests: 5 neue Matcher-Tests (Abbuchungsdatum inkl. Hard-Out-Regression),
+  6 neue Python-Tests (Lade-Marker, Haushaltsstrom trifft nicht)
+  → 98 Python / 43 JS.
+
+**Hinweis:** Bestehende Dokumente haben kein `debitDate` — die beiden
+VERBUND-Rechnungen müssen einmal neu importiert werden, damit das Feld
+gefüllt wird. Voraussetzung ist außerdem, dass der Kontoauszug mit der
+Buchung vom 02.08. importiert ist.
+
 ## v1.9.7 — 2026-08-05
 
 ### Fixed

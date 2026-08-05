@@ -189,6 +189,62 @@ suite('matcher — Netto-Rechnungen (Tesla-Supercharger-Bug)', () => {
   });
 });
 
+suite('matcher — Abbuchungsdatum (VERBUND-Lastschrift)', () => {
+  // VERBUND stellt am 07.07. aus und zieht am 02.08. ein — 26 Tage Abstand.
+  // Gegen das Rechnungsdatum gemessen fällt das aus DATE_MAX_DAYS (7).
+  const verbundTx = [tx('2026-08-02', -74.18, 'VERBUND Energy4Customers GmbH')];
+
+  test('ohne debitDate: kein Match (dokumentiert den Fehlerfall)', () => {
+    isNull(
+      findMatch(bon('2026-07-07', 74.18, 'VERBUND Energy4Customers GmbH'), verbundTx),
+      '26 Tage > 7 → Hard-Out'
+    );
+  });
+
+  test('mit debitDate: 100% Match am Abbuchungstag', () => {
+    const result = findMatch(
+      { date: '2026-07-07', debitDate: '2026-08-02', total: 74.18,
+        store: 'VERBUND Energy4Customers GmbH' },
+      verbundTx
+    );
+    ok(result, 'sollte matchen');
+    eq(result.score, 100);
+    eq(result.days, 0);
+  });
+
+  test('näheres der beiden Daten gewinnt', () => {
+    // Buchung am Rechnungstag → Rechnungsdatum passt, debitDate wäre zu weit weg
+    const result = findMatch(
+      { date: '2026-07-07', debitDate: '2026-08-02', total: 74.18, store: 'Verbund' },
+      [tx('2026-07-07', -74.18, 'Verbund')]
+    );
+    ok(result);
+    eq(result.days, 0);
+  });
+
+  test('debitDate hebelt die Hard-Outs nicht aus', () => {
+    // Beide Daten zu weit weg → weiterhin kein Match
+    isNull(findMatch(
+      { date: '2026-07-07', debitDate: '2026-08-02', total: 74.18, store: 'Verbund' },
+      [tx('2026-09-15', -74.18, 'Verbund')]
+    ));
+    // Bon-Daten liegen NACH der Buchung → weiterhin kein Match
+    isNull(findMatch(
+      { date: '2026-07-07', debitDate: '2026-08-02', total: 74.18, store: 'Verbund' },
+      [tx('2026-07-01', -74.18, 'Verbund')]
+    ));
+  });
+
+  test('ohne debitDate unverändertes Verhalten', () => {
+    const result = findMatch(
+      bon('2026-05-03', 15.99, 'Billa'),
+      [tx('2026-05-03', -15.99, 'Billa')]
+    );
+    ok(result);
+    eq(result.score, 100);
+  });
+});
+
 suite('analyzeBonLinks — Re-Match Maintenance (R4)', () => {
   const bondedTx = (id, date, amount, description, bonStore, bonTotal, bonDate) => ({
     id, date, amount, description,

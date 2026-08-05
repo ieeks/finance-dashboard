@@ -5,6 +5,10 @@
 //   days = 0              → 30   |  ≤ 3    → 20   |  ≤ 7   → 10  |  sonst Hard-Out
 //   nameScore (0..1)              → × 20   (max 20)
 //
+// `days` ist der kleinste Abstand zwischen Buchung und einem der bekannten
+// Bon-Daten (Rechnungsdatum + optionales Abbuchungsdatum) — siehe
+// _bestDateDistance().
+//
 // Hard-Out Regeln:
 //   - signedDays < -1   (Bon-Datum mehr als 1 Tag NACH Buchung) → kein Match
 //   - nameScore === 0 UND amountDiff > 0.005 → kein Match
@@ -46,8 +50,34 @@ function _reason(amountDiff, days, nameScore) {
 }
 
 /**
+ * Bester Datums-Abstand zwischen Buchung und den bekannten Bon-Daten.
+ *
+ * Rechnungen mit Lastschrift (VERBUND, T-Mobile, Versicherungen) tragen ein
+ * Rechnungsdatum UND ein Abbuchungsdatum, die weit auseinanderliegen können —
+ * VERBUND stellt am 07.07. aus und zieht am 02.08. ein (26 Tage). Gegen das
+ * Rechnungsdatum gemessen fällt so eine Buchung immer aus DATE_MAX_DAYS.
+ * Deshalb gegen BEIDE Daten prüfen und das nähere gewinnen lassen — gleiches
+ * Muster wie `total` / `total + tip` beim Betrag.
+ *
+ * @returns {number|null} Tages-Abstand, oder null wenn kein Datum zulässig ist
+ */
+function _bestDateDistance(txDate, bonDates) {
+  let best = null;
+  for (const bonDate of bonDates) {
+    const signedDays = (new Date(txDate) - new Date(bonDate)) / 86400000;
+    if (Number.isNaN(signedDays)) continue;
+    const days = Math.abs(signedDays);
+    // Bon-Datum mehr als 1 Tag NACH der Buchung → kann nicht dazugehören
+    if (signedDays < -1.5)    continue;
+    if (days > DATE_MAX_DAYS) continue;
+    if (best === null || days < best) best = days;
+  }
+  return best;
+}
+
+/**
  * Findet die beste passende Buchung für einen Bon.
- * @param {object} bon                  - { date, total, store }
+ * @param {object} bon                  - { date, total, store, debitDate? }
  * @param {array}  txList               - Transaktionen { date, amount, description, id? }
  * @param {object} [opts]
  * @param {Set}    [opts.excludeIds]    - bereits verknüpfte Tx-IDs überspringen
@@ -55,6 +85,8 @@ function _reason(amountDiff, days, nameScore) {
  */
 export function findMatch(bon, txList, { excludeIds } = {}) {
   if (!bon || !(bon.total > 0) || !bon.date) return null;
+
+  const bonDates = [bon.date, bon.debitDate].filter(Boolean);
 
   const candidates = txList
     .filter(tx => tx.amount < 0)
@@ -68,13 +100,11 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
         Math.abs(txAbs - bon.total),
         tip ? Math.abs(txAbs - (bon.total + tip)) : Infinity
       );
-      const signedDays = (new Date(tx.date) - new Date(bon.date)) / 86400000;
-      const days       = Math.abs(signedDays);
+      const days       = _bestDateDistance(tx.date, bonDates);
       const nameScore  = nameSimilarity(tx.description, bon.store);
 
-      // Hard-Outs
-      if (signedDays < -1.5)                           return null;
-      if (days > DATE_MAX_DAYS)                        return null;
+      // Hard-Outs — days === null: kein Bon-Datum liegt im zulässigen Fenster
+      if (days === null)                               return null;
       if (amountDiff > AMOUNT_NEAR_EUR)                return null;
       if (nameScore === 0 && amountDiff > AMOUNT_EXACT_EUR) return null;
 
@@ -129,10 +159,11 @@ export function analyzeBonLinks(transactions) {
   for (const tx of bonded) {
     const bon = tx.bon;
     const bonObj = {
-      date:  bon.date || tx.date,
-      total: Math.abs(Number(bon.total ?? bon.gesamt) || Math.abs(tx.amount)),
-      tip:   Number(bon.tip) || 0,
-      store: bon.vendor || bon.store || tx.description,
+      date:      bon.date || tx.date,
+      debitDate: bon.debitDate || null,
+      total:     Math.abs(Number(bon.total ?? bon.gesamt) || Math.abs(tx.amount)),
+      tip:       Number(bon.tip) || 0,
+      store:     bon.vendor || bon.store || tx.description,
     };
     // Single-Candidate-Match: liefert null wenn die aktuelle Verknüpfung
     // den MIN_SCORE-Threshold (60) nicht mehr erreichen würde.

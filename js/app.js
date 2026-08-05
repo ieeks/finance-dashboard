@@ -1,14 +1,14 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.9.7';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.9.7';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.9.7';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.9.7';
-import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js?v=1.9.7';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.10.0';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.10.0';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.10.0';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.10.0';
+import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js?v=1.10.0';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.9.7';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.9.7';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.10.0';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.10.0';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -412,7 +412,12 @@ window.applyRechnungenKontoFilter = function(id) {
 };
 
 function findRechnungMatch(rechnung) {
-  const bon = { date: rechnung.date, total: Math.abs(rechnung.amount), store: rechnung.description };
+  const bon = {
+    date:      rechnung.date,
+    debitDate: rechnung.debitDate || rechnung.bon?.debitDate || null,
+    total:     Math.abs(rechnung.amount),
+    store:     rechnung.description,
+  };
   return findMatch(bon, state.transactions.filter(t => t.source !== 'gmail_import')) || null;
 }
 
@@ -2206,7 +2211,14 @@ function _autoLinkGmailBons() {
   const usedTxIds   = new Set();
   const newlyLinked = new Set();
   gmailWithBon.forEach(gmail => {
-    const bonObj = { date: gmail.date, total: Math.abs(gmail.amount), store: gmail.description };
+    // debitDate: Lastschrift-Rechnungen (VERBUND, T-Mobile) werden erst Wochen
+    // nach dem Rechnungsdatum abgebucht — der Matcher prüft beide Daten.
+    const bonObj = {
+      date:      gmail.date,
+      debitDate: gmail.debitDate || gmail.bon?.debitDate || null,
+      total:     Math.abs(gmail.amount),
+      store:     gmail.description,
+    };
     const result = findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
     if (result?.transaction) {
       result.transaction.bon = gmail.bon;

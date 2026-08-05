@@ -1,6 +1,6 @@
 // categories.js — Kanonische Kategorie-Konfiguration
 
-import { LANDLORD } from './personalConfig.js?v=1.9.7';
+import { LANDLORD } from './personalConfig.js?v=1.10.0';
 
 export const CAT_CONFIG = {
   'Supermarkt':          { icon: '🛒', color: '#7B5723' },

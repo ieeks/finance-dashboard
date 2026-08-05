@@ -1,8 +1,8 @@
 // bonAnalyzer.js — Bon/Rechnung Analyse (Bild + PDF) via Claude Vision
 
-import { loadKeys } from './ui.js?v=1.9.7';
+import { loadKeys } from './ui.js?v=1.10.0';
 
-const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.9.7', import.meta.url).href;
+const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.10.0', import.meta.url).href;
 
 // Modell für die Bon-Analyse (Anthropic). Sonnet statt Haiku: dichte
 // Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen Zeilen und
@@ -49,6 +49,8 @@ function _safeParseObject(raw) {
   return {
     store:   obj.store   || obj.händler || obj.shop || 'Unbekannt',
     date:    obj.date    || obj.datum   || null,
+    // Abbuchungsdatum bei Lastschrift — der Matcher prüft beide Daten
+    debitDate: obj.debit_date || obj.debitDate || obj.abbuchungsdatum || null,
     total:   typeof obj.total === 'number' ? obj.total : parseFloat(obj.total || obj.gesamt || 0) || 0,
     vat:     typeof vatRaw === 'number' ? vatRaw : parseFloat(vatRaw) || 0,
     tip:     typeof tipRaw === 'number' ? tipRaw : parseFloat(tipRaw) || 0,

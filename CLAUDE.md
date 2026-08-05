@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.9.7`
+Aktuelle Version: `v1.10.0`
 
 ## Commit-Konventionen
 
@@ -173,6 +173,15 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
   `0`. Es gilt `Σ items[].gesamt == total − vat`. Steht dort ein Nettobetrag,
   scheitert das Bon-↔-Buchung-Matching am 2-€-Hard-Out in `findMatch()`.
   Absicherung: `_gross_total_correction()` in `gmail_finance_importer.py`.
+- **Bon-Schema `debitDate`**: Bei Lastschrift-Rechnungen (VERBUND zieht ~4
+  Wochen nach Rechnungsdatum ein) trägt der Bon zusätzlich das Abbuchungsdatum.
+  `findMatch()` misst den Abstand gegen BEIDE Daten und nimmt das nähere
+  (`_bestDateDistance()`) — ohne das fällt die Buchung aus dem 7-Tage-Fenster
+  (`DATE_MAX_DAYS`). `date` bleibt immer das Rechnungsdatum.
+- **Ladestrom ≠ Haushaltsstrom**: E-Auto laden (Supercharger, Ladestation)
+  gehört zu `Mobilität / Auto` — Pendant zum Tanken. `Energie / Strom` ist
+  ausschließlich Haushaltsstrom. Durchgesetzt via `CHARGING_KEYWORDS_RE`
+  im Importer, zusätzlich als Hinweis im `PYTHON_PROMPT_SUFFIX`.
 - **AI Provider**: Anthropic + OpenAI (gpt-4o-mini) — beide unterstützt.
   Transaktions-Parsing nutzt Claude Haiku; die Bon-/Rechnungs-Analyse
   (`bonAnalyzer.js`) nutzt Claude Sonnet (`_ANTHROPIC_BON_MODEL`), weil dichte
