@@ -1,8 +1,8 @@
 // bonAnalyzer.js — Bon/Rechnung Analyse (Bild + PDF) via Claude Vision
 
-import { loadKeys } from './ui.js?v=1.9.4';
+import { loadKeys } from './ui.js?v=1.9.6';
 
-const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.9.4', import.meta.url).href;
+const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.9.6', import.meta.url).href;
 
 // Modell für die Bon-Analyse (Anthropic). Sonnet statt Haiku: dichte
 // Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen Zeilen und
@@ -43,10 +43,14 @@ function _safeParseObject(raw) {
     throw new Error('KI-Antwort ist kein gültiges JSON — bitte nochmal versuchen');
   }
   const tipRaw = obj.tip ?? obj.trinkgeld ?? obj.gratuity ?? 0;
+  // vat = USt., die auf die Positionen aufgeschlagen wird (Netto-Rechnungen wie
+  // Ladestrom/Handwerker). Bei Kassenbons 0 — dort sind die Preise brutto.
+  const vatRaw = obj.vat ?? obj.ust ?? obj.mwst ?? 0;
   return {
     store:   obj.store   || obj.händler || obj.shop || 'Unbekannt',
     date:    obj.date    || obj.datum   || null,
     total:   typeof obj.total === 'number' ? obj.total : parseFloat(obj.total || obj.gesamt || 0) || 0,
+    vat:     typeof vatRaw === 'number' ? vatRaw : parseFloat(vatRaw) || 0,
     tip:     typeof tipRaw === 'number' ? tipRaw : parseFloat(tipRaw) || 0,
     items:   Array.isArray(obj.items)   ? obj.items   : [],
     category: obj.category || obj.kategorie || null,

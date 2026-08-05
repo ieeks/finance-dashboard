@@ -5,6 +5,7 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
   "store": "Händlername",
   "date": "YYYY-MM-DD",
   "total": 43.20,
+  "vat": 0,
   "tip": 0,
   "currency": "EUR",
   "card_last4": "1234",
@@ -23,9 +24,16 @@ Gib NUR reines JSON zurück — kein Text, keine Markdown-Backticks, keine Erkl�
 Hinweise zu Trinkgeld & Betrag:
 - **tip** = Trinkgeld, falls ausgewiesen. Erkenne „Trinkgeld", „Trinkgeld
   (unbar)", „Tip", „Gratuity", „Service". Ohne Trinkgeld: `0`.
-- **total** = die ausgewiesene Rechnungssumme der Positionen (z.B. „Summe
-  inkl. USt."), OHNE Trinkgeld. Das Trinkgeld kommt separat in `tip`.
-  Der tatsächlich von der Karte abgebuchte Betrag ist dann `total + tip`.
+- **total** = der **tatsächlich zu zahlende Endbetrag inkl. USt.**, OHNE
+  Trinkgeld. Das Trinkgeld kommt separat in `tip`; von der Karte abgebucht
+  wird dann `total + tip`. Faustregel: `total` ist der Betrag, der so auf dem
+  Kontoauszug landet.
+- **vat** = der USt.-Betrag, der zu den Positionssummen **dazugerechnet** wird,
+  um `total` zu erreichen — also `vat = total − Σ items[].gesamt`.
+  Bei Kassenbons sind die Positionspreise bereits brutto → **`vat: 0`**, auch
+  wenn unten eine USt.-Tabelle steht (die ist dort nur informativ, die Steuer
+  steckt schon im Preis). Nur wenn die Positionen NETTO ausgewiesen sind und
+  die Steuer darunter aufgeschlagen wird, ist `vat` > 0.
 
 Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Milchprodukte**: Milch, Joghurt, Käse, Topfen, Schlagobers, Sauerrahm,
@@ -91,8 +99,12 @@ Hinweise zum Datum:
   Monat oder Tag interpretieren — das dritte Element im Datum ist immer das Jahr.
 
 Hinweise zur Summen-Konsistenz (WICHTIG):
-- Die Summe aller `items[].gesamt` MUSS exakt `total` ergeben (ohne `tip`).
-  Rechne am Ende nach und korrigiere die Positionen, falls sie nicht aufgehen.
+- Die Summe aller `items[].gesamt` MUSS exakt `total − vat` ergeben (ohne
+  `tip`). Rechne am Ende nach. Bei einem Kassenbon ist `vat: 0`, dort gilt
+  also weiterhin `Σ items[].gesamt == total` — gehen die Positionen dort nicht
+  auf, sind die Positionen falsch gelesen (siehe Menü-/Pfand-Regeln unten).
+- **Diese Regel darf `total` NIE nach unten ziehen.** Wenn die Positionen
+  netto sind, ist die Lösung `vat` > 0 — NICHT ein kleineres `total`.
 - **Menü-/Kombi-Bons (McDonald's, Burger, Gastro-Sets)**: Eine Menü-Kopfzeile
   wie „1 HM 4er Nugg" oder „1 Muf Beef M2" hat KEINEN eigenen Preis in der
   GESAMT-Spalte — der Preis steht nur bei den eingerückten Einzelkomponenten
@@ -132,6 +144,39 @@ Konkretes Beispiel (McDonald's-Menü — genau so extrahieren):
 
   FALSCH → zusätzlich „Muff BeefEggM2" mit 4.30 aufführen (das ist der EINZEL-
   Preis der Komponente, keine eigene Position) → Summe 19.90 ≠ 15.60 ✗
+
+Hinweise zur Wahl des `total`-Betrags (Netto/Brutto — WICHTIG):
+- **Nimm immer den GRÖSSTEN ausgewiesenen Endbetrag.** Marker: „Gesamtbetrag",
+  „Zu zahlen", „Zahlbetrag", „Rechnungsbetrag", „Endbetrag", „Summe inkl. USt.",
+  „Bruttobetrag".
+- **Diese Zeilen sind NICHT der Endbetrag** — auch wenn „Summe" oder „Total"
+  draufsteht:
+  - „Teilsumme" / „Zwischensumme" / „Subtotal" / „Nettobetrag" → Netto,
+    da fehlt die Steuer.
+  - „Gesamtsumme Steuern" / „MwSt." / „USt." / „Steuerbetrag" → das ist nur
+    die Steuer, kein Rechnungsbetrag.
+  - Eine Spaltenüberschrift **„Total (EUR)" in der Positionstabelle** → das ist
+    die Positionssumme (oft netto), NICHT der Rechnungsbetrag. Die Überschrift
+    heißt zufällig wie das JSON-Feld — lass dich davon nicht in die Irre führen.
+- Typisches Netto-Layout: Dienstleister- und Firmenrechnungen (Ladestrom,
+  Handwerker, Hosting, Telekom). Typisches Brutto-Layout: jeder Kassenbon.
+
+Konkretes Beispiel (Ladestrom-Rechnung mit Netto-Positionen — genau so
+extrahieren):
+
+  Rohtext:
+    Event-Datum  Beschreibung   Preis/Einheit  Anzahl        Steuern (%)  Total (EUR)
+    2026/07/10   Stromgebühr    0.275069/kWh   64.2622 kWh   20            17.67
+                                               Teilsumme                   17.67
+                                               Gesamtsumme Steuern          3.53
+                                               Gesamtbetrag (EUR)          21.20
+
+  RICHTIG → "total": 21.20, "vat": 3.53, 1 Position „Stromgebühr" mit
+  gesamt 17.67 → 17.67 + 3.53 = 21.20 ✓ (Betrag der auch abgebucht wird)
+
+  FALSCH → "total": 17.67 (das ist die Teilsumme/Netto — die Spalte heißt zwar
+  „Total (EUR)", ist aber die Positionssumme ohne Steuer) ✗
+  FALSCH → "total": 3.53 (das ist nur die Steuer) ✗
 
 Hinweise zur Item-Erkennung:
 - **Abgekürzte Item-Namen**: SPAR und Billa drucken Items oft stark

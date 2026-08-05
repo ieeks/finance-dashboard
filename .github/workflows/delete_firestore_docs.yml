@@ -1,0 +1,37 @@
+name: Delete Firestore Docs
+
+# Löscht einzelne Transaktions-Docs (z.B. falsch extrahierte Rechnungen), damit
+# der nächste Gmail-Sync sie neu einliest. Standard ist ein Dry Run.
+on:
+  workflow_dispatch:
+    inputs:
+      doc_ids:
+        description: 'Doc-IDs, komma- oder leerzeichengetrennt (z.B. pdf_abc,pdf_def)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Nur anzeigen, nicht löschen'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin
+
+      - name: Run deletion script
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          DOC_IDS: ${{ inputs.doc_ids }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: node scripts/delete_firestore_docs.js

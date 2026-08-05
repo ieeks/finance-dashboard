@@ -2,6 +2,9 @@
 
 ## Roadmap (offen)
 
+### 🔴 Zeitkritisch
+- [ ] **Tesla-Rechnungen neu importieren (bis ca. 13.08.)** — Die drei am 15.07. importierten Tesla-Rechnungen stehen mit Netto- statt Bruttobeträgen in Firestore: `pdf_9cfcd5b3c4ba63fa61ff` (17,67 → 21,20), `pdf_d3dfcb638e5ad876ab78` (19,16), `pdf_a166f7fd0e4bd4de4b3b` (18,84). Workflow **Delete Firestore Docs** mit diesen IDs laufen lassen (erst Dry Run), danach **Gmail Finance Sync** manuell auslösen — der liest sie mit dem v1.9.6-Prompt korrekt neu ein und der Auto-Link greift. Achtung: Die Mails vom 14.07. fallen ca. am **13.08.** aus dem 30-Tage-IMAP-Fenster; danach wäre die Buchung nach dem Löschen weg.
+
 ### 🟢 Klein (≤30 min)
 - [ ] **Spar/Eurospar-Prompt prüfen** — Im Workflow-Lauf vom 2026-05-23 sind ~13 PDFs der Form `264200041…` an OpenAI *und* Anthropic gescheitert. Mit dem Logging-Fix aus v1.6.0 sehen wir beim nächsten Run das Response-Snippet — vermutlich Markdown-Codeblock oder Erklärungstext. Prompt entsprechend nachschärfen oder Regex in `_parse_ai_response` flexibler machen.
 - [ ] **Image-only PDFs (z.B. Denzel Reifen)** — `pdfplumber.extract_text()` liefert leer für gescannte PDFs, der AI-Call wird übersprungen. Optionen: OCR-Layer (z.B. `pytesseract`) oder Routing auf die Vision-API wenn kein Text gefunden wird.
@@ -18,6 +21,10 @@
 - [ ] `CARD_MERCHANTS` + `RECURRING_RULES` als geteilte JSON-Datei — gleiches Pattern wie `analyze-bon.md`. `data/merchants.json` + `data/recurring.json`. Letzte Drift-Quellen eliminieren. Mittlerer JS-Refactor (~1 h).
 
 ---
+
+## Erledigt (v1.9.6, 2026-08-05) — Netto/Brutto-Falle bei Rechnungen
+
+- [x] **Tesla-Buchung 13.07. wurde nicht verknüpft** — Importer speicherte 17,67 € (netto) statt 21,20 € (brutto); die 3,53 € Differenz sprengen den 2-€-Hard-Out im Matcher. Ursache war der Bon-Prompt (`total` = „Rechnungssumme der Positionen" + `Σ items == total`), der bei Netto-Layouts das `total` auf die Nettosumme zieht. Prompt liefert jetzt Brutto + neues `vat`-Feld, plus deterministische Korrektur `_gross_total_correction()` im Importer. Cache-Version → `?v=1.9.6`.
 
 ## Erledigt (v1.9.4, 2026-07-14) — Token-Limit für lange Bons
 
