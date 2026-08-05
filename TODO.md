@@ -5,7 +5,7 @@
 ### 🔴 Zeitkritisch
 - [ ] **Tesla-Rechnungen neu importieren (bis ca. 13.08.)** — Die drei am 15.07. importierten Tesla-Rechnungen stehen mit Netto- statt Bruttobeträgen in Firestore: `pdf_9cfcd5b3c4ba63fa61ff` (17,67 → 21,20), `pdf_d3dfcb638e5ad876ab78` (19,16), `pdf_a166f7fd0e4bd4de4b3b` (18,84). Workflow **Delete Firestore Docs** mit diesen IDs laufen lassen (erst Dry Run), danach **Gmail Finance Sync** manuell auslösen — der liest sie mit dem v1.9.6-Prompt korrekt neu ein und der Auto-Link greift. Achtung: Die Mails vom 14.07. fallen ca. am **13.08.** aus dem 30-Tage-IMAP-Fenster; danach wäre die Buchung nach dem Löschen weg.
 
-- [ ] **VERBUND-Rechnungen neu importieren** — Gleiches Netto-Problem. Noch im 30-Tage-IMAP-Fenster: `pdf_8aad2bb3acc206c6a281` (74,18 → vmtl. 89,02, Mail 09.07., **bis ca. 08.08.**) und `pdf_44f872e2749a24cbe070` (85,37 → vmtl. 102,44, Mail 10.07., **bis ca. 09.08.**). Ältere VERBUND-Docs (Mails 14./15.06.) sind **außerhalb** des Fensters — die nicht einfach löschen, sondern erst die Original-Mail nochmal an `manuel.rechnungen@gmail.com` weiterleiten (setzt das Mail-Datum zurück), dann löschen + Sync.
+- [ ] **VERBUND-Rechnungen neu importieren (wegen `debitDate`, nicht wegen des Betrags)** — Korrektur zur früheren Annahme: 74,18 € und 85,37 € sind bereits **brutto**, die Extraktion war korrekt. Unverknüpft bleiben sie, weil VERBUND am 07.07. ausstellt und erst am **02.08.** abbucht (26 Tage > `DATE_MAX_DAYS`). Seit v1.10.0 matcht der Matcher gegen das Abbuchungsdatum — das steht aber nur in neu importierten Docs. Also `pdf_8aad2bb3acc206c6a281` (Mail 09.07., **bis ca. 08.08.**) und `pdf_44f872e2749a24cbe070` (Mail 10.07., **bis ca. 09.08.**) löschen + Sync. Zweite Voraussetzung: Der Kontoauszug mit der Buchung vom 02.08. muss importiert sein, sonst gibt es keinen Kandidaten. Ältere VERBUND-Docs (Mails 14./15.06.) liegen **außerhalb** des 30-Tage-Fensters — dort erst die Original-Mail nochmal an `manuel.rechnungen@gmail.com` weiterleiten, dann löschen + Sync.
 
 ### 🟢 Klein (≤30 min)
 - [ ] **Spar/Eurospar-Prompt prüfen** — Im Workflow-Lauf vom 2026-05-23 sind ~13 PDFs der Form `264200041…` an OpenAI *und* Anthropic gescheitert. Mit dem Logging-Fix aus v1.6.0 sehen wir beim nächsten Run das Response-Snippet — vermutlich Markdown-Codeblock oder Erklärungstext. Prompt entsprechend nachschärfen oder Regex in `_parse_ai_response` flexibler machen.
@@ -23,6 +23,11 @@
 - [ ] `CARD_MERCHANTS` + `RECURRING_RULES` als geteilte JSON-Datei — gleiches Pattern wie `analyze-bon.md`. `data/merchants.json` + `data/recurring.json`. Letzte Drift-Quellen eliminieren. Mittlerer JS-Refactor (~1 h).
 
 ---
+
+## Erledigt (v1.10.0, 2026-08-05) — Abbuchungsdatum + Ladestrom-Kategorie
+
+- [x] **VERBUND-Buchung unverknüpft trotz korrektem Betrag** — Rechnungsdatum 07.07., Abbuchung 02.08. = 26 Tage, `DATE_MAX_DAYS` ist 7. Neues Feld `debitDate`; `findMatch()` misst gegen beide Daten (`_bestDateDistance()`) und nimmt das nähere. Gegen den echten Beleg: vorher kein Match, jetzt 100 Punkte.
+- [x] **Ladestrom-Kategorie vereinheitlicht** — Drei Tesla-Rechnungen hatten zwei verschiedene Kategorien. Laden → `Mobilität / Auto` (Pendant zum Tanken), `Energie / Strom` bleibt Haushaltsstrom. `CHARGING_KEYWORDS_RE` + Prompt-Hinweis.
 
 ## Erledigt (v1.9.6, 2026-08-05) — Netto/Brutto-Falle bei Rechnungen
 

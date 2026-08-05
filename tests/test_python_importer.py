@@ -313,6 +313,38 @@ class TestExtractTotalCandidates(unittest.TestCase):
         self.assertEqual(self.fn(""), [])
 
 
+class TestChargingCategory(unittest.TestCase):
+    """Ladestrom fürs Auto → Mobilität / Auto, nicht Energie / Strom."""
+
+    def setUp(self):
+        self.re_ = H["CHARGING_KEYWORDS_RE"]
+
+    def test_tesla_ladestation(self):
+        self.assertTrue(self.re_.search("Ladestation Völkermarkt, Austria"))
+
+    def test_supercharger(self):
+        self.assertTrue(self.re_.search("Tesla Supercharger"))
+
+    def test_englisch(self):
+        self.assertTrue(self.re_.search("Charging session"))
+        self.assertTrue(self.re_.search("Charge Point Operator"))
+
+    def test_weitere_anbieter(self):
+        self.assertTrue(self.re_.search("IONITY GmbH"))
+        self.assertTrue(self.re_.search("SMATRICS EnBW"))
+
+    def test_haushaltsstrom_trifft_nicht(self):
+        # VERBUND-Stromrechnung darf NICHT als Ladestrom gelten — sonst
+        # landet der Haushaltsstrom unter Mobilität / Auto
+        verbund = (
+            "VERBUND Energy4Customers GmbH\nAbrechnung - Strom\n"
+            "Stromverbrauch: 261,01 kWh\nEnergiekosten 36,62\n"
+            "Netzgebühren (inkl. Entgelt für Messpreis) 26,09\n"
+            "Arbeitspreis 261,01 kWh 0,125000 32,63\n"
+        )
+        self.assertIsNone(self.re_.search(verbund))
+
+
 class TestItemsSum(unittest.TestCase):
     def setUp(self):
         self.fn = H["_items_sum"]

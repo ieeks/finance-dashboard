@@ -97,6 +97,18 @@ LANDLORD = {
     ),
 }
 
+# E-Auto laden → "Mobilität / Auto", nicht "Energie / Strom".
+# Die AI hat Ladestrom-Rechnungen mal als "Energie / Strom", mal als
+# "Sonstiges" einsortiert (drei Tesla-Rechnungen, zwei Kategorien). Laden ist
+# aber das Pendant zum Tanken; "Energie / Strom" ist der Haushaltsstrom.
+# Die Marker sind bewusst ladespezifisch — "kWh" allein würde jede
+# Stromrechnung (VERBUND) mitnehmen.
+CHARGING_KEYWORDS_RE = re.compile(
+    r"supercharger|ladestation|ladepunkt|ladevorgang|ladestrom|ladeentgelt|"
+    r"charging|charge\s*point|wallbox|ionity|smatrics",
+    re.I,
+)
+
 # Wiederkehrende Buchungen — sync mit RECURRING_RULES in js/categories.js.
 # isRecurring=True erlaubt es dem Browser-Dashboard die Tx in der
 # "Fixkosten"-Karte zu zeigen (renderFixkosten in app.js).
@@ -153,6 +165,9 @@ PYTHON_PROMPT_SUFFIX = f"""
 Zusätzlich:
 - "category": Hauptkategorie der Rechnung. Eine dieser Optionen wählen:
   {", ".join(MAIN_CATEGORIES)}
+  Hinweis: Das Laden eines E-Autos (Supercharger, Ladestation, Ladestrom)
+  gehört zu "Mobilität / Auto" — es ist das Pendant zum Tanken.
+  "Energie / Strom" ist ausschließlich der Haushaltsstrom.
 """
 
 # ── Händler-Normalisierung — sync mit CARD_MERCHANTS in js/parser.js ─────────
@@ -817,6 +832,13 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     description = _normalize_store(raw_store.split(",")[0].split("\n")[0].strip())
 
     date_val    = str(_ai_get(ai_data, "date", "rechnungsdatum", default=""))
+    # Abbuchungsdatum bei Lastschrift (VERBUND zieht ~4 Wochen nach Rechnungs-
+    # datum ein). Der Matcher prüft beide Daten — ohne das fällt die Buchung
+    # aus dem 7-Tage-Fenster in js/matcher.js und wird nie verknüpft.
+    debit_val   = str(_ai_get(ai_data, "debit_date", "abbuchungsdatum",
+                              "faelligkeit", default="") or "")
+    if not _DATE_ISO_RE.fullmatch(debit_val):
+        debit_val = ""
     total_raw   = _ai_get(ai_data, "total", "betrag_brutto", default=0)
     try:
         total_val = abs(float(total_raw))
@@ -836,15 +858,20 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     # AG als Hausverwalter, NICHT als Versicherer). Same Logik wie parser.js.
     # JS-Markdown-Prompt liefert kein "beschreibung"-Feld mehr — stattdessen
     # nutzen wir Store + ggf. rohen PDF-Text (via _raw_text vom Caller).
-    landlord_text = " ".join([
+    doc_text = " ".join([
         raw_store,
         str(ai_data.get("_raw_text") or ""),
         " ".join(str(p.get("name") or "") for p in items_list if isinstance(p, dict)),
     ])
     category = str(_ai_get(ai_data, "category", "kategorie", default="Sonstiges"))
-    if (LANDLORD["vendor_pattern"].search(landlord_text)
-            and LANDLORD["miete_keywords"].search(landlord_text)):
+    if (LANDLORD["vendor_pattern"].search(doc_text)
+            and LANDLORD["miete_keywords"].search(doc_text)):
         category = "Wohnen / Miete"
+
+    # Ladestrom fürs Auto → Mobilität / Auto (siehe CHARGING_KEYWORDS_RE).
+    # Steht nach dem Vermieter-Override, weil sich beide nie überschneiden.
+    if CHARGING_KEYWORDS_RE.search(doc_text):
+        category = "Mobilität / Auto"
 
     # Wiederkehrende Buchung erkennen (Netflix, Spotify, Allianz, Miete, ...).
     # Setzt isRecurring/recurringLabel — Browser-Dashboard zeigt sie dann in
@@ -897,11 +924,12 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     bon = None
     if items_list:
         bon = {
-            "source": "gmail_import",
-            "total":  total_val,
-            "vat":    vat_val,
-            "date":   date_val,
-            "vendor": description,
+            "source":    "gmail_import",
+            "total":     total_val,
+            "vat":       vat_val,
+            "date":      date_val,
+            "debitDate": debit_val or None,
+            "vendor":    description,
             "items":  [
                 {
                     "name":        p.get("name", ""),
@@ -929,6 +957,8 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "savedBy":       "gmail_importer",
         "filename":      filename,
     }
+    if debit_val:
+        tx["debitDate"] = debit_val
     if recurring:
         tx["isRecurring"]    = True
         tx["recurringLabel"] = recurring["label"]
