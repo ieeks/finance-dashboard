@@ -1,5 +1,61 @@
 # CHANGELOG
 
+## v1.9.6 — 2026-08-05
+
+### Fixed
+- **Netto-Rechnungen wurden nie mit der Bank-Buchung verknüpft** — Die
+  Tesla-Supercharger-Rechnung vom 13.07. blieb unverknüpft. Ursache war nicht
+  der Matcher, sondern der extrahierte Betrag: Der Importer speicherte
+  **17,67 € (netto)** statt **21,20 € (brutto)**, siehe Actions-Lauf vom
+  2026-07-15 (`Erkannt: Tesla Motors Austria GmbH — 17.67 EUR — 2026-07-10`).
+  Die 3,53 € Differenz sprengen den 2-€-Hard-Out in `findMatch()`
+  (`js/matcher.js`) → kein Kandidat, kein Link.
+  Der Bon-Prompt definierte `total` als „Rechnungssumme der Positionen" und
+  forderte zusätzlich `Σ items[].gesamt == total`. Auf Kassenbons stimmt das
+  (Preise brutto); bei Firmen-Layouts mit Netto-Positionen + separat
+  aufgeschlagener USt. (Ladestrom, Handwerker, Hosting) zieht die Regel `total`
+  auf die Nettosumme. Verschärfend: Die Positionstabelle trägt bei Tesla die
+  Spaltenüberschrift „Total (EUR)" — der einzige lexikalische Treffer für das
+  JSON-Feld `total` steht damit auf dem Nettobetrag.
+- **Prompt** (`prompts/analyze-bon.md`): `total` ist jetzt der *tatsächlich zu
+  zahlende Endbetrag inkl. USt.*, neues Feld `vat` für die aufgeschlagene
+  Steuer. Konsistenzregel entschärft zu `Σ items[].gesamt == total − vat` mit
+  explizitem Zusatz, dass sie `total` nie nach unten ziehen darf. Neue Sektion
+  zur Netto/Brutto-Unterscheidung (Marker für Endbetrag vs. „Teilsumme" /
+  „Gesamtsumme Steuern" / Spaltenüberschrift „Total (EUR)") plus Few-Shot im
+  Ladestrom-Layout.
+- **Deterministisches Sicherheitsnetz** (`gmail_finance_importer.py`): Der
+  Prompt-Fix ist probabilistisch (Extraktion läuft auf gpt-4o-mini), deshalb
+  zusätzlich `_gross_total_correction()`. Greift nur wenn die AI ein in sich
+  konsistentes Netto-Paar geliefert hat (Positionen == total) UND im Rohtext
+  eine als Endbetrag markierte Zeile (`Gesamtbetrag`, `Zu zahlen`,
+  `Rechnungsbetrag`, …) einen größeren Betrag trägt, dessen Differenz exakt
+  einem USt.-Satz entspricht (AT 20/13/10, DE 19/7). „Teilsumme" und
+  „Gesamtsumme Steuern" treffen bewusst nicht.
+
+### Added
+- `scripts/delete_firestore_docs.js` + Workflow **Delete Firestore Docs**
+  (`workflow_dispatch`, Dry Run als Default): löscht einzelne Transaktions-Docs
+  per ID. Nötig zum Nach-Import falsch extrahierter Rechnungen — der
+  Byte-Hash-Dedup (`_pdf_doc_id`) blockt sonst jedes Neu-Einlesen.
+- `vat` wird durch die ganze Kette gereicht: `bonAnalyzer.js`
+  (`_safeParseObject`), Importer (`bon.vat`), Buchungs-Detail zeigt eine
+  USt.-Zeile, und der Plausibilitäts-Check im Concierge rechnet gegen
+  `total − vat` statt gegen `total`.
+- Tests: 12 neue Python-Tests (`_items_sum`, `_gross_total_correction` inkl.
+  Tesla-Rohtext und Nicht-Treffer-Fällen), 2 neue Matcher-Tests, die den
+  Brutto-Match und den Netto-Fehlerfall festschreiben.
+
+### Changed
+- Cache-Version → `?v=1.9.6` in allen lokalen Modul-Imports und der Prompt-URL.
+
+**Offen:** Die drei am 15.07. importierten Tesla-Rechnungen stehen weiterhin
+mit Nettobeträgen in Firestore (`pdf_9cfcd5b3c4ba63fa61ff` 17,67 €,
+`pdf_d3dfcb638e5ad876ab78` 19,16 €, `pdf_a166f7fd0e4bd4de4b3b` 18,84 €).
+Per „Delete Firestore Docs" löschen → nächster Gmail-Sync liest sie korrekt
+neu ein. Die Mails vom 14.07. fallen ca. **13.08.** aus dem 30-Tage-IMAP-
+Fenster des Importers — danach wäre die Buchung nach dem Löschen weg.
+
 ## v1.9.5 — 2026-07-21
 
 ### Changed

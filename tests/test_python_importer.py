@@ -313,6 +313,77 @@ class TestExtractTotalCandidates(unittest.TestCase):
         self.assertEqual(self.fn(""), [])
 
 
+class TestItemsSum(unittest.TestCase):
+    def setUp(self):
+        self.fn = H["_items_sum"]
+
+    def test_gesamt_preferred(self):
+        items = [{"gesamt": 4.08, "einzelpreis": 4.30}, {"gesamt": 1.42}]
+        self.assertEqual(self.fn(items), 5.50)
+
+    def test_falls_back_to_einzelpreis(self):
+        self.assertEqual(self.fn([{"einzelpreis": 2.50}]), 2.50)
+
+    def test_ignores_garbage(self):
+        self.assertEqual(self.fn([{"gesamt": "keine Zahl"}, "kein dict", {"gesamt": 3.0}]), 3.0)
+
+    def test_empty(self):
+        self.assertEqual(self.fn([]), 0.0)
+
+
+class TestGrossTotalCorrection(unittest.TestCase):
+    """Netto-Falle: `total` wurde auf die Positionssumme gezogen (Tesla-Layout)."""
+
+    def setUp(self):
+        self.fn = H["_gross_total_correction"]
+
+    # Rohtext wie ihn pdfplumber aus der Tesla-Ladestrom-Rechnung zieht.
+    TESLA = (
+        "Event-Datum Beschreibung Preis/Einheit Anzahl Steuern (%) Total (EUR)\n"
+        "2026/07/10 Stromgebuehr 0.275069 / kWh 64.2622 kWh 20 17.67\n"
+        "Teilsumme 17.67\n"
+        "Gesamtsumme Steuern 3.53\n"
+        "Gesamtbetrag (EUR) 21.20\n"
+    )
+
+    def test_tesla_net_total_corrected(self):
+        self.assertEqual(self.fn(self.TESLA, 17.67, 17.67), (21.20, 3.53))
+
+    def test_teilsumme_alone_does_not_trigger(self):
+        # Ohne "Gesamtbetrag"-Zeile gibt es keinen belastbaren Bruttobetrag
+        text = "Stromgebuehr 17.67\nTeilsumme 17.67\nGesamtsumme Steuern 3.53\n"
+        self.assertIsNone(self.fn(text, 17.67, 17.67))
+
+    def test_zu_zahlen_keyword(self):
+        text = "Leistung 100,00\nZu zahlen 120,00\n"
+        self.assertEqual(self.fn(text, 100.00, 100.00), (120.00, 20.00))
+
+    def test_german_vat_rate(self):
+        text = "Position 100,00\nRechnungsbetrag 119,00\n"
+        self.assertEqual(self.fn(text, 100.00, 100.00), (119.00, 19.00))
+
+    def test_no_trigger_when_items_already_gross(self):
+        # Kassenbon: Positionen brutto, Summe == total → nichts zu korrigieren.
+        # (Die 46,09 stehen auf der Summenzeile, nicht darüber.)
+        text = "Milch 1,29\nBrot 2,80\nSUMME EUR 46,09\n"
+        self.assertIsNone(self.fn(text, 46.09, 46.09))
+
+    def test_no_trigger_on_inconsistent_items(self):
+        # Positionen passen ohnehin nicht zum total → hier wird nicht geraten
+        self.assertIsNone(self.fn(self.TESLA, 17.67, 12.00))
+
+    def test_no_trigger_on_implausible_difference(self):
+        # Differenz entspricht keinem USt.-Satz (17.67 → 25.00 wären 41 %)
+        text = "Position 17.67\nGesamtbetrag (EUR) 25.00\n"
+        self.assertIsNone(self.fn(text, 17.67, 17.67))
+
+    def test_empty_text(self):
+        self.assertIsNone(self.fn("", 17.67, 17.67))
+
+    def test_zero_total(self):
+        self.assertIsNone(self.fn(self.TESLA, 0, 0))
+
+
 class TestPrefilterSemanticHit(unittest.TestCase):
     """Vorab-Dedup vor dem AI-Call — Datum + Betrag + Händler-Substring."""
 

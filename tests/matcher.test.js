@@ -168,6 +168,27 @@ suite('matcher — Trinkgeld (unbar)', () => {
   });
 });
 
+suite('matcher — Netto-Rechnungen (Tesla-Supercharger-Bug)', () => {
+  // Rechnung 13.07.2026: Positionen 17,67 netto + 3,53 USt. = 21,20 brutto.
+  // Der Gmail-Importer hatte 17,67 gespeichert → Differenz 3,53 € → Hard-Out.
+  test('Bruttobetrag matcht die Bank-Buchung (3 Tage Versatz)', () => {
+    const result = findMatch(
+      bon('2026-07-10', 21.20, 'Tesla Motors Austria GmbH'),
+      [tx('2026-07-13', -21.20, 'Tesla Supercharger')]
+    );
+    ok(result, 'sollte matchen');
+    ok(result.score >= 60, `score ${result.score} < 60`);
+  });
+
+  test('Nettobetrag matcht NICHT — dokumentiert den Fehlerfall', () => {
+    const result = findMatch(
+      bon('2026-07-10', 17.67, 'Tesla Motors Austria GmbH'),
+      [tx('2026-07-13', -21.20, 'Tesla Supercharger')]
+    );
+    isNull(result, '3,53 € Differenz > 2 € → Hard-Out, so entstand der Bug');
+  });
+});
+
 suite('analyzeBonLinks — Re-Match Maintenance (R4)', () => {
   const bondedTx = (id, date, amount, description, bonStore, bonTotal, bonDate) => ({
     id, date, amount, description,

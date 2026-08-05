@@ -1,14 +1,14 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.9.4';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.9.4';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.9.4';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.9.4';
-import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js?v=1.9.4';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.9.6';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.9.6';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.9.6';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.9.6';
+import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js?v=1.9.6';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.9.4';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.9.4';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.9.6';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.9.6';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -762,6 +762,10 @@ window.openTxModal = function(id) {
           <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;margin-left:12px;">${formatEur(item.gesamt ?? item.price ?? 0)}</div>
         </div>`;
       }).join('')}
+      ${(Number(tx.bon.vat) || 0) > 0 ? `
+      <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:0.8rem;color:var(--text-muted);">
+        <span>＋ USt.</span><span>${formatEur(tx.bon.vat)}</span>
+      </div>` : ''}
       ${(Number(tx.bon.tip) || 0) > 0 ? `
       <div style="display:flex;justify-content:space-between;padding-top:8px;font-size:0.8rem;color:var(--text-muted);">
         <span>💝 Trinkgeld</span><span>${formatEur(tx.bon.tip)}</span>
@@ -1511,13 +1515,16 @@ function renderConciergeResult(bon) {
   // ausgewiesenen Rechnungstotal passen. Weicht sie ab, hat die KI Positionen
   // fehlerhaft ausgelesen (doppelt gezählte Menü-Kopfzeilen, vergessenes Pfand
   // etc.) — dann stimmt auch die Aufschlüsselung nicht. Sichtbar machen.
+  // Bei Netto-Rechnungen (Ladestrom, Handwerker) sind die Positionen netto und
+  // die USt. steht separat in bon.vat — dort ist Σ Positionen == total − vat.
   const itemSum       = (bon.items || []).reduce((s, i) => s + (Number(i.price ?? i.gesamt) || 0), 0);
   const declaredTotal = Number(bon.total) || 0;
-  const sumDiff       = itemSum - declaredTotal;
+  const vat           = Number(bon.vat) || 0;
+  const sumDiff       = itemSum - (declaredTotal - vat);
   const sumMismatch   = (bon.items || []).length > 0 && Math.abs(sumDiff) >= 0.01;
   const mismatchBanner = sumMismatch ? `
     <div style="margin-top:12px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--red-bg);color:var(--red);font-size:0.68rem;line-height:1.45;">
-      ⚠️ Positionen ergeben <strong>${formatEur(itemSum)}</strong>, ausgewiesen ist <strong>${formatEur(declaredTotal)}</strong>
+      ⚠️ Positionen ergeben <strong>${formatEur(itemSum)}</strong>, erwartet sind <strong>${formatEur(declaredTotal - vat)}</strong>
       (Differenz ${formatEur(Math.abs(sumDiff))}). Die Aufschlüsselung basiert auf den Einzelposten — bitte prüfen.
     </div>` : '';
 

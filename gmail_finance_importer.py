@@ -662,6 +662,75 @@ def _extract_date_candidates(text: str) -> list[str]:
     return sorted(out)
 
 
+# ── Netto-Falle: Endbetrag statt Positionssumme ──────────────────────────────
+# Rechnungen im Firmen-Layout (Tesla-Ladestrom, Handwerker, Hosting) weisen die
+# Positionen NETTO aus und schlagen die USt. erst darunter auf. Die Summen-
+# Konsistenzregel im Bon-Prompt ("Σ items == total") zieht `total` dann auf die
+# Nettosumme — bei Tesla 17,67 statt 21,20. Die Bank-Buchung lautet aber auf den
+# Bruttobetrag, und der Matcher (js/matcher.js) wirft alles über 2 € Differenz
+# hart raus → der Bon wird nie verknüpft.
+# Der Prompt kennt den Fall inzwischen, ist aber probabilistisch (gpt-4o-mini).
+# Deshalb hier zusätzlich eine deterministische Korrektur aus dem PDF-Rohtext.
+
+# Zeilen, die den tatsächlich zu zahlenden Endbetrag tragen. Bewusst enger als
+# _TOTAL_KEYWORDS_RE: "Teilsumme"/"Zwischensumme" (netto) und "Gesamtsumme
+# Steuern" (nur die Steuer) dürfen hier NICHT treffen — beide stehen auf der
+# Tesla-Rechnung direkt neben dem echten "Gesamtbetrag".
+_GROSS_TOTAL_RE = re.compile(
+    r"gesamtbetrag|zu\s*zahlen|zahlbetrag|rechnungsbetrag|endbetrag|"
+    r"bruttobetrag|summe\s+inkl",
+    re.IGNORECASE,
+)
+
+# USt.-Sätze AT (20/13/10) + DE (19/7). Der Aufschlag muss exakt einem davon
+# entsprechen — das macht einen Zufallstreffer praktisch unmöglich.
+_VAT_RATES = (0.20, 0.19, 0.13, 0.10, 0.07)
+
+
+def _items_sum(items_list: list) -> float:
+    """Summe der Positionsbeträge — gleiche Feld-Priorität wie save_to_firestore."""
+    total = 0.0
+    for p in items_list:
+        if not isinstance(p, dict):
+            continue
+        try:
+            total += float(p.get("gesamt") or p.get("einzelpreis") or 0)
+        except (TypeError, ValueError):
+            continue
+    return round(total, 2)
+
+
+def _gross_total_correction(
+    text: str, total: float, items_sum: float
+) -> tuple[float, float] | None:
+    """Korrigiert ein auf die Nettosumme gezogenes `total` auf den Bruttobetrag.
+
+    Greift nur bei einem in sich konsistenten Netto-Ergebnis (Positionen == total)
+    und nur wenn im Rohtext eine explizit als Endbetrag markierte Zeile einen
+    größeren Betrag trägt, dessen Differenz exakt einem USt.-Satz entspricht.
+
+    Returns (brutto, vat) oder None wenn nichts sicher korrigierbar ist.
+    """
+    if not text or not (total > 0) or not (items_sum > 0):
+        return None
+    # Nur wenn die AI ein konsistentes Netto-Paar geliefert hat. Weichen
+    # Positionen und total ohnehin ab, ist die Extraktion anders kaputt —
+    # dann raten wir hier nichts dazu.
+    if abs(items_sum - total) >= 0.01:
+        return None
+    for line in text.splitlines():
+        if not _GROSS_TOTAL_RE.search(line):
+            continue
+        for raw in _AMOUNT_RE.findall(line):
+            cand = _parse_amount(raw)
+            if cand is None or cand <= total:
+                continue
+            vat = round(cand - total, 2)
+            if any(abs(vat - round(total * r, 2)) <= 0.02 for r in _VAT_RATES):
+                return cand, vat
+    return None
+
+
 def _prefilter_semantic_hit(
     existing: list[dict], text: str,
     date_candidates: list[str], total_candidates: list[float],
@@ -750,6 +819,13 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     except (TypeError, ValueError):
         total_val = 0.0
 
+    # USt., die auf die Positionen aufgeschlagen wird (Netto-Layout, siehe
+    # _gross_total_correction). Bei Kassenbons 0 — dort sind die Preise brutto.
+    try:
+        vat_val = abs(float(_ai_get(ai_data, "vat", "ust", "mwst", default=0) or 0))
+    except (TypeError, ValueError):
+        vat_val = 0.0
+
     items_list  = _ai_get(ai_data, "items", "positionen", default=[]) or []
 
     # Kategorie-Override: Vermieter (in unserem Fall Helvetia Versicherungen
@@ -819,6 +895,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         bon = {
             "source": "gmail_import",
             "total":  total_val,
+            "vat":    vat_val,
             "date":   date_val,
             "vendor": description,
             "items":  [
@@ -972,6 +1049,20 @@ def process_pdf(pdf_path: Path) -> bool:
     ai_data["_raw_text"] = text
 
     items_list = ai_data.get("items") or ai_data.get("positionen") or []
+
+    # Netto-Falle korrigieren, bevor geloggt und gespeichert wird.
+    try:
+        ai_total = float(_ai_get(ai_data, "total", "betrag_brutto", default=0) or 0)
+    except (TypeError, ValueError):
+        ai_total = 0.0
+    correction = _gross_total_correction(text, ai_total, _items_sum(items_list))
+    if correction:
+        brutto, vat = correction
+        print(f"  Korrektur: {ai_total:.2f} EUR war netto → {brutto:.2f} EUR "
+              f"brutto (USt. {vat:.2f})")
+        ai_data["total"] = brutto
+        ai_data["vat"]   = vat
+
     items_info = f" · {len(items_list)} Positionen" if items_list else ""
     store      = ai_data.get("store") or ai_data.get("absender") or "?"
     total      = ai_data.get("total") or ai_data.get("betrag_brutto") or "?"
