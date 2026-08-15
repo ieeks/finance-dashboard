@@ -1,14 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.10.0';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.10.0';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.10.0';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.10.0';
-import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI } from './bonAnalyzer.js?v=1.10.0';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.0';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.0';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.0';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.0';
+import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.0';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.10.0';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.10.0';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.0';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.0';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -1514,7 +1515,17 @@ function renderConciergeResult(bon) {
   document.getElementById('concierge-result').style.display = 'block';
 
   const preview  = document.getElementById('bon-preview-content');
-  const dateStr  = bon.date ? formatDate(bon.date) : '';
+
+  // Datum editierbar machen. Es war bisher das einzige Feld, das die KI setzt
+  // und der Nutzer NICHT korrigieren konnte — ein verlesener Tag ließ den Bon
+  // ohne Handhabe aus dem 7-Tage-Fenster von findMatch() fallen.
+  const today       = todayIso();
+  const dateSuspect = !!bon.dateSuspect || (!!bon.date && bon.date > today);
+  const dateBanner  = dateSuspect ? `
+    <div style="margin-bottom:10px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--red-bg);color:var(--red);font-size:0.68rem;line-height:1.45;">
+      ⚠️ Erkanntes Datum <strong>${escHtml(bon.date || '—')}</strong> liegt in der Zukunft — ein Kaufdatum kann das nicht sein.
+      Die KI hat sich beim Ablesen vertan. Bitte das Datum unten korrigieren.
+    </div>` : '';
 
   // Plausibilitäts-Check: Die Summe der Einzelposten (gesamt) muss zum
   // ausgewiesenen Rechnungstotal passen. Weicht sie ab, hat die KI Positionen
@@ -1534,7 +1545,13 @@ function renderConciergeResult(bon) {
     </div>` : '';
 
   preview.innerHTML = `
-    <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">📄 ${escHtml(bon.store)} — ${dateStr}</div>
+    ${dateBanner}
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">📄 ${escHtml(bon.store)}</div>
+      <input type="date" value="${escHtml(bon.date || '')}" max="${today}" onchange="updateCurrentBonDate(this.value)"
+        aria-label="Kaufdatum"
+        style="font-family:var(--sans);font-size:0.68rem;font-weight:700;color:${dateSuspect ? 'var(--red)' : 'var(--text)'};background:var(--surface-high);border:1px solid ${dateSuspect ? 'var(--red)' : 'var(--outline-soft)'};border-radius:8px;padding:4px 8px;outline:none;-webkit-appearance:none;" />
+    </div>
     ${(bon.items||[]).map((item, idx) => {
       const sc   = item.subcategory || item.subkategorie || 'Sonstiges';
       const opts = Object.keys(SUBCAT_ICONS).map(s =>
@@ -1655,6 +1672,19 @@ window.updateCurrentBonItemSubcat = function(idx, newSubcat) {
 // Positionen des gescannten Bons manuell korrigieren, wenn die KI falsch
 // ausgelesen hat (doppelte Menü-Kopfzeile, falscher Preis, fehlende Position).
 // So lässt sich die Warnung „Positionen ≠ Total" auflösen.
+// Kaufdatum korrigieren, wenn die KI sich verlesen hat (Kassenbons drucken das
+// Datum klein in der Fußzeile neben Uhrzeit und Belegnummern). Danach greift
+// findMatch() wieder — ein um Tage verschobenes Datum fällt sonst aus
+// DATE_MAX_DAYS und der Bon bleibt für immer unverknüpft.
+window.updateCurrentBonDate = function(value) {
+  if (!_currentBon) return;
+  const { date, suspect } = normalizeBonDate(value);
+  _currentBon.date        = date;
+  _currentBon.dateSuspect = suspect;
+  renderConciergeResult(_currentBon);
+  if (date && !suspect) showToast('Datum geändert');
+};
+
 window.updateCurrentBonItemName = function(idx, newName) {
   if (!_currentBon?.items?.[idx]) return;
   _currentBon.items[idx].name = String(newName).slice(0, 60);

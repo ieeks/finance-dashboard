@@ -170,6 +170,17 @@ Zusätzlich:
   "Energie / Strom" ist ausschließlich der Haushaltsstrom.
 """
 
+
+def _date_anchor(today: str | None = None) -> str:
+    """Referenzdatum für die AI — ohne Heute-Bezug kann das Modell nicht merken,
+    dass es ein Kaufdatum in der Zukunft gelesen hat (siehe analyze-bon.md)."""
+    today = today or datetime.now().strftime("%Y-%m-%d")
+    return (
+        f"\n\nHeutiges Datum (Referenz): {today}\n"
+        "Das Rechnungs-/Kaufdatum (`date`) liegt IMMER an oder vor diesem Tag.\n"
+        "(Nur `debit_date` darf in der Zukunft liegen.)"
+    )
+
 # ── Händler-Normalisierung — sync mit CARD_MERCHANTS in js/parser.js ─────────
 # Reihenfolge: spezifischere Patterns ZUERST (BILLA PLUS vor BILLA).
 # Der erste Match gewinnt.
@@ -394,7 +405,7 @@ def _call_openai_vision(image_path: Path) -> dict | None:
             "content": [
                 {"type": "image_url",
                  "image_url": {"url": f"data:{mime};base64,{b64}", "detail": "high"}},
-                {"type": "text", "text": VISION_PROMPT},
+                {"type": "text", "text": VISION_PROMPT + _date_anchor()},
             ],
         }],
         "max_tokens": 4096,
@@ -425,7 +436,7 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
             "content": [
                 {"type": "image",
                  "source": {"type": "base64", "media_type": mime, "data": b64}},
-                {"type": "text", "text": VISION_PROMPT},
+                {"type": "text", "text": VISION_PROMPT + _date_anchor()},
             ],
         }],
     )
@@ -464,6 +475,7 @@ def _build_prompt(pdf_text: str, filename: str) -> str:
     return (
         BON_PROMPT
         + PYTHON_PROMPT_SUFFIX
+        + _date_anchor()
         + f"\n\nDateiname: {filename}\nRechnungstext:\n{pdf_text[:8000]}"
     )
 
@@ -750,6 +762,25 @@ def _gross_total_correction(
     return None
 
 
+def _future_date_correction(
+    text: str, date_val: str, today: str
+) -> str | None:
+    """Korrigiert ein `date`, das nach heute liegt — ein Kauf-/Rechnungsdatum
+    kann das nie sein (nur `debit_date` darf in der Zukunft liegen).
+
+    Gegenstück zu `_gross_total_correction`: der Prompt kennt die Regel, ist aber
+    probabilistisch. Aus dem Rohtext wird das jüngste Datum genommen, das nicht
+    in der Zukunft liegt — auf einem Beleg ist das praktisch immer das
+    Rechnungsdatum (ältere Daten wären Liefer-/Leistungszeitraum).
+
+    Returns das korrigierte ISO-Datum oder None, wenn nichts sicher belegt ist.
+    """
+    if not text or not date_val or date_val <= today:
+        return None
+    past = [d for d in _extract_date_candidates(text) if d <= today]
+    return max(past) if past else None
+
+
 def _prefilter_semantic_hit(
     existing: list[dict], text: str,
     date_candidates: list[str], total_candidates: list[float],
@@ -1000,7 +1031,7 @@ def extract_pdf_with_claude_ocr(pdf_path: Path) -> dict | None:
                             "data": b64,
                         },
                     },
-                    {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX},
+                    {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX + _date_anchor()},
                 ],
             }],
         )
@@ -1096,6 +1127,14 @@ def process_pdf(pdf_path: Path) -> bool:
               f"brutto (USt. {vat:.2f})")
         ai_data["total"] = brutto
         ai_data["vat"]   = vat
+
+    # Datum in der Zukunft ist immer ein Lesefehler — aus dem Rohtext belegen.
+    today    = datetime.now().strftime("%Y-%m-%d")
+    ai_date  = str(_ai_get(ai_data, "date", "rechnungsdatum", default="") or "")
+    fixed    = _future_date_correction(text, ai_date, today)
+    if fixed:
+        print(f"  Korrektur: Datum {ai_date} liegt in der Zukunft → {fixed}")
+        ai_data["date"] = fixed
 
     items_info = f" · {len(items_list)} Positionen" if items_list else ""
     store      = ai_data.get("store") or ai_data.get("absender") or "?"

@@ -528,6 +528,61 @@ class TestBonPrompt(unittest.TestCase):
         self.assertIn("category", suffix)
         self.assertIn("Wohnen / Miete", suffix)
 
+    def test_prompt_warns_about_future_dates(self):
+        # Ohne diese Regel liest die AI das Kassenbon-Datum aus der Fußzeile
+        # gern um einen Tag daneben — und niemand merkt es.
+        self.assertIn("Zukunft", H["BON_PROMPT"])
+
+    def test_prompt_explains_kassenbon_footer(self):
+        bp = H["BON_PROMPT"]
+        self.assertIn("Datum Uhrzeit Filiale", bp)
+
+    def test_date_anchor_contains_reference_date(self):
+        anchor = H["_date_anchor"]("2026-08-15")
+        self.assertIn("2026-08-15", anchor)
+        self.assertIn("debit_date", anchor)
+
+
+class TestFutureDateCorrection(unittest.TestCase):
+    """Deterministische Absicherung gegen ein Datum in der Zukunft."""
+
+    def setUp(self):
+        self.fix   = H["_future_date_correction"]
+        self.today = "2026-08-15"
+
+    def test_edeka_bon_off_by_one(self):
+        # AI liest 16.08., im Rohtext steht 15.08.
+        text = "EDEKA Sulger\nDatum Uhrzeit Filiale\n15.08.2026 15:11 0042778\n"
+        self.assertEqual(self.fix(text, "2026-08-16", self.today), "2026-08-15")
+
+    def test_plausible_date_untouched(self):
+        text = "Rechnungsdatum: 07.07.2026\n"
+        self.assertIsNone(self.fix(text, "2026-07-07", self.today))
+
+    def test_today_is_not_future(self):
+        text = "15.08.2026\n"
+        self.assertIsNone(self.fix(text, self.today, self.today))
+
+    def test_picks_newest_past_date(self):
+        # Leistungszeitraum + Rechnungsdatum → das jüngste gewinnt.
+        text = "Leistungszeitraum 01.06.2026 - 30.06.2026\nRechnungsdatum: 05.07.2026\n"
+        self.assertEqual(self.fix(text, "2026-09-01", self.today), "2026-07-05")
+
+    def test_no_past_candidate_leaves_it_alone(self):
+        # Nur Zukunftsdaten im Text (z.B. reines Abbuchungsdatum) → nicht raten.
+        text = "Einzug erfolgt am 02.09.2026\n"
+        self.assertIsNone(self.fix(text, "2026-09-05", self.today))
+
+    def test_iso_dates_in_text_also_count(self):
+        text = "Event-Datum 2026-07-10 Stromgebuehr\n"
+        self.assertEqual(self.fix(text, "2026-08-20", self.today), "2026-07-10")
+
+    def test_empty_text_no_correction(self):
+        self.assertIsNone(self.fix("", "2026-08-16", self.today))
+
+    def test_empty_date_no_correction(self):
+        self.assertIsNone(self.fix("15.08.2026", "", self.today))
+
 
 if __name__ == "__main__":
     unittest.main()
