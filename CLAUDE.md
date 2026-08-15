@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.10.0`
+Aktuelle Version: `v1.11.0`
 
 ## Commit-Konventionen
 
@@ -173,6 +173,15 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
   `0`. Es gilt `Σ items[].gesamt == total − vat`. Steht dort ein Nettobetrag,
   scheitert das Bon-↔-Buchung-Matching am 2-€-Hard-Out in `findMatch()`.
   Absicherung: `_gross_total_correction()` in `gmail_finance_importer.py`.
+- **Bon-Datum kann nie in der Zukunft liegen**: Kassenbons drucken das Datum
+  klein in der Fußzeile („Datum Uhrzeit Filiale Pos Bed Bon") direkt neben
+  Uhrzeit und Belegnummern — die KI verliest sich dort. Deshalb bekommt jede
+  Bon-Anfrage das heutige Datum als Anker (`_dateAnchor()` in `bonAnalyzer.js`
+  / `_date_anchor()` im Importer), `normalizeBonDate()` markiert ein Datum in
+  der Zukunft als `dateSuspect` (Warnung + editierbares Feld im Concierge), und
+  der Importer korrigiert es deterministisch aus dem PDF-Rohtext
+  (`_future_date_correction()`). Gilt NUR für `date` — `debitDate` darf in der
+  Zukunft liegen.
 - **Bon-Schema `debitDate`**: Bei Lastschrift-Rechnungen (VERBUND zieht ~4
   Wochen nach Rechnungsdatum ein) trägt der Bon zusätzlich das Abbuchungsdatum.
   `findMatch()` misst den Abstand gegen BEIDE Daten und nimmt das nähere

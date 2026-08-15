@@ -1,5 +1,65 @@
 # CHANGELOG
 
+## v1.11.0 — 2026-08-15
+
+### Fixed
+- **Bon-Datum aus der Zukunft** — Ein EDEKA-Bon vom **15.08.2026** wurde als
+  **16.08.2026** erkannt, also einen Tag nach dem Scan-Tag. Die Ursache lag
+  nicht im Code: `date` kam 1:1 aus der KI-Antwort, wurde in
+  `_safeParseObject()` ungeprüft durchgereicht und direkt gerendert — es gab
+  weder eine Plausibilitätsprüfung noch eine Korrekturmöglichkeit.
+
+  Das Datum steht auf so einem Bon ganz unten in der Fußzeile, eingeklemmt
+  zwischen Uhrzeit und Belegnummern:
+
+  ```
+  Datum Uhrzeit Filiale Pos Bed Bon
+  15.08.26 15:11 0042778 102 001 7437
+  ```
+
+  Darüber die Strichcode-Zeile `0012778150826102007437`, die dieselben
+  Ziffern nochmal enthält. Der Prompt sagte bisher nur, wie ein Datum zu
+  *formatieren* ist — nicht, wo es steht und was es nicht sein kann. Und
+  ohne Heute-Bezug kann das Modell einen Tag in der Zukunft gar nicht als
+  Fehler erkennen.
+
+  Drei Ebenen, weil eine Prompt-Regel probabilistisch bleibt:
+  1. **Prompt** (`analyze-bon.md`, shared mit dem Python-Importer): erklärt die
+     Kassenbon-Fußzeile, dass „15:11" die Uhrzeit ist, dass Filial-/TSE-/Bon-
+     Nummern und die Strichcode-Ziffern keine Daten sind — und dass `date` nie
+     nach dem Referenzdatum liegen darf. Kein Datum erkennbar → `null` statt
+     raten.
+  2. **Anker**: jede Bon-Anfrage trägt jetzt „Heutiges Datum (Referenz)"
+     (`_dateAnchor()` in `bonAnalyzer.js`, `_date_anchor()` im Importer).
+  3. **Prüfung**: `normalizeBonDate()` validiert das ISO-Format (fängt auch
+     „2026-02-31" ab) und setzt `dateSuspect`, wenn das Datum in der Zukunft
+     liegt. Bewusst ohne stille Korrektur — welcher Tag wirklich auf dem Bon
+     steht, weiß der Client nicht.
+
+  `debitDate` ist ausgenommen: bei Lastschrift (VERBUND) liegt es
+  planmäßig in der Zukunft.
+
+### Added
+- **Kaufdatum im Concierge editierbar** — Das Datum war das einzige KI-Feld
+  ohne Korrekturmöglichkeit (Positionen, Preise, Subkategorien waren es längst).
+  Ein um Tage verschobenes Datum riss den Bon aus dem 7-Tage-Fenster von
+  `findMatch()` (`DATE_MAX_DAYS`) — er blieb ohne Handhabe für immer
+  unverknüpft. Jetzt: `<input type="date">` neben dem Händlernamen (`max` =
+  heute), bei `dateSuspect` rot plus Warnbanner. Nach der Korrektur läuft das
+  Matching sofort neu.
+- **`_future_date_correction()`** im Gmail-Importer — deterministisches
+  Gegenstück zu `_gross_total_correction()`: liegt das AI-Datum in der Zukunft,
+  wird das jüngste nicht-zukünftige Datum aus dem PDF-Rohtext genommen. Findet
+  sich keines, bleibt das Datum unangetastet — geraten wird nicht.
+
+### Changed
+- `todayIso()` statt `toISOString().slice(0,10)` für „heute": letzteres rechnet
+  nach UTC um und liefert in UTC+2 ab 22:00 den Vortag — derselbe Off-by-one,
+  den die Prüfung abfangen soll.
+- Cache-Version → `?v=1.11.0`.
+- Tests: 15 neue JS-Tests (`tests/bonDate.test.js`), 11 neue Python-Tests
+  (Zukunfts-Korrektur + Prompt-Regeln).
+
 ## v1.10.0 — 2026-08-05
 
 ### Added

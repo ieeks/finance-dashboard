@@ -24,6 +24,11 @@
 
 ---
 
+## Erledigt (v1.11.0, 2026-08-15) — Bon-Datum aus der Zukunft
+
+- [x] **EDEKA-Bon vom 15.08. wurde als 16.08. erkannt** — `date` kam ungeprüft aus der KI-Antwort; der Prompt erklärte nur das *Format*, nicht wo das Datum auf einem Kassenbon steht (Fußzeile neben Uhrzeit + Belegnummern) und dass es nie in der Zukunft liegen kann. Jetzt: Prompt-Regeln für die Fußzeile, „Heutiges Datum" als Anker in jeder Anfrage, `normalizeBonDate()` markiert Zukunftsdaten als `dateSuspect`, `_future_date_correction()` korrigiert im Importer deterministisch aus dem Rohtext. `debitDate` bleibt ausgenommen.
+- [x] **Kaufdatum im Concierge editierbar** — war das einzige KI-Feld ohne Korrekturmöglichkeit; ein verschobenes Datum ließ den Bon dauerhaft aus `DATE_MAX_DAYS` fallen.
+
 ## Erledigt (v1.10.0, 2026-08-05) — Abbuchungsdatum + Ladestrom-Kategorie
 
 - [x] **VERBUND-Buchung unverknüpft trotz korrektem Betrag** — Rechnungsdatum 07.07., Abbuchung 02.08. = 26 Tage, `DATE_MAX_DAYS` ist 7. Neues Feld `debitDate`; `findMatch()` misst gegen beide Daten (`_bestDateDistance()`) und nimmt das nähere. Gegen den echten Beleg: vorher kein Match, jetzt 100 Punkte.

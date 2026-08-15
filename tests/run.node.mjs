@@ -5,6 +5,7 @@
 
 import './matcher.test.js';
 import './owners.test.js';
+import './bonDate.test.js';
 import { runAll } from './harness.js';
 
 runAll();

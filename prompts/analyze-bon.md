@@ -98,6 +98,26 @@ Hinweise zum Datum:
 - **Zweistellige Jahreszahlen**: "25/05/26" oder "25.05.26" bedeutet Jahr 2026,
   NICHT 2023. Regel: Jahreszahl < 50 → 2000er (26 → 2026, 25 → 2025). Nie als
   Monat oder Tag interpretieren — das dritte Element im Datum ist immer das Jahr.
+- **Wo das Datum auf einem Kassenbon steht**: fast immer ganz unten in einer
+  eigenen Fußzeile, meist unter einer Spaltenüberschrift wie
+  „Datum Uhrzeit Filiale Pos Bed Bon". Darunter stehen die Werte in derselben
+  Reihenfolge, z.B. „15.08.26 15:11 0042778 102 001 7437" → das Datum ist der
+  ERSTE Wert: `"date": "2026-08-15"`.
+  - „15:11" ist die **Uhrzeit** (Doppelpunkt!), kein Datumsbestandteil und
+    kein Tag. Übernimm die Uhrzeit nirgends ins Datum.
+  - Filial-, Kassen-, Bon-, TSE- und Belegnummern (`0042778`, `102`, `001`,
+    `7437`, „TSE Transaktionsnummer", „Seriennr.") sind **keine Daten**.
+  - Die lange Ziffernfolge unter dem Strichcode (z.B.
+    „0012778150826102007437") enthält das Datum zwar eingebettet — lies es
+    trotzdem NIE dort ab, sondern nur aus der Klartext-Fußzeile.
+- **Das Kaufdatum liegt nie in der Zukunft.** Am Ende der Anfrage steht
+  „Heutiges Datum (Referenz)". Ein Kassenbon kann höchstens von heute sein,
+  niemals von morgen. Wenn dein gelesenes `date` NACH diesem Referenzdatum
+  liegt, hast du dich verlesen (typisch: Tag um eins verzählt oder Tag/Monat
+  aus einer Nummer geraten) — lies die Datums-Fußzeile Ziffer für Ziffer neu.
+  Ausnahme: `debit_date` DARF in der Zukunft liegen (siehe unten).
+- **Kein Datum erkennbar?** Dann `"date": null` — rate nicht und setze
+  keinesfalls einfach das heutige Datum ein.
 - **debit_date** = der Tag, an dem das Geld tatsächlich vom Konto abgeht, falls
   die Rechnung ihn nennt. Bei Lastschrift steht das oft als eigener Satz:
   „Die Gesamtforderung von 74,18 Euro wird am **02.08.2026** von Ihrem Konto
