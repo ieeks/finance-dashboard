@@ -163,10 +163,11 @@ await check('Nach fehlgeschlagenem Queue-Löschen wird ein Bon nicht zweimal zug
   assert.ok(removed); assert.equal(a.c.state.pendingBons.length, 0);
   assert.equal(a.c.state.transactions.filter(t => t.bon?.id === 'pending').length, 1);
 });
-await check('Prüf-Gate löscht keine bestehende Bon-Verknüpfung', async () => {
-  // Altbestand: Positionen gehen nicht auf, der Bon scheitert am neuen Prüf-Gate.
+await check('Prüfbedürftiger Alt-Link wird nicht gelöscht', async () => {
+  // Der gespeicherte Bon scheitert am Zahlbetrag-Gate — findMatch() würde ihn nie
+  // wieder zuordnen. Genau deshalb darf die bestehende Verknüpfung nicht wegfallen.
   const a = app(), g = invoice('gmail');
-  g.bon.items = [{ name: 'Produkt', price: 80, subcategory: 'Sonstiges' }];
+  g.bon.needsReview = true;
   a.c.state.transactions = [tx('bank', { bon: { ...structuredClone(g.bon), invoiceId: g.id } }), g];
   const cleared = []; a.c.updateTx = async (id, patch) => { cleared.push([id, patch]); };
   a.loadLink(); await a.c._autoLinkGmailBons();
