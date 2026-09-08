@@ -82,7 +82,10 @@ export async function updateTx(txId, patch) {
   try {
     await updateDoc(doc(db, `${HH}/transactions`, txId), patch);
   } catch(e) {
-    // Dokument existiert noch nicht (z.B. aus Migration) → setDoc
+    // Dokument existiert noch nicht (z.B. aus Migration) → setDoc.
+    // Alles andere (offline, Rechte, Netz) muss durchschlagen statt zu
+    // verschwinden, sonst sieht der Aufrufer einen Erfolg, den es nicht gab.
+    if (e.code !== 'not-found') throw e;
     await setDoc(doc(db, `${HH}/transactions`, txId), patch, { merge: true });
   }
 }

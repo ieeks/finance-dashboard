@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v1.11.1 — 2026-09-08
+
+### Fixed
+- Bankimport: Buchungen werden bestätigt gespeichert, bevor der Importvermerk gesetzt wird. Vorher liefen beide Schreibvorgänge mit `.catch(() => {})` ins Leere — schlug der Batch fehl, galt der Import trotzdem als erledigt, die Buchungen waren weg und der Wiederholversuch wurde durch den Vermerk blockiert. Schlägt das Speichern jetzt fehl, werden die Zeilen lokal zurückgenommen und die Datei kann erneut importiert werden.
+- `updateTx()` fällt nur noch bei `not-found` auf `setDoc` zurück. Netz-, Rechte- und Offline-Fehler schlagen durch, statt als Erfolg zu erscheinen.
+- Kontensalden und CSV-Export zählen Gmail-Rechnungen nicht mehr mit: sie sind Belege zu einer Bankbuchung, keine zweite Zahlung.
+
 ## v1.11.0 — 2026-08-15
 
 ### Fixed

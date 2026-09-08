@@ -1,15 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.0';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.0';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.0';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.0';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.1';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.1';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.1';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.1';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.0';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.1';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.0';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.0';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.1';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.1';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -957,7 +957,10 @@ window.deleteAccount = function(id) {
 function renderKonten() {
   const list        = document.getElementById('account-list');
   const accountData = state.accounts.map(acc => {
-    const accTxs = state.transactions.filter(t => t.account === acc.id || t.account === acc.name);
+    // Gmail-Rechnungen sind Belege zur Bankbuchung, keine zweite Zahlung —
+    // sonst zählt derselbe Betrag im Kontosaldo doppelt.
+    const accTxs = state.transactions.filter(t => t.source !== 'gmail_import'
+      && (t.account === acc.id || t.account === acc.name));
     const balance = accTxs.reduce((s,t) => s + t.amount, 0);
     return { ...acc, computedBalance: balance, txCount: accTxs.length,
       lastDate: accTxs.length ? accTxs.map(t=>t.date).sort().reverse()[0] : null };
@@ -1185,6 +1188,39 @@ window.runImport = async function() {
     });
     totalAdded += added;
 
+    // Erst bestätigt speichern, dann weiterarbeiten. Vorher liefen beide
+    // Schreibvorgänge mit .catch(() => {}) ins Leere: schlug der Batch fehl,
+    // galt der Import trotzdem als erledigt (Importmarker gesetzt) und die
+    // Buchungen waren weg — der Wiederholversuch wurde sogar blockiert.
+    const neueTxs = state.transactions.filter(t => categorized.some(c => c.id === t.id));
+    try {
+      await saveTxBatch(neueTxs);
+    } catch(e) {
+      // Nichts gespeichert → lokal zurücknehmen, damit der Wiederholversuch
+      // nicht an der eigenen Dublettenprüfung scheitert.
+      const fehlgeschlagen = new Set(neueTxs.map(t => t.id));
+      state.transactions = state.transactions.filter(t => !fehlgeschlagen.has(t.id));
+      totalAdded -= added;
+      showToast(`${file.name}: Speichern fehlgeschlagen — bitte erneut versuchen`);
+      continue;
+    }
+
+    try {
+      await saveImport(importId, {
+        filename:  file.name,
+        txCount:   added,
+        account:   accountSlug,
+        dateRange: {
+          from: categorized.map(t=>t.date).sort()[0],
+          to:   categorized.map(t=>t.date).sort().reverse()[0],
+        },
+      });
+    } catch(e) {
+      // Buchungen sind gespeichert, nur der Marker fehlt. Nicht zurückrollen —
+      // ein erneuter Import fängt die Zeilen über die Dublettenprüfung ab.
+      showToast(`${file.name}: Buchungen gespeichert, Importvermerk fehlt`);
+    }
+
     const acc = state.accounts.find(a => a.id === accountSlug);
     if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
 
@@ -1215,20 +1251,6 @@ window.runImport = async function() {
 
     _autoLinkGmailBons();
 
-    // Firestore: neue Buchungen speichern + Import-Dokument anlegen
-    saveTxBatch(state.transactions.filter(t =>
-      categorized.some(c => c.id === t.id)
-    )).catch(() => {});
-
-    saveImport(importId, {
-      filename:  file.name,
-      txCount:   added,
-      account:   accountSlug,
-      dateRange: {
-        from: categorized.map(t=>t.date).sort()[0],
-        to:   categorized.map(t=>t.date).sort().reverse()[0],
-      },
-    }).catch(() => {});
   }
 
   state.currentMonth = latestMonth;
@@ -1323,7 +1345,8 @@ window.loadDemoData = function() {
 window.exportCSV = function() {
   if (!state.transactions.length) { showToast('Keine Buchungen zum Exportieren'); return; }
   const header = 'Datum,Beschreibung,Betrag,Kategorie,Konto';
-  const rows   = state.transactions.sort((a,b)=>b.date.localeCompare(a.date)).map(t =>
+  const rows   = state.transactions.filter(t => t.source !== 'gmail_import')
+    .sort((a,b)=>b.date.localeCompare(a.date)).map(t =>
     [t.date, `"${t.description.replace(/"/g,'""')}"`, t.amount.toFixed(2).replace('.',','), t.category, t.account||''].join(',')
   );
   const csv  = [header,...rows].join('\n');
