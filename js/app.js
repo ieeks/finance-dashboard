@@ -1119,6 +1119,8 @@ window.runImport = async function() {
 
   let totalAdded = 0;
   let totalAutoLinked = 0;
+  const saveFailed = [];   // Speichern fehlgeschlagen → bleibt ausgewählt
+  const unreadable = [];   // PDF unlesbar oder Format nicht unterstützt
   let latestMonth = state.currentMonth;
   const fileCount = selectedPdfFiles.length;
 
@@ -1133,6 +1135,7 @@ window.runImport = async function() {
     try {
       rawText = await extractPdfText(file);
     } catch(e) {
+      unreadable.push(file);
       showToast(`${file.name}: PDF konnte nicht gelesen werden`);
       continue;
     }
@@ -1142,6 +1145,7 @@ window.runImport = async function() {
     const parsed = parseBankStatement(rawText);
     if (!parsed.length) {
       updateImportStatus(`Keine Buchungen in ${file.name}`, 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
+      unreadable.push(file);
       showToast(`${file.name}: Keine Buchungen erkannt`);
       continue;
     }
@@ -1196,12 +1200,16 @@ window.runImport = async function() {
     try {
       await saveTxBatch(neueTxs);
     } catch(e) {
-      // Nichts gespeichert → lokal zurücknehmen, damit der Wiederholversuch
-      // nicht an der eigenen Dublettenprüfung scheitert.
-      const fehlgeschlagen = new Set(neueTxs.map(t => t.id));
-      state.transactions = state.transactions.filter(t => !fehlgeschlagen.has(t.id));
-      totalAdded -= added;
-      showToast(`${file.name}: Speichern fehlgeschlagen — bitte erneut versuchen`);
+      // Nur zurücknehmen, was wirklich nicht in Firestore steht. Bereits
+      // geschriebene Blöcke bleiben im State — sonst erkennt die
+      // Dublettenprüfung sie beim zweiten Versuch nicht und sie landen doppelt.
+      const gespeichert = new Set(e.savedTxIds || []);
+      const verworfen   = neueTxs.filter(t => !gespeichert.has(t.id));
+      const verworfenIds = new Set(verworfen.map(t => t.id));
+      state.transactions = state.transactions.filter(t => !verworfenIds.has(t.id));
+      totalAdded -= verworfen.length;
+      saveFailed.push(file);
+      showToast(`${file.name}: ${verworfen.length} von ${neueTxs.length} Buchungen nicht gespeichert — bitte erneut versuchen`, 6000);
       continue;
     }
 
@@ -1256,13 +1264,33 @@ window.runImport = async function() {
   state.currentMonth = latestMonth;
   saveState();
 
-  setStep(3, 100, true);
+  const probleme = [];
+  if (unreadable.length) probleme.push(`${unreadable.length} Datei(en) nicht lesbar`);
+  if (saveFailed.length) probleme.push(`${saveFailed.length} Datei(en) nicht gespeichert`);
+
+  setStep(3, 100, probleme.length === 0);
   hideLoading();
   const multiLabel = fileCount > 1 ? ` aus ${fileCount} Dateien` : '';
-  updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
-  showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
+  if (probleme.length) {
+    // Kein pauschales „✓ importiert" mehr: nach einem Fehler stand hier
+    // Erfolg, und die Dateiauswahl wurde trotzdem geleert.
+    updateImportStatus('Import unvollständig',
+      `${totalAdded} Buchungen gespeichert · ${probleme.join(' · ')}.`);
+    showToast(`⚠ ${totalAdded} gespeichert · ${probleme.join(' · ')}`, 6000);
+  } else {
+    updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
+    showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
+  }
 
-  selectedPdfFiles = [];
+  // Dateien mit Speicherfehler bleiben ausgewählt, damit der zweite Versuch
+  // ein Klick ist. Unlesbare Dateien nicht — die scheitern erneut.
+  selectedPdfFiles = saveFailed;
+  if (selectedPdfFiles.length) {
+    _setUploadUI(selectedPdfFiles);
+    renderDashboard(); renderKonten();
+    return;
+  }
+
   document.getElementById('pdf-input').value = '';
   document.getElementById('import-btn').style.display = 'none';
   document.getElementById('account-selector-wrap').style.display = 'none';

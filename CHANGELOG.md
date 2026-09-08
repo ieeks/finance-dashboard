@@ -6,6 +6,8 @@
 - Bankimport: Buchungen werden bestätigt gespeichert, bevor der Importvermerk gesetzt wird. Vorher liefen beide Schreibvorgänge mit `.catch(() => {})` ins Leere — schlug der Batch fehl, galt der Import trotzdem als erledigt, die Buchungen waren weg und der Wiederholversuch wurde durch den Vermerk blockiert. Schlägt das Speichern jetzt fehl, werden die Zeilen lokal zurückgenommen und die Datei kann erneut importiert werden.
 - `updateTx()` fällt nur noch bei `not-found` auf `setDoc` zurück. Netz-, Rechte- und Offline-Fehler schlagen durch, statt als Erfolg zu erscheinen.
 - Kontensalden und CSV-Export zählen Gmail-Rechnungen nicht mehr mit: sie sind Belege zu einer Bankbuchung, keine zweite Zahlung.
+- Teilweise gespeicherte Importe: `saveTxBatch()` schreibt in Blöcken zu 400. Scheiterte ein späterer Block, nahm der Import auch die bereits geschriebenen Buchungen lokal zurück — der zweite Versuch legte sie unter neuen IDs erneut an (401 Buchungen wurden zu 801). `saveTxBatch()` meldet jetzt die bereits gespeicherten IDs, zurückgenommen wird nur der Rest.
+- Der Abschluss meldete nach einem Speicherfehler trotzdem „✓ importiert" und leerte die Dateiauswahl. Bei Problemen steht dort jetzt „Import unvollständig" samt Ursache; Dateien mit Speicherfehler bleiben ausgewählt und können direkt erneut versucht werden.
 
 ## v1.11.0 — 2026-08-15
 

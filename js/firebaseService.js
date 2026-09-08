@@ -64,16 +64,27 @@ export async function loadAllData() {
 // Schreibt mehrere Transaktionen als Batch (max 500 pro Batch)
 export async function saveTxBatch(txs) {
   const CHUNK = 400;
+  const gespeichert = [];
   for (let i = 0; i < txs.length; i += CHUNK) {
+    const chunk = txs.slice(i, i + CHUNK);
     const batch = writeBatch(db);
-    txs.slice(i, i + CHUNK).forEach(tx => {
+    chunk.forEach(tx => {
       batch.set(doc(db, `${HH}/transactions`, tx.id), {
         ...tx,
         savedAt:   serverTimestamp(),
         savedBy:   currentEmail(),
       });
     });
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch(e) {
+      // Frühere Blöcke sind bereits geschrieben. Ohne diese Liste nimmt der
+      // Aufrufer auch gespeicherte Buchungen lokal zurück — der zweite
+      // Versuch legt sie dann unter neuen IDs ein zweites Mal an.
+      e.savedTxIds = gespeichert.map(t => t.id);
+      throw e;
+    }
+    gespeichert.push(...chunk);
   }
 }
 
