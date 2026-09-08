@@ -21,8 +21,21 @@
 
 import fs from 'node:fs';
 import vm from 'node:vm';
-import { findMatch, bonNeedsReview, bonItemsNeedReview } from '../js/matcher.js';
 import { findMatch as legacyFindMatch } from './legacy/matcher-v1.11.0.mjs';
+
+// Dynamisch, damit ein Stand ohne die neuen Gates eine lesbare Meldung liefert
+// statt eines Import-Fehlers — typischer Fall: Workflow aus Versehen auf main
+// statt auf dem Branch mit den Matcher-Änderungen gestartet.
+const matcher = await import('../js/matcher.js');
+const { findMatch, bonNeedsReview, bonItemsNeedReview } = matcher;
+for (const name of ['findMatch', 'bonNeedsReview', 'bonItemsNeedReview']) {
+  if (typeof matcher[name] !== 'function') {
+    console.error(`js/matcher.js dieses Standes kennt ${name}() nicht — es gibt nichts zu`
+      + ' vergleichen.\nDen Branch mit den Matcher-Änderungen auschecken bzw. im Workflow'
+      + ' unter "Run workflow" als Branch wählen.');
+    process.exit(1);
+  }
+}
 
 const COLLECTION_PATH = 'household/main/transactions';
 
