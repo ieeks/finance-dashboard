@@ -1,9 +1,9 @@
 // parser.js — BAWAG/easybank PDF-Extraktion, lokaler Parser, KI-Kategorisierung
 
-import { loadKeys } from './ui.js?v=1.11.0';
-import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js?v=1.11.0';
-import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js?v=1.11.0';
-import { LANDLORD } from './personalConfig.js?v=1.11.0';
+import { loadKeys } from './ui.js?v=1.11.1';
+import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js?v=1.11.1';
+import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js?v=1.11.1';
+import { LANDLORD } from './personalConfig.js?v=1.11.1';
 
 // Debug-Logs via window.DEBUG_PARSER = true aktivieren.
 const _DBG = typeof window !== 'undefined' && window.DEBUG_PARSER === true;

@@ -64,16 +64,27 @@ export async function loadAllData() {
 // Schreibt mehrere Transaktionen als Batch (max 500 pro Batch)
 export async function saveTxBatch(txs) {
   const CHUNK = 400;
+  const gespeichert = [];
   for (let i = 0; i < txs.length; i += CHUNK) {
+    const chunk = txs.slice(i, i + CHUNK);
     const batch = writeBatch(db);
-    txs.slice(i, i + CHUNK).forEach(tx => {
+    chunk.forEach(tx => {
       batch.set(doc(db, `${HH}/transactions`, tx.id), {
         ...tx,
         savedAt:   serverTimestamp(),
         savedBy:   currentEmail(),
       });
     });
-    await batch.commit();
+    try {
+      await batch.commit();
+    } catch(e) {
+      // Frühere Blöcke sind bereits geschrieben. Ohne diese Liste nimmt der
+      // Aufrufer auch gespeicherte Buchungen lokal zurück — der zweite
+      // Versuch legt sie dann unter neuen IDs ein zweites Mal an.
+      e.savedTxIds = gespeichert.map(t => t.id);
+      throw e;
+    }
+    gespeichert.push(...chunk);
   }
 }
 
@@ -82,7 +93,10 @@ export async function updateTx(txId, patch) {
   try {
     await updateDoc(doc(db, `${HH}/transactions`, txId), patch);
   } catch(e) {
-    // Dokument existiert noch nicht (z.B. aus Migration) → setDoc
+    // Dokument existiert noch nicht (z.B. aus Migration) → setDoc.
+    // Alles andere (offline, Rechte, Netz) muss durchschlagen statt zu
+    // verschwinden, sonst sieht der Aufrufer einen Erfolg, den es nicht gab.
+    if (e.code !== 'not-found') throw e;
     await setDoc(doc(db, `${HH}/transactions`, txId), patch, { merge: true });
   }
 }

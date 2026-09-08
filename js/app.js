@@ -1,15 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.0';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.0';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.0';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.0';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.1';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.1';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.1';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.1';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.0';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.1';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.0';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.0';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.1';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.1';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -957,7 +957,10 @@ window.deleteAccount = function(id) {
 function renderKonten() {
   const list        = document.getElementById('account-list');
   const accountData = state.accounts.map(acc => {
-    const accTxs = state.transactions.filter(t => t.account === acc.id || t.account === acc.name);
+    // Gmail-Rechnungen sind Belege zur Bankbuchung, keine zweite Zahlung —
+    // sonst zählt derselbe Betrag im Kontosaldo doppelt.
+    const accTxs = state.transactions.filter(t => t.source !== 'gmail_import'
+      && (t.account === acc.id || t.account === acc.name));
     const balance = accTxs.reduce((s,t) => s + t.amount, 0);
     return { ...acc, computedBalance: balance, txCount: accTxs.length,
       lastDate: accTxs.length ? accTxs.map(t=>t.date).sort().reverse()[0] : null };
@@ -1069,7 +1072,7 @@ window.commitRematch = async function() {
 // ── PDF Upload ──
 let selectedPdfFiles = [];
 
-function _setUploadUI(files) {
+function _setUploadUI(files, kontoBehalten = false) {
   document.getElementById('upload-icon').textContent = '✅';
   if (files.length === 1) {
     document.getElementById('upload-title').textContent = files[0].name;
@@ -1079,17 +1082,23 @@ function _setUploadUI(files) {
     const totalKB = files.reduce((s, f) => s + f.size, 0) / 1024;
     document.getElementById('upload-sub').textContent   = `${totalKB.toFixed(1)} KB gesamt — bereit zum Import`;
   }
-  _renderAccountSelector(files);
+  _renderAccountSelector(files, kontoBehalten);
   document.getElementById('import-btn').style.display = 'flex';
 }
 
-function _renderAccountSelector(files) {
+function _renderAccountSelector(files, kontoBehalten = false) {
   const wrap  = document.getElementById('account-selector-wrap');
   const chips = document.getElementById('account-selector-chips');
   if (!wrap || !chips) return;
   if (state.accounts.length <= 1) { wrap.style.display = 'none'; return; }
   const firstName = (files[0]?.name || '').toLowerCase();
-  const autoId = (firstName.includes('easy') || firstName.includes('bawag')) ? 'haushalt' :
+  // Beim Neuaufbau nach einem Speicherfehler gewinnt die bereits getroffene
+  // Auswahl: sonst zieht die Dateinamen-Heuristik den Wiederholversuch auf ein
+  // anderes Konto als den ersten Durchlauf. Bei neu gewählten Dateien greift
+  // weiterhin die Heuristik.
+  const gewaehlt = chips.querySelector('.bs-chip.active')?.dataset.accId;
+  const autoId = (kontoBehalten && state.accounts.some(a => a.id === gewaehlt)) ? gewaehlt :
+                 (firstName.includes('easy') || firstName.includes('bawag')) ? 'haushalt' :
                  state.accounts.find(a => firstName.includes(a.name.toLowerCase()))?.id ||
                  state.accounts[0].id;
   wrap.style.display = 'block';
@@ -1116,6 +1125,8 @@ window.runImport = async function() {
 
   let totalAdded = 0;
   let totalAutoLinked = 0;
+  const saveFailed = [];   // Speichern fehlgeschlagen → bleibt ausgewählt
+  const unreadable = [];   // PDF unlesbar oder Format nicht unterstützt
   let latestMonth = state.currentMonth;
   const fileCount = selectedPdfFiles.length;
 
@@ -1130,6 +1141,7 @@ window.runImport = async function() {
     try {
       rawText = await extractPdfText(file);
     } catch(e) {
+      unreadable.push(file);
       showToast(`${file.name}: PDF konnte nicht gelesen werden`);
       continue;
     }
@@ -1139,6 +1151,7 @@ window.runImport = async function() {
     const parsed = parseBankStatement(rawText);
     if (!parsed.length) {
       updateImportStatus(`Keine Buchungen in ${file.name}`, 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
+      unreadable.push(file);
       showToast(`${file.name}: Keine Buchungen erkannt`);
       continue;
     }
@@ -1185,6 +1198,43 @@ window.runImport = async function() {
     });
     totalAdded += added;
 
+    // Erst bestätigt speichern, dann weiterarbeiten. Vorher liefen beide
+    // Schreibvorgänge mit .catch(() => {}) ins Leere: schlug der Batch fehl,
+    // galt der Import trotzdem als erledigt (Importmarker gesetzt) und die
+    // Buchungen waren weg — der Wiederholversuch wurde sogar blockiert.
+    const neueTxs = state.transactions.filter(t => categorized.some(c => c.id === t.id));
+    try {
+      await saveTxBatch(neueTxs);
+    } catch(e) {
+      // Nur zurücknehmen, was wirklich nicht in Firestore steht. Bereits
+      // geschriebene Blöcke bleiben im State — sonst erkennt die
+      // Dublettenprüfung sie beim zweiten Versuch nicht und sie landen doppelt.
+      const gespeichert = new Set(e.savedTxIds || []);
+      const verworfen   = neueTxs.filter(t => !gespeichert.has(t.id));
+      const verworfenIds = new Set(verworfen.map(t => t.id));
+      state.transactions = state.transactions.filter(t => !verworfenIds.has(t.id));
+      totalAdded -= verworfen.length;
+      saveFailed.push(file);
+      showToast(`${file.name}: ${verworfen.length} von ${neueTxs.length} Buchungen nicht gespeichert — bitte erneut versuchen`, 6000);
+      continue;
+    }
+
+    try {
+      await saveImport(importId, {
+        filename:  file.name,
+        txCount:   added,
+        account:   accountSlug,
+        dateRange: {
+          from: categorized.map(t=>t.date).sort()[0],
+          to:   categorized.map(t=>t.date).sort().reverse()[0],
+        },
+      });
+    } catch(e) {
+      // Buchungen sind gespeichert, nur der Marker fehlt. Nicht zurückrollen —
+      // ein erneuter Import fängt die Zeilen über die Dublettenprüfung ab.
+      showToast(`${file.name}: Buchungen gespeichert, Importvermerk fehlt`);
+    }
+
     const acc = state.accounts.find(a => a.id === accountSlug);
     if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
 
@@ -1215,32 +1265,38 @@ window.runImport = async function() {
 
     _autoLinkGmailBons();
 
-    // Firestore: neue Buchungen speichern + Import-Dokument anlegen
-    saveTxBatch(state.transactions.filter(t =>
-      categorized.some(c => c.id === t.id)
-    )).catch(() => {});
-
-    saveImport(importId, {
-      filename:  file.name,
-      txCount:   added,
-      account:   accountSlug,
-      dateRange: {
-        from: categorized.map(t=>t.date).sort()[0],
-        to:   categorized.map(t=>t.date).sort().reverse()[0],
-      },
-    }).catch(() => {});
   }
 
   state.currentMonth = latestMonth;
   saveState();
 
-  setStep(3, 100, true);
+  const probleme = [];
+  if (unreadable.length) probleme.push(`${unreadable.length} Datei(en) nicht lesbar`);
+  if (saveFailed.length) probleme.push(`${saveFailed.length} Datei(en) nicht gespeichert`);
+
+  setStep(3, 100, probleme.length === 0);
   hideLoading();
   const multiLabel = fileCount > 1 ? ` aus ${fileCount} Dateien` : '';
-  updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
-  showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
+  if (probleme.length) {
+    // Kein pauschales „✓ importiert" mehr: nach einem Fehler stand hier
+    // Erfolg, und die Dateiauswahl wurde trotzdem geleert.
+    updateImportStatus('Import unvollständig',
+      `${totalAdded} Buchungen gespeichert · ${probleme.join(' · ')}.`);
+    showToast(`⚠ ${totalAdded} gespeichert · ${probleme.join(' · ')}`, 6000);
+  } else {
+    updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
+    showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
+  }
 
-  selectedPdfFiles = [];
+  // Dateien mit Speicherfehler bleiben ausgewählt, damit der zweite Versuch
+  // ein Klick ist. Unlesbare Dateien nicht — die scheitern erneut.
+  selectedPdfFiles = saveFailed;
+  if (selectedPdfFiles.length) {
+    _setUploadUI(selectedPdfFiles, true);
+    renderDashboard(); renderKonten();
+    return;
+  }
+
   document.getElementById('pdf-input').value = '';
   document.getElementById('import-btn').style.display = 'none';
   document.getElementById('account-selector-wrap').style.display = 'none';
@@ -1323,7 +1379,8 @@ window.loadDemoData = function() {
 window.exportCSV = function() {
   if (!state.transactions.length) { showToast('Keine Buchungen zum Exportieren'); return; }
   const header = 'Datum,Beschreibung,Betrag,Kategorie,Konto';
-  const rows   = state.transactions.sort((a,b)=>b.date.localeCompare(a.date)).map(t =>
+  const rows   = state.transactions.filter(t => t.source !== 'gmail_import')
+    .sort((a,b)=>b.date.localeCompare(a.date)).map(t =>
     [t.date, `"${t.description.replace(/"/g,'""')}"`, t.amount.toFixed(2).replace('.',','), t.category, t.account||''].join(',')
   );
   const csv  = [header,...rows].join('\n');
