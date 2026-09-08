@@ -139,6 +139,25 @@ await check('Nach fehlgeschlagenem Queue-Löschen wird ein Bon nicht zweimal zug
   assert.ok(removed); assert.equal(a.c.state.pendingBons.length, 0);
   assert.equal(a.c.state.transactions.filter(t => t.bon?.id === 'pending').length, 1);
 });
+await check('Prüf-Gate löscht keine bestehende Bon-Verknüpfung', async () => {
+  // Altbestand: Positionen gehen nicht auf, der Bon scheitert am neuen Prüf-Gate.
+  const a = app(), g = invoice('gmail');
+  g.bon.items = [{ name: 'Produkt', price: 80, subcategory: 'Sonstiges' }];
+  a.c.state.transactions = [tx('bank', { bon: { ...structuredClone(g.bon), invoiceId: g.id } }), g];
+  const cleared = []; a.c.updateTx = async (id, patch) => { cleared.push([id, patch]); };
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions[0].bon.invoiceId, 'gmail');
+  assert.equal(cleared.filter(([, patch]) => patch.bon === null).length, 0);
+  // Gegenprobe: ein sauberer Bon ohne Match wird weiterhin gelöst.
+  const b = app(), g2 = invoice('gmail');
+  b.c.state.transactions = [tx('bank', { date: '2026-01-01',
+    bon: { ...structuredClone(g2.bon), invoiceId: g2.id } }), g2];
+  const cleared2 = []; b.c.updateTx = async (id, patch) => { cleared2.push([id, patch]); };
+  b.loadLink(); await b.c._autoLinkGmailBons();
+  assert.equal(cleared2.length, 1);
+  assert.equal(cleared2[0][0], 'bank');
+  assert.equal(cleared2[0][1].bon, null);
+});
 await check('Filter anwenden behält den gewählten Monat', () => {
   const a = app(); a.load('function initBuchFilters()', '\n// ── Month Picker Bottom Sheet');
   a.c.initBuchFilters(); a.c.openBuchFilterSheet(); a.element('buchFilterApply').click();

@@ -2237,10 +2237,19 @@ async function _autoLinkGmailBons() {
 
   // Phase 3: Bank-Txs die vorher verknüpft waren aber jetzt keinen Match mehr
   // bekommen → Clear in Firestore persistieren.
-  previouslyLinked.forEach((_, txId) => {
-    if (!newlyLinked.has(txId)) {
-      writes.push(updateTx(txId, { bon: null }));
+  // Ausnahme: Bons, die schon am Prüf-Gate (bonNeedsReview) scheitern, hatten
+  // nie eine faire Chance auf ein Re-Match — ein neuer Hard-Out darf keine
+  // bestehende Zuordnung wegwerfen. Solange die Gmail-Rechnung noch existiert,
+  // bleibt der Alt-Link erhalten; gelöschte Rechnungen werden weiterhin gelöst.
+  previouslyLinked.forEach((prev, txId) => {
+    if (newlyLinked.has(txId)) return;
+    const invoiceGone = prev?.invoiceId && !gmailWithBon.some(g => g.id === prev.invoiceId);
+    if (bonNeedsReview(prev) && !invoiceGone) {
+      const tx = state.transactions.find(t => t.id === txId);
+      if (tx) tx.bon = prev;
+      return;
     }
+    writes.push(updateTx(txId, { bon: null }));
   });
   await Promise.all(writes);
 }

@@ -10,6 +10,7 @@
 - Fehlendes Bon-Datum blockiert den Bankimport nicht; Kategorie-Filter behält den aktuellen Monat.
 - Gmail-Importer erhält Trinkgeld, Währung und Null-Euro-Positionen. Komplexe/unklare Belege bleiben mit „Bitte prüfen“ offen.
 - Bon-Prompt: eindeutige Endbeträge statt größter Zahl; keine erfundenen Summenkorrekturen; Servicegebühren und Fälligkeit nicht mit Trinkgeld/Einzug vermischen.
+- Self-Healing löst keine bestehenden Bon-Verknüpfungen mehr, nur weil ein Altbestands-Bon am neuen Prüf-Gate scheitert; gelöste Links bleiben auf echte Fehl-Matches und entfernte Gmail-Rechnungen beschränkt.
 
 ### Tests
 - Gezielte lokale Regressionen mit synthetischen Daten, ohne Firebase-/KI-Zugriff.
