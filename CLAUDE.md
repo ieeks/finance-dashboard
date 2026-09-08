@@ -50,14 +50,23 @@ TODO.md
 /scripts
   delete_firestore_prefixes.js  # Maintenance: löscht pdf_/img_ Docs aus Firestore
   delete_firestore_docs.js      # Maintenance: löscht einzelne Docs per ID (Nach-Import)
+  match_rate_report.mjs         # Nur lesend: Bon-Zuordnungsquote alt vs. aktuell
+  legacy/matcher-v1.11.0.mjs    # eingefrorene Matcher-Kopie als Vergleichsbasis
 /.github/workflows
   gmail_finance_sync.yml          # täglich, Gmail → Firestore
   delete_firestore_prefixes.yml   # manuell, Firestore Cleanup (pdf_/img_)
   delete_firestore_docs.yml       # manuell, einzelne Docs per ID (Dry Run default)
   ci.yml                          # Tests bei PR/Push
+  match_rate_report.yml           # manuell, Bon-Zuordnungsquote (nur lesend)
 /docs
   mockup-v2.html      # UI-Mockup (Referenz)
 ```
+
+Workflow „Match Rate Report" (manuell) misst vor einem Matcher-Release, wie viele
+Gmail-Rechnungen mit dem alten (v1.11.0) und dem aktuellen Stand automatisch
+verknüpft würden, inkl. Ursachen je verlorener Zuordnung. Nur lesend, nutzt
+dasselbe Secret `FIREBASE_SERVICE_ACCOUNT`. Lokal auch ohne Zugangsdaten gegen
+einen Export: `node scripts/match_rate_report.mjs --input export.json`.
 
 Maintenance-Workflow „Delete Firestore Prefixes" wird manuell via GitHub Actions ausgelöst (oder über Einstellungen → "🧹 PDF-/Bild-Buchungen aufräumen" in der App). Löscht alle Docs aus `household/main/transactions`, deren ID mit `pdf_` oder `img_` beginnt. Nutzt Secret `FIREBASE_SERVICE_ACCOUNT`.
 

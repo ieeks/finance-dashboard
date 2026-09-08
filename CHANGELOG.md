@@ -9,6 +9,7 @@
 - USt. und Trinkgeld im Bon-Detail verwenden die Belegwährung.
 - CSV enthält ausschließlich Bankbuchungen, auch unverknüpfte Gmail-Rechnungen fehlen bewusst. Trennzeichen ist Semikolon statt Komma; bestehende CSV-Importvorlagen müssen ggf. angepasst werden.
 - 200 lokale Tests erfolgreich (83 JavaScript, 117 Python); echter mehrseitiger Kontoauszug und Browsercheck bleiben offen.
+- Neu: `scripts/match_rate_report.mjs` (+ Workflow „Match Rate Report") misst die automatische Bon-Zuordnung des aktuellen Standes gegen v1.11.0 auf echten Daten und schlüsselt verlorene Zuordnungen nach Ursache auf. Nur lesend.
 
 ## v1.11.2 — 2026-09-08
 
