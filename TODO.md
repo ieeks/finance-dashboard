@@ -1,13 +1,14 @@
 # TODO — Finance Dashboard
 
-## Erledigt (v1.11.1) — Kleiner Stabilitäts-PR
+## Erledigt (v1.11.2) — Kleiner Stabilitäts-PR
 
 - [x] Bankimport, Speicherreihenfolge und Wiederholbarkeit korrigiert
 - [x] Kontensummen / CSV ohne Gmail-Doppelzählung
 - [x] Kontobezogenes Matching und Erhalt manueller Bon-Korrekturen
 - [x] Filtermonat, fehlendes Bon-Datum und Null-Euro-Positionen korrigiert
 - [x] Prompt-Widersprüche bereinigt; Sonderfälle bleiben mit Prüfhinweis offen
-- [ ] Nach Merge: ein echter Kontoauszug und ein Bon im Browser prüfen
+- [x] Positionsqualität separat markieren; Bankbetrag centgenau abgleichen
+- [ ] Vor Merge: ein echter Kontoauszug und ein Bon im Browser prüfen
 
 
 ## Roadmap (offen)

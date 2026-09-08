@@ -1,15 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.1';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.1';
-import { formatEur, formatMoney, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.1';
-import { extractPdfText, parseBankStatement, categorizeWithAI, newBankTransactions } from './parser.js?v=1.11.1';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.2';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.2';
+import { formatEur, formatMoney, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.2';
+import { extractPdfText, parseBankStatement, categorizeWithAI, newBankTransactions } from './parser.js?v=1.11.2';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.1';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.2';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.1';
-import { findMatch, matchLabel, analyzeBonLinks, bonNeedsReview } from './matcher.js?v=1.11.1';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.2';
+import { findMatch, matchLabel, analyzeBonLinks, bonNeedsReview, bonItemsNeedReview } from './matcher.js?v=1.11.2';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -546,7 +546,7 @@ function renderRechnungen() {
               <button onclick="deleteRechnung('${t.id}')" style="padding:2px 6px;border:none;background:transparent;color:var(--text-muted);font-size:0.8rem;cursor:pointer;line-height:1;">🗑</button>
             </div>
           </div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}${t.needsReview ? ' · Bitte prüfen' : ''}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}${t.needsReview ? ' · Bitte prüfen' : t.itemsReview ? ' · Positionen prüfen' : ''}</div>
         </div>
       </div>
       ${statusHtml}
@@ -748,6 +748,7 @@ window.openTxModal = function(id) {
     ${tx.bon ? `
     <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
       <div class="section-label" style="margin-bottom:10px;">🧾 ${escHtml(tx.bon.store || 'Kassenbon')}</div>
+      ${bonItemsNeedReview(tx.bon) ? '<div class="chip chip-gold" style="margin-bottom:8px;">Positionen unvollständig — bitte prüfen</div>' : ''}
       ${(tx.bon.items||[]).map((item, idx) => {
         const sc = item.subcategory || item.subkategorie || 'Sonstiges';
         const opts = Object.keys(SUBCAT_ICONS).map(s =>
@@ -1506,6 +1507,7 @@ function renderConciergeResult(bon) {
 
   preview.innerHTML = `
     ${dateBanner}
+    ${bonItemsNeedReview(bon) && !sumMismatch ? '<div class="chip chip-gold" style="margin-bottom:8px;">Positionen unvollständig — bitte prüfen</div>' : ''}
     ${bonNeedsReview(bon) || !bon.date ? '<div class="chip chip-gold" style="margin-bottom:8px;">Bitte prüfen — keine automatische Zuordnung</div>' : ''}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
       <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">📄 ${escHtml(bon.store)}</div>

@@ -110,7 +110,31 @@ await check('Gmail, Fremdwährung und Prüfbelege werden nicht automatisch gemat
   assert.equal(findMatch(bon, [invoice('gmail')]), null);
   assert.equal(findMatch({ ...bon, currency: 'USD' }, [tx('bank')]), null);
   assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
-  assert.equal(findMatch({ ...bon, items: [{ gesamt: 80 }] }, [tx('bank')]), null);
+
+});
+await check('Unvollständige Positionen erlauben nur eindeutiges Matching mit Händlerbezug', () => {
+  const bon = { date: '2026-08-15', total: 100, store: 'Billa', items: [{ gesamt: 80 }] };
+  assert.equal(findMatch(bon, [tx('bank')]).transaction.id, 'bank');
+  assert.equal(findMatch(bon, [tx('bank', { description: 'OMV' })]), null);
+  assert.equal(findMatch(bon, [tx('a'), tx('b')]), null);
+  assert.equal(findMatch({ ...bon, items: [], itemsReview: true }, [tx('bank')]).transaction.id, 'bank');
+  assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
+});
+await check('Gmail-Bon ohne Positionen wird gespeichertem Bankbeleg mit Prüfhinweis zugeordnet', async () => {
+  const a = app(), g = invoice('gmail');
+  g.itemsReview = true;
+  g.bon.items = [];
+  g.bon.itemsReview = true;
+  a.c.state.transactions = [tx('bank'), g];
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions[0].bon.invoiceId, 'gmail');
+  assert.equal(a.c.state.transactions[0].bon.itemsReview, true);
+});
+await check('Schon ein Cent Bankabweichung blockiert trotz passendem Händler und Datum', () => {
+  const bon = { date: '2026-08-15', total: 100, store: 'Billa' };
+  for (const amount of [-99.99, -100.01, -98, -102]) {
+    assert.equal(findMatch(bon, [tx('bank', { amount })]), null);
+  }
 });
 await check('Rechnungsstatus zeigt nur wirklich verknüpfte Belege', async () => {
   const a = app(); a.c.state.transactions = [tx('bank'), invoice('g1'), invoice('g2')];

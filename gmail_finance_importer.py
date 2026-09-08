@@ -897,8 +897,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         if value != value or abs(value) == float("inf"):
             print("  Bitte prüfen: ungültiger Geldbetrag — nicht gespeichert.")
             return False
-    if items_list and abs(round(_items_sum(items_list) * 100) - round((total_val - vat_val) * 100)) > 1:
-        needs_review = True
+    items_review = (ai_data.get("items_review") is True or ai_data.get("itemsReview") is True
+                    or not items_list
+                    or abs(round(_items_sum(items_list) * 100) - round((total_val - vat_val) * 100)) > 1)
 
     # Kategorie-Override: Vermieter (in unserem Fall Helvetia Versicherungen
     # AG als Hausverwalter, NICHT als Versicherer). Same Logik wie parser.js.
@@ -968,7 +969,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
     bon = None
-    if items_list or needs_review or tip_val:
+    if items_list or needs_review or items_review or tip_val:
         bon = {
             "source":    "gmail_import",
             "total":     total_val,
@@ -976,6 +977,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
             "tip":       tip_val,
             "currency":  currency,
             "needsReview": needs_review,
+            "itemsReview": items_review,
             "date":      date_val,
             "debitDate": debit_val or None,
             "vendor":    description,
@@ -998,6 +1000,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "amount":        -(total_val + tip_val),
         "currency":      currency,
         "needsReview":   needs_review,
+        "itemsReview":   items_review,
         "description":   description,
         "category":      category,
         "account":       account,
@@ -1013,7 +1016,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     if recurring:
         tx["isRecurring"]    = True
         tx["recurringLabel"] = recurring["label"]
-    if bon and bon["items"]:
+    if bon:
         tx["bon"] = bon
 
     try:

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v1.11.2 — 2026-09-08
+
+- Positions-Prüfhinweis von unklarem Zahlbetrag getrennt. Unvollständige Positionen verhindern eine eindeutige Zuordnung mit Händlerbezug nicht; die Aufschlüsselung bleibt als prüfbedürftig markiert.
+- Bisherige 2-Euro-Toleranz entfernt: Bankbetrag muss auf Cent dem Bonbetrag bzw. Bonbetrag inklusive ausgewiesenem Trinkgeld entsprechen.
+- Regressionen für Positionsabweichung, fehlende Positionen, Mehrdeutigkeit und Cent-Abweichungen ergänzt.
+
 ## v1.11.1 — 2026-09-08
 
 ### Fixed

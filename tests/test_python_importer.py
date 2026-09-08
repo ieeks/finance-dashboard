@@ -632,7 +632,14 @@ class TestReceiptStorage(unittest.TestCase):
     def test_uncertain_invoice_stays_open(self):
         self.assertTrue(self.save(needs_review=True)["needsReview"])
         self.assertTrue(self.save(total=None, date=None)["needsReview"])
-        self.assertTrue(self.save(total=12)["needsReview"])
+
+    def test_incomplete_items_do_not_block_clear_total(self):
+        for changes in ({"total": 12}, {"items": []}, {"items_review": True}):
+            d = self.save(**changes)
+            self.assertFalse(d["needsReview"])
+            self.assertTrue(d["itemsReview"])
+            self.assertTrue(d["bon"]["itemsReview"])
+            self.assertEqual(d["bon"]["total"], changes.get("total", 10))
 
     def test_refund_not_turned_into_expense(self):
         d = self.save(total=-10, items=[{"name": "Retoure", "gesamt": -10}])
