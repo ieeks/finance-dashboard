@@ -1,3 +1,6 @@
+<!-- Ungenutzter Entwurf. Die App parst Kontoauszüge lokal in js/parser.js;
+     auch der aktive KI-Kategorisierungsprompt steht dort. -->
+
 Du bist ein Buchhalter-Assistent. Analysiere den folgenden Kontoauszugstext
 einer österreichischen Bank (BAWAG/easybank) und extrahiere alle Buchungen.
 

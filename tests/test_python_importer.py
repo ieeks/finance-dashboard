@@ -586,3 +586,55 @@ class TestFutureDateCorrection(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class TestReceiptStorage(unittest.TestCase):
+    """Datenvertrag vom KI-Ergebnis bis zum gespeicherten Dokument."""
+    def setUp(self):
+        from unittest.mock import MagicMock, patch
+        from datetime import datetime
+        self.col = MagicMock()
+        self.col.where.return_value = self.col
+        self.col.stream.return_value = []
+        self.patch = patch.dict(H, {"_tx_collection": lambda: self.col, "datetime": datetime})
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+
+    def save(self, **changes):
+        import contextlib
+        import io
+        data = {"store": "Test", "date": "2026-08-15", "total": 10, "vat": 0,
+                "items": [{"name": "Produkt", "gesamt": 10}]}
+        data.update(changes)
+        with contextlib.redirect_stdout(io.StringIO()):
+            H["save_to_firestore"](data, "synthetic.pdf", "test")
+        return self.col.document.return_value.set.call_args.args[0]
+
+    def test_tip_survives_storage(self):
+        d = self.save(tip=2)
+        self.assertEqual(d["amount"], -12)
+        self.assertEqual(d["bon"]["tip"], 2)
+        self.assertEqual(d["bon"]["total"], 10)
+
+    def test_zero_line_stays_zero(self):
+        d = self.save(items=[{"name": "Produkt", "gesamt": 10},
+                             {"name": "Gratis", "gesamt": 0, "einzelpreis": 4.3}])
+        self.assertEqual(d["bon"]["items"][1]["price"], 0)
+        self.assertFalse(d["needsReview"])
+
+    def test_foreign_currency_stays_visible_and_open(self):
+        d = self.save(currency="USD")
+        self.assertEqual(d["currency"], "USD")
+        self.assertEqual(d["bon"]["currency"], "USD")
+        self.assertTrue(d["needsReview"])
+
+    def test_uncertain_invoice_stays_open(self):
+        self.assertTrue(self.save(needs_review=True)["needsReview"])
+        self.assertTrue(self.save(total=None, date=None)["needsReview"])
+        self.assertTrue(self.save(total=12)["needsReview"])
+
+    def test_refund_not_turned_into_expense(self):
+        d = self.save(total=-10, items=[{"name": "Retoure", "gesamt": -10}])
+        self.assertEqual(d["amount"], 10)
+        self.assertTrue(d["needsReview"])

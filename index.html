@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<meta name="application-version" content="1.11.1">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light">
@@ -951,7 +952,7 @@ html, body {
   <div class="px gap-lg">
     <!-- Saldo -->
     <div class="saldo-card" id="db-saldo-card">
-      <div class="saldo-label">Verfügbarer Saldo</div>
+      <div class="saldo-label">Monatliche Bilanz</div>
       <div class="saldo-amount" id="db-saldo">—</div>
       <div id="db-saldo-change" style="display:flex;align-items:center;gap:8px;"></div>
     </div>
@@ -1177,7 +1178,7 @@ html, body {
 
     <!-- Gesamtvermögen -->
     <div class="card-dark" style="margin-top:20px;" id="gesamtvermoegen-card">
-      <div style="font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.6;margin-bottom:8px;">Gesamtvermögen</div>
+      <div style="font-size:0.62rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.6;margin-bottom:8px;">Summe der Kontobuchungen</div>
       <div style="font-family:var(--serif);font-size:2.2rem;font-weight:700;letter-spacing:-0.02em;margin-bottom:4px;" id="gesamtvermoegen">—</div>
       <div style="font-size:0.65rem;opacity:0.5;margin-bottom:20px;">Alle importierten Konten</div>
       <div class="mini-chart" id="konten-mini-chart">
@@ -1669,3 +1670,4 @@ html, body {
 <script type="module">import(`./js/app.js?t=${Date.now()}`);</script>
 </body>
 </html>
+

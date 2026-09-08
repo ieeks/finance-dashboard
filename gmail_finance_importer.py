@@ -725,7 +725,7 @@ def _items_sum(items_list: list) -> float:
         if not isinstance(p, dict):
             continue
         try:
-            total += float(p.get("gesamt") or p.get("einzelpreis") or 0)
+            total += float(_ai_get(p, "gesamt", "einzelpreis", default=0))
         except (TypeError, ValueError):
             continue
     return round(total, 2)
@@ -872,7 +872,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         debit_val = ""
     total_raw   = _ai_get(ai_data, "total", "betrag_brutto", default=0)
     try:
-        total_val = abs(float(total_raw))
+        total_val = float(total_raw)
     except (TypeError, ValueError):
         total_val = 0.0
 
@@ -884,6 +884,21 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         vat_val = 0.0
 
     items_list  = _ai_get(ai_data, "items", "positionen", default=[]) or []
+    items_list = [p for p in items_list if isinstance(p, dict)] if isinstance(items_list, list) else []
+    try:
+        tip_val = float(_ai_get(ai_data, "tip", "trinkgeld", default=0) or 0)
+    except (TypeError, ValueError):
+        tip_val = 0.0
+    currency = str(ai_data.get("currency") or "EUR").upper()
+    # Ein Prüfhinweis genügt für Sonderfälle; keine automatische Zahlungslogik.
+    needs_review = (ai_data.get("needs_review") is True or ai_data.get("needsReview") is True
+                    or total_val <= 0 or not date_val or currency != "EUR" or tip_val < 0)
+    for value in (total_val, vat_val, tip_val):
+        if value != value or abs(value) == float("inf"):
+            print("  Bitte prüfen: ungültiger Geldbetrag — nicht gespeichert.")
+            return False
+    if items_list and abs(round(_items_sum(items_list) * 100) - round((total_val - vat_val) * 100)) > 1:
+        needs_review = True
 
     # Kategorie-Override: Vermieter (in unserem Fall Helvetia Versicherungen
     # AG als Hausverwalter, NICHT als Versicherer). Same Logik wie parser.js.
@@ -947,17 +962,20 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     except Exception as exc:
         print(f"  Semantik-Dedup-Check fehlgeschlagen: {exc}")
         existing = []
-    if _is_semantic_duplicate(existing, description, date_val, total_val, account):
+    if _is_semantic_duplicate(existing, description, date_val, abs(total_val + tip_val), account):
         print(f"  Übersprungen (inhaltliches Duplikat): {description} · {date_val} · {total_val} EUR · {account}")
         return False
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
     bon = None
-    if items_list:
+    if items_list or needs_review or tip_val:
         bon = {
             "source":    "gmail_import",
             "total":     total_val,
             "vat":       vat_val,
+            "tip":       tip_val,
+            "currency":  currency,
+            "needsReview": needs_review,
             "date":      date_val,
             "debitDate": debit_val or None,
             "vendor":    description,
@@ -965,7 +983,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
                 {
                     "name":        p.get("name", ""),
                     "menge":       p.get("menge", 1),
-                    "price":       float(p.get("gesamt") or p.get("einzelpreis") or 0),
+                    "price":       float(_ai_get(p, "gesamt", "einzelpreis", default=0)),
                     "subcategory": _normalize_subcategory(
                         p.get("subcategory") or p.get("subkategorie") or "Sonstiges"
                     ),
@@ -977,7 +995,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     tx = {
         "id":            doc_id,
         "date":          date_val,
-        "amount":        -total_val,
+        "amount":        -(total_val + tip_val),
+        "currency":      currency,
+        "needsReview":   needs_review,
         "description":   description,
         "category":      category,
         "account":       account,

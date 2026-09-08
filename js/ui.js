@@ -5,6 +5,15 @@ export function formatEur(amount) {
   return new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' }).format(amount);
 }
 
+export function formatMoney(amount, currency = 'EUR') {
+  if (amount == null || !Number.isFinite(Number(amount))) return '—';
+  try {
+    return new Intl.NumberFormat('de-AT', { style: 'currency', currency }).format(amount);
+  } catch {
+    return `${Number(amount).toFixed(2)} ${String(currency)}`;
+  }
+}
+
 export function formatDate(isoDate) {
   const d = new Date(isoDate + 'T12:00:00');
   return d.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit', year: '2-digit' });

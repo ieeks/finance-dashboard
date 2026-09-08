@@ -43,6 +43,7 @@ python3 -m unittest tests.test_python_importer -v
   externe Deps)
 - `run.html` — Browser-Entry mit DOM-Output
 - `run.node.mjs` — Node-Entry mit Console-Output + exit-Code
+- `stability.node.mjs` — zusätzliche asynchrone Import-/UI-Regressionen mit DOM-/Firestore-Doubles (nur Node, keine echten API-Aufrufe)
 
 ## Tests hinzufügen
 
@@ -56,7 +57,8 @@ python3 -m unittest tests.test_python_importer -v
 
 ## Bekannte Lücken
 
-- **Parser-Tests fehlen** — brauchen anonymisierte echte PDF-Texte als
+- **Echte PDF-Fixtures fehlen** — synthetische Bankzeilen und Importfehler sind in `stability.node.mjs` abgedeckt. Weitere Parser-Tests — brauchen anonymisierte echte PDF-Texte als
   Fixtures. Solange die fehlen, sind Parser-Änderungen nur im Browser
   manuell verifizierbar. TODO unter "Phase C / C1" im
   [Code Review](../docs/code-review-2026-05-20.md).
+

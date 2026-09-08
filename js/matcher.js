@@ -19,6 +19,21 @@ const AMOUNT_NEAR_EUR  = 2;
 const DATE_MAX_DAYS    = 7;
 const MIN_SCORE        = 60;
 
+// Unklare Belege offen lassen; keine Zahlungs-/Währungslogik erraten.
+export function bonNeedsReview(bon) {
+  if (!bon || bon.needsReview || !Number.isFinite(bon.total) || bon.total <= 0) return true;
+  if (bon.currency && bon.currency !== 'EUR') return true;
+  const vat = Number(bon.vat ?? 0), tip = Number(bon.tip ?? 0);
+  if (!Number.isFinite(vat) || !Number.isFinite(tip) || vat < 0 || tip < 0) return true;
+  if (bon.items?.length) {
+    const amounts = bon.items.map(i => Number(i.price ?? i.gesamt));
+    if (amounts.some(n => !Number.isFinite(n))) return true;
+    if (Math.abs(Math.round(amounts.reduce((a, b) => a + b, 0) * 100)
+        - Math.round((bon.total - vat) * 100)) > 1) return true;
+  }
+  return false;
+}
+
 function _normalizeTokens(s) {
   return String(s || '')
     .toLowerCase()
@@ -84,12 +99,14 @@ function _bestDateDistance(txDate, bonDates) {
  * @returns {{ transaction, score, reason } | null}
  */
 export function findMatch(bon, txList, { excludeIds } = {}) {
-  if (!bon || !(bon.total > 0) || !bon.date) return null;
+  if (bonNeedsReview(bon) || !bon.date || bon.dateSuspect) return null;
 
   const bonDates = [bon.date, bon.debitDate].filter(Boolean);
 
   const candidates = txList
     .filter(tx => tx.amount < 0)
+    .filter(tx => tx.source !== 'gmail_import')
+    .filter(tx => !bon.account || bon.account === 'unbekannt' || !tx.account || tx.account === bon.account)
     .filter(tx => !excludeIds || !excludeIds.has(tx.id))
     .map(tx => {
       // Trinkgeld (unbar) wird oft zusätzlich von der Karte abgebucht, steht
@@ -164,6 +181,9 @@ export function analyzeBonLinks(transactions) {
       total:     Math.abs(Number(bon.total ?? bon.gesamt) || Math.abs(tx.amount)),
       tip:       Number(bon.tip) || 0,
       store:     bon.vendor || bon.store || tx.description,
+      account:   bon.account,
+      currency:  bon.currency,
+      needsReview: bon.needsReview,
     };
     // Single-Candidate-Match: liefert null wenn die aktuelle Verknüpfung
     // den MIN_SCORE-Threshold (60) nicht mehr erreichen würde.

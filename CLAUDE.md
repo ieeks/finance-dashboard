@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.11.0`
+Aktuelle Version: `v1.11.1`
 
 ## Commit-Konventionen
 
@@ -45,7 +45,7 @@ TODO.md
   categories.js       # CAT_CONFIG, SUBCAT_ICONS, kanonische Listen
   ui.js               # formatEur, formatDate, Toast, Loading, API Keys
 /prompts
-  parse-transactions.md  # Claude-Prompt für PDF-Parsing
+  parse-transactions.md  # Ungenutzter Entwurf; aktive Kategorisierung in parser.js
   analyze-bon.md         # Claude-Prompt für Bon-Analyse
 /scripts
   delete_firestore_prefixes.js  # Maintenance: löscht pdf_/img_ Docs aus Firestore
@@ -63,7 +63,7 @@ Maintenance-Workflow „Delete Firestore Prefixes" wird manuell via GitHub Actio
 
 Kategorien ändern: immer in BEIDEN Stellen:
 1. `CAT_CONFIG` in `js/categories.js`
-2. Prompt-Text in `prompts/parse-transactions.md`
+2. Aktive Kategorie-Listen / Kategorisierung in `js/parser.js`
 
 ## Login & Zugangsbeschränkung
 
@@ -77,7 +77,7 @@ Kategorien ändern: immer in BEIDEN Stellen:
 
 Änderungen an Kategorien immer in BEIDEN Stellen updaten:
 1. `CAT_CONFIG` in `js/categories.js` (Icon + Farbe)
-2. Prompt-Text in `prompts/parse-transactions.md`
+2. Aktive Kategorie-Listen / Kategorisierung in `js/parser.js`
 
 Aktuelle Kategorien:
 - Supermarkt
@@ -167,8 +167,10 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 - **Kein Build-System**: Alles bleibt Vanilla JS / CDN-Imports
 - **API Keys**: In Firestore unter `household/main/config/apiKeys` (Felder `anthropic` / `openai`) gespeichert, nach Login per `setInMemoryKeys()` in den In-Memory-Store geladen. Eingabe über Concierge-Screen (Bon-Analyse). Nie in Code committen.
 - **Firebase Config**: in `firebase-config.js` auslagern → in `.gitignore`
-- **Bon-Schema Netto/Brutto**: `total` ist IMMER der Bruttobetrag — der Betrag,
-  der so auf dem Kontoauszug steht. `vat` ist die bei Netto-Rechnungen
+- **Bon-Schema Netto/Brutto**: `total` ist der Rechnungsbruttobetrag ohne
+  Trinkgeld. `tip` bleibt separat; der Matcher prüft `total` und `total + tip`.
+  `needsReview` markiert unklare Belege und verhindert automatische Zuordnung.
+  `invoiceId` am verknüpften Bon verweist auf die Gmail-Rechnung. `vat` ist die bei Netto-Rechnungen
   (VERBUND/Strom, Ladestrom, Handwerker, Hosting) separat aufgeschlagene USt., bei Kassenbons
   `0`. Es gilt `Σ items[].gesamt == total − vat`. Steht dort ein Nettobetrag,
   scheitert das Bon-↔-Buchung-Matching am 2-€-Hard-Out in `findMatch()`.
@@ -237,3 +239,4 @@ html, body {
 ```
 
 Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
+

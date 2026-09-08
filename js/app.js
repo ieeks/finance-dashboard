@@ -1,15 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.0';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.0';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.0';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.0';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.1';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.1';
+import { formatEur, formatMoney, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.1';
+import { extractPdfText, parseBankStatement, categorizeWithAI, newBankTransactions } from './parser.js?v=1.11.1';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.0';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.1';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.0';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.0';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.1';
+import { findMatch, matchLabel, analyzeBonLinks, bonNeedsReview } from './matcher.js?v=1.11.1';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -413,13 +413,9 @@ window.applyRechnungenKontoFilter = function(id) {
 };
 
 function findRechnungMatch(rechnung) {
-  const bon = {
-    date:      rechnung.date,
-    debitDate: rechnung.debitDate || rechnung.bon?.debitDate || null,
-    total:     Math.abs(rechnung.amount),
-    store:     rechnung.description,
-  };
-  return findMatch(bon, state.transactions.filter(t => t.source !== 'gmail_import')) || null;
+  const bank = state.transactions.find(t => t.source !== 'gmail_import' && t.bon?.invoiceId === rechnung.id);
+  if (!bank) return null;
+  return findMatch({ ...bank.bon, store: rechnung.description, account: rechnung.account }, [bank]);
 }
 
 window.deleteRechnung = async function(id) {
@@ -482,7 +478,7 @@ function renderOffeneRechnungenTable(month) {
         <div class="card" style="padding:12px 14px;margin-bottom:8px;display:grid;${cols}gap:10px;align-items:center;">
           <div style="font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description)}</div>
           <div style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap;">${formatDate(t.date)}</div>
-          <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${formatEur(Math.abs(t.amount))}</div>
+          <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${escHtml(formatMoney(Math.abs(t.amount), t.currency))}</div>
           <button onclick="searchRechnungInBuchungen('${Math.abs(t.amount).toFixed(2).replace('.',',')}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">→</button>
           <button onclick="deleteRechnung('${t.id}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">🗑</button>
         </div>
@@ -546,11 +542,11 @@ function renderRechnungen() {
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
             <div style="font-size:0.88rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(t.description)}</div>
             <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-              <div style="font-family:var(--serif);font-weight:700;white-space:nowrap;">${formatEur(t.amount)}</div>
+              <div style="font-family:var(--serif);font-weight:700;white-space:nowrap;">${escHtml(formatMoney(t.amount, t.currency))}</div>
               <button onclick="deleteRechnung('${t.id}')" style="padding:2px 6px;border:none;background:transparent;color:var(--text-muted);font-size:0.8rem;cursor:pointer;line-height:1;">🗑</button>
             </div>
           </div>
-          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}</div>
+          <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;">${formatDate(t.date)} · ${escHtml(t.category)}${t.needsReview ? ' · Bitte prüfen' : ''}</div>
         </div>
       </div>
       ${statusHtml}
@@ -777,7 +773,7 @@ window.openTxModal = function(id) {
         <span>💝 Trinkgeld</span><span>${formatEur(tx.bon.tip)}</span>
       </div>` : ''}
       <div style="display:flex;justify-content:space-between;padding-top:10px;font-family:var(--serif);font-size:0.95rem;font-weight:700;">
-        <span>${(Number(tx.bon.tip) || 0) > 0 ? 'Bezahlt' : 'Gesamt'}</span><span>${formatEur(tx.bon.total + (Number(tx.bon.tip) || 0))}</span>
+        <span>${(Number(tx.bon.tip) || 0) > 0 ? 'Bezahlt' : 'Gesamt'}</span><span>${escHtml(formatMoney(tx.bon.total + (Number(tx.bon.tip) || 0), tx.bon.currency))}</span>
       </div>
     </div>` : ''}
     <div style="margin-bottom:16px;border-top:1px solid var(--outline-soft);padding-top:16px;">
@@ -957,7 +953,7 @@ window.deleteAccount = function(id) {
 function renderKonten() {
   const list        = document.getElementById('account-list');
   const accountData = state.accounts.map(acc => {
-    const accTxs = state.transactions.filter(t => t.account === acc.id || t.account === acc.name);
+    const accTxs = state.transactions.filter(t => t.source !== 'gmail_import' && (t.account === acc.id || t.account === acc.name));
     const balance = accTxs.reduce((s,t) => s + t.amount, 0);
     return { ...acc, computedBalance: balance, txCount: accTxs.length,
       lastDate: accTxs.length ? accTxs.map(t=>t.date).sort().reverse()[0] : null };
@@ -980,7 +976,7 @@ function renderKonten() {
         ${!isDefault ? `<button onclick="deleteAccount('${acc.id}')" style="padding:4px 8px;border-radius:8px;border:none;background:none;color:var(--text-muted);font-size:0.75rem;cursor:pointer;margin-left:6px;">✕</button>` : ''}
       </div>
       <div>
-        <div class="account-balance-label">Verfügbarer Saldo</div>
+        <div class="account-balance-label">Summe der Buchungen</div>
         <div class="account-balance">${hasData ? formatEur(acc.computedBalance) : '—'}</div>
       </div>
       <div style="text-align:right;font-size:0.75rem;color:var(--text-muted);">${lastImportTxt}</div>
@@ -1111,143 +1107,105 @@ window.handlePdfUpload = function(input) {
   _setUploadUI(files);
 };
 
+let _importRunning = false;
 window.runImport = async function() {
-  if (!selectedPdfFiles.length) return;
-
+  if (_importRunning || !selectedPdfFiles.length) return;
+  _importRunning = true;
+  const files = [...selectedPdfFiles];
+  const failed = [];
+  let linkFailed = false;
+  let latestMonth = '';
   let totalAdded = 0;
-  let totalAutoLinked = 0;
-  let latestMonth = state.currentMonth;
-  const fileCount = selectedPdfFiles.length;
-
-  for (let fileIdx = 0; fileIdx < fileCount; fileIdx++) {
-    const file = selectedPdfFiles[fileIdx];
-    const fileLabel = fileCount > 1 ? ` (${fileIdx + 1}/${fileCount})` : '';
-
-    setStep(1,0,false); setStep(2,0,false); setStep(3,0,false);
-    showLoading(`PDF wird gelesen…${fileLabel}`);
-
-    let rawText = '';
-    try {
-      rawText = await extractPdfText(file);
-    } catch(e) {
-      showToast(`${file.name}: PDF konnte nicht gelesen werden`);
-      continue;
-    }
-
-    setStep(1, 100, true);
-    showLoading(`Buchungen werden erkannt…${fileLabel}`);
-    const parsed = parseBankStatement(rawText);
-    if (!parsed.length) {
-      updateImportStatus(`Keine Buchungen in ${file.name}`, 'Das PDF scheint kein unterstütztes BAWAG/easybank-Format zu haben.');
-      showToast(`${file.name}: Keine Buchungen erkannt`);
-      continue;
-    }
-
-    updateImportStatus(`${parsed.length} Buchungen erkannt`, `KI-Kategorisierung läuft…${fileLabel}`);
-    showLoading(`${parsed.length} Buchungen werden kategorisiert…${fileLabel}`);
-    setStep(2, 50, false);
-
-    let categorized;
-    try {
-      categorized = await categorizeWithAI(parsed, state.aiProvider, state.categoryOverrides || {});
-      setStep(2, 100, true);
-    } catch(e) {
-      categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));
-      setStep(2, 100, false);
-      showToast('KI-Kategorisierung fehlgeschlagen — "Sonstiges" zugewiesen');
-    }
-
-    const selectedChip = document.querySelector('#account-selector-chips .bs-chip.active');
-    const fileName     = file.name.toLowerCase();
-    const accountSlug  = selectedChip?.dataset.accId ||
-                         (fileName.includes('erste') ? 'privat_manuel' : 'haushalt');
-    const fileMonth  = categorized.map(t=>t.date.slice(0,7)).sort().reverse()[0];
-    const importMonth = (fileMonth || state.currentMonth).replace('-','_');
-    const importId    = `${accountSlug}_${importMonth}`;
-
-    // Dedup: selbe Konto+Monat-Kombi bereits importiert?
-    const alreadyImported = await checkImportExists(importId);
-    if (alreadyImported) {
-      showToast(`${file.name}: Bereits importiert — übersprungen`);
-      continue;
-    }
-
-    const existing = new Set(state.transactions.map(t => `${t.date}|${t.amount}|${t.description}`));
-    let added = 0;
-    categorized.forEach(t => {
-      const key = `${t.date}|${t.amount}|${t.description}`;
-      if (!existing.has(key)) {
-        t.account = accountSlug;
-        state.transactions.push(t);
-        existing.add(key);
-        added++;
-      }
-    });
-    totalAdded += added;
-
-    const acc = state.accounts.find(a => a.id === accountSlug);
-    if (acc) acc.lastImport = new Date().toISOString().slice(0,10);
-
-    if (fileMonth && fileMonth > latestMonth) latestMonth = fileMonth;
-
-    // Auto-match pending bons against newly imported transactions
-    if ((state.pendingBons || []).length) {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 60);
-      const linked = [];
-      const usedTxIds = new Set();
-      (state.pendingBons).forEach(bon => {
-        const bonDate = new Date(bon.date || bon.savedAt?.slice(0,10));
-        if (bonDate < cutoffDate) return;
-        const bonForMatch = { ...bon, date: bon.date || bon.savedAt?.slice(0,10) };
-        const result = findMatch(bonForMatch, state.transactions.filter(t => !t.bon), { excludeIds: usedTxIds });
-        const match = result?.transaction || null;
-        if (match) { match.bon = bon; usedTxIds.add(match.id); linked.push(bon.id); totalAutoLinked++; }
-      });
-      if (linked.length) {
-        state.pendingBons = state.pendingBons.filter(b => !linked.includes(b.id));
-        linked.forEach(bonId => fsDeletePendingBon(bonId).catch(() => {}));
-        state.transactions
-          .filter(t => linked.some(bid => t.bon?.id === bid))
-          .forEach(t => updateTx(t.id, { bon: t.bon }).catch(() => {}));
+  document.getElementById('import-btn').disabled = true;
+  try {
+    for (const file of files) {
+      try {
+        setStep(1, 0, false); setStep(2, 0, false); setStep(3, 0, false);
+        showLoading(`PDF wird gelesen: ${file.name}`);
+        const accountSlug = document.querySelector('#account-selector-chips .bs-chip.active')?.dataset.accId || 'haushalt';
+        // Gleiche Datei/Konto → gleiche IDs, auch nach abgebrochenen Batch-Writes.
+        const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+        const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+        const importId = `${accountSlug}_${hash}`;
+        if (await checkImportExists(importId)) {
+          showToast(`${file.name}: Bereits importiert`);
+          continue;
+        }
+        const parsed = parseBankStatement(await extractPdfText(file));
+        if (!parsed.length) throw new Error('Keine unterstützten Buchungen erkannt');
+        parsed.forEach((t, i) => { t.id = `tx_${accountSlug}_${hash}_${i}`; t.account = accountSlug; });
+        setStep(1, 100, true);
+        showLoading(`${parsed.length} Buchungen werden kategorisiert…`);
+        let categorized;
+        try {
+          categorized = await categorizeWithAI(parsed, state.aiProvider, state.categoryOverrides || {});
+        } catch {
+          categorized = parsed.map(t => ({ ...t, category: 'Sonstiges', aiCategorized: false }));
+          showToast('Kategorisierung fehlgeschlagen — Buchungen werden mit Sonstiges gespeichert');
+        }
+        setStep(2, 100, true);
+        const added = newBankTransactions(categorized, state.transactions, accountSlug);
+        // Erst bestätigt speichern, dann lokalen State und Importmarker aktualisieren.
+        await saveTxBatch(added);
+        state.transactions.push(...added);
+        totalAdded += added.length;
+        saveState();
+        const dates = categorized.map(t => t.date).sort();
+        await saveImport(importId, {
+          filename: file.name, txCount: added.length, account: accountSlug,
+          dateRange: { from: dates[0], to: dates[dates.length - 1] },
+        });
+        const acc = state.accounts.find(a => a.id === accountSlug);
+        if (acc) acc.lastImport = todayIso();
+        const month = dates[dates.length - 1].slice(0, 7);
+        if (month > latestMonth) latestMonth = month;
+      } catch (e) {
+        failed.push(file);
+        showToast(`${file.name}: ${e.message || 'Speichern fehlgeschlagen'} — bitte erneut versuchen`, 6000);
       }
     }
-
-    _autoLinkGmailBons();
-
-    // Firestore: neue Buchungen speichern + Import-Dokument anlegen
-    saveTxBatch(state.transactions.filter(t =>
-      categorized.some(c => c.id === t.id)
-    )).catch(() => {});
-
-    saveImport(importId, {
-      filename:  file.name,
-      txCount:   added,
-      account:   accountSlug,
-      dateRange: {
-        from: categorized.map(t=>t.date).sort()[0],
-        to:   categorized.map(t=>t.date).sort().reverse()[0],
-      },
-    }).catch(() => {});
+    // Bons ohne Kaufdatum bleiben offen. savedAt ist kein Kaufdatum und kann
+    // nach Firestore-Load ein Timestamp statt eines Strings sein.
+    for (const bon of [...(state.pendingBons || [])]) {
+      if (!bon.date) continue;
+      const linked = state.transactions.find(t => t.source !== 'gmail_import' && t.bon?.id === bon.id);
+      const result = linked ? { transaction: linked } : findMatch(bon, state.transactions.filter(t => !t.bon));
+      if (!result) continue;
+      try {
+        if (!linked) await updateTx(result.transaction.id, { bon });
+        result.transaction.bon = bon;
+        await fsDeletePendingBon(bon.id);
+        state.pendingBons = state.pendingBons.filter(b => b.id !== bon.id);
+      } catch (e) {
+        linkFailed = true;
+        showToast('Bon-Verknüpfung konnte nicht vollständig gespeichert werden', 6000);
+      }
+    }
+    await _autoLinkGmailBons();
+  } catch (e) {
+    linkFailed = true;
+    showToast(`Bitte prüfen: ${e.message || 'Verknüpfung fehlgeschlagen'}`, 6000);
+  } finally {
+    _importRunning = false;
+    document.getElementById('import-btn').disabled = false;
+    selectedPdfFiles = failed;
+    if (latestMonth) state.currentMonth = latestMonth;
+    saveState();
+    hideLoading();
+    setStep(3, 100, failed.length === 0 && !linkFailed);
+    updateImportStatus(failed.length ? 'Import teilweise fehlgeschlagen' : 'Import abgeschlossen',
+      `${totalAdded} Buchungen gespeichert.${failed.length ? ` ${failed.length} Datei(en) bitte erneut versuchen.` : ''}`);
+    if (!failed.length) {
+      document.getElementById('pdf-input').value = '';
+      document.getElementById('import-btn').style.display = 'none';
+      document.getElementById('account-selector-wrap').style.display = 'none';
+      document.getElementById('upload-icon').textContent = '📄';
+      document.getElementById('upload-title').textContent = 'BAWAG / easybank PDF';
+      document.getElementById('upload-sub').textContent = 'Per Klick oder Drag & Drop · Mehrere PDFs möglich';
+      showToast(linkFailed ? `${totalAdded} Buchungen gespeichert — Belege bitte prüfen` : `✓ ${totalAdded} Buchungen gespeichert`, linkFailed ? 6000 : 2500);
+    }
+    renderDashboard(); renderKonten();
   }
-
-  state.currentMonth = latestMonth;
-  saveState();
-
-  setStep(3, 100, true);
-  hideLoading();
-  const multiLabel = fileCount > 1 ? ` aus ${fileCount} Dateien` : '';
-  updateImportStatus('Import abgeschlossen', `${totalAdded} neue Buchungen importiert${multiLabel}.`);
-  showToast(`✓ ${totalAdded} Buchungen importiert${totalAutoLinked ? ` · 🧾 ${totalAutoLinked} Bon${totalAutoLinked > 1 ? 's' : ''} automatisch verknüpft` : ''}`);
-
-  selectedPdfFiles = [];
-  document.getElementById('pdf-input').value = '';
-  document.getElementById('import-btn').style.display = 'none';
-  document.getElementById('account-selector-wrap').style.display = 'none';
-  document.getElementById('upload-icon').textContent  = '📄';
-  document.getElementById('upload-title').textContent = 'BAWAG / easybank PDF';
-  document.getElementById('upload-sub').innerHTML     = 'Per Klick oder Drag &amp; Drop · Mehrere PDFs möglich<br><br><span style="display:inline-block;background:var(--surface-high);border-radius:100px;padding:4px 12px;font-size:0.6rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);">PDF · BAWAG · EASYBANK</span>';
-  renderDashboard(); renderKonten();
 };
 
 function setStep(n, pct, done) {
@@ -1322,11 +1280,13 @@ window.loadDemoData = function() {
 // ── CSV Export ──
 window.exportCSV = function() {
   if (!state.transactions.length) { showToast('Keine Buchungen zum Exportieren'); return; }
-  const header = 'Datum,Beschreibung,Betrag,Kategorie,Konto';
-  const rows   = state.transactions.sort((a,b)=>b.date.localeCompare(a.date)).map(t =>
-    [t.date, `"${t.description.replace(/"/g,'""')}"`, t.amount.toFixed(2).replace('.',','), t.category, t.account||''].join(',')
+  const bankTxs = state.transactions.filter(t => t.source !== 'gmail_import');
+  const cell = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const header = 'Datum;Beschreibung;Betrag;Kategorie;Konto';
+  const rows = [...bankTxs].sort((a, b) => b.date.localeCompare(a.date)).map(t =>
+    [t.date, t.description, t.amount.toFixed(2).replace('.', ','), t.category, t.account].map(cell).join(';')
   );
-  const csv  = [header,...rows].join('\n');
+  const csv = [header, ...rows].join('\n');
   const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -1546,6 +1506,7 @@ function renderConciergeResult(bon) {
 
   preview.innerHTML = `
     ${dateBanner}
+    ${bonNeedsReview(bon) || !bon.date ? '<div class="chip chip-gold" style="margin-bottom:8px;">Bitte prüfen — keine automatische Zuordnung</div>' : ''}
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
       <div style="font-size:0.6rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);">📄 ${escHtml(bon.store)}</div>
       <input type="date" value="${escHtml(bon.date || '')}" max="${today}" onchange="updateCurrentBonDate(this.value)"
@@ -1582,19 +1543,19 @@ function renderConciergeResult(bon) {
     ${(Number(bon.tip) || 0) > 0 ? `
     <div class="bon-row">
       <div class="bon-item">Summe</div>
-      <div class="bon-price">${formatEur(bon.total)}</div>
+      <div class="bon-price">${escHtml(formatMoney(bon.total, bon.currency))}</div>
     </div>
     <div class="bon-row">
       <div class="bon-item">💝 Trinkgeld</div>
-      <div class="bon-price">${formatEur(bon.tip)}</div>
+      <div class="bon-price">${escHtml(formatMoney(bon.tip, bon.currency))}</div>
     </div>
     <div class="bon-row">
       <div class="bon-total">Bezahlt</div>
-      <div class="bon-total">${formatEur(bon.total + Number(bon.tip))}</div>
+      <div class="bon-total">${escHtml(formatMoney(bon.total + Number(bon.tip), bon.currency))}</div>
     </div>` : `
     <div class="bon-row">
       <div class="bon-total">Gesamt</div>
-      <div class="bon-total">${formatEur(bon.total)}</div>
+      <div class="bon-total">${escHtml(formatMoney(bon.total, bon.currency))}</div>
     </div>`}
     ${mismatchBanner}`;
 
@@ -1611,7 +1572,7 @@ function renderConciergeResult(bon) {
       <div class="cat-row" style="padding:10px 0;">
         <div class="cat-icon-wrap" style="width:34px;height:34px;border-radius:8px;font-size:0.9rem;">${SUBCAT_ICONS[sc]||'📦'}</div>
         <div style="flex:1;"><div class="cat-label" style="font-size:0.82rem;">${escHtml(sc)}</div></div>
-        <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;">${formatEur(amt)}</div>
+        <div style="font-family:var(--serif);font-size:0.88rem;font-weight:700;">${escHtml(formatMoney(amt, bon.currency))}</div>
       </div>`).join('');
 
   const matchSection = document.getElementById('bon-match-section');
@@ -1774,7 +1735,7 @@ function renderPendingBons() {
         <div class="card" style="padding:12px 14px;margin-bottom:8px;display:grid;${cols}gap:10px;align-items:center;">
           <div style="font-size:0.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(b.store || 'Unbekannt')}</div>
           <div style="font-size:0.72rem;color:var(--text-muted);white-space:nowrap;">${b.date ? formatDate(b.date) : '—'}</div>
-          <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${formatEur(b.total)}</div>
+          <div style="font-size:0.82rem;font-weight:700;text-align:right;white-space:nowrap;">${escHtml(formatMoney(b.total, b.currency))}</div>
           <button onclick="deletePendingBon('${b.id}')" style="padding:4px 6px;border-radius:8px;border:none;background:var(--surface-container);color:var(--on-surface-variant);font-size:0.65rem;cursor:pointer;">✕</button>
         </div>
       `).join('')}
@@ -1858,6 +1819,8 @@ function initBuchFilters() {
 
   // ── Filter sheet open/close ──
   function openFilterSheet() {
+    syncConfirmedFromState();
+    pendingMonth = { ...confirmedMonth };
     pendingFilter = {
       konto: _buchFilter.konto, beleg: _buchFilter.beleg,
       typ: _buchFilter.typ, cats: new Set(_buchFilter.cats.map(l => CATS.findIndex(c => c.label === l))),
@@ -2221,8 +2184,9 @@ async function _migrateSubcatAliases() {
   await Promise.all(dirty.map(tx => updateTx(tx.id, { bon: tx.bon })));
 }
 
-function _autoLinkGmailBons() {
+async function _autoLinkGmailBons() {
   const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
+  const writes = [];
   if (!gmailWithBon.length) return;
 
   // Phase 1: Self-Healing — alle bisherigen gmail-Bon-Links von Bank-Txs lösen.
@@ -2244,17 +2208,30 @@ function _autoLinkGmailBons() {
     // debitDate: Lastschrift-Rechnungen (VERBUND, T-Mobile) werden erst Wochen
     // nach dem Rechnungsdatum abgebucht — der Matcher prüft beide Daten.
     const bonObj = {
+      ...gmail.bon,
       date:      gmail.date,
       debitDate: gmail.debitDate || gmail.bon?.debitDate || null,
-      total:     Math.abs(gmail.amount),
+      total:     gmail.bon.total ?? Math.abs(gmail.amount),
       store:     gmail.description,
+      account:   gmail.account,
+      needsReview: gmail.needsReview || gmail.bon.needsReview,
     };
-    const result = findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
+    const preferred = bankTxs.find(t => previouslyLinked.get(t.id)?.invoiceId === gmail.id);
+    const result = (preferred && findMatch(bonObj, [preferred], { excludeIds: usedTxIds }))
+      || findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
     if (result?.transaction) {
-      result.transaction.bon = gmail.bon;
+      const previous = previouslyLinked.get(result.transaction.id);
+      const sameReceipt = previous && (previous.invoiceId === gmail.id || (!previous.invoiceId
+        && previous.total === gmail.bon.total && previous.date === gmail.bon.date
+        && (previous.vendor || previous.store) === (gmail.bon.vendor || gmail.bon.store)));
+      const bon = { ...(sameReceipt ? previous : gmail.bon), invoiceId: gmail.id, account: gmail.account || 'unbekannt' };
+      bon.items = applySubcatOverrides(bon.items || []);
+      result.transaction.bon = bon;
       usedTxIds.add(result.transaction.id);
       newlyLinked.add(result.transaction.id);
-      updateTx(result.transaction.id, { bon: gmail.bon }).catch(() => {});
+      if (JSON.stringify(previous) !== JSON.stringify(bon)) {
+        writes.push(updateTx(result.transaction.id, { bon }));
+      }
     }
   });
 
@@ -2262,9 +2239,10 @@ function _autoLinkGmailBons() {
   // bekommen → Clear in Firestore persistieren.
   previouslyLinked.forEach((_, txId) => {
     if (!newlyLinked.has(txId)) {
-      updateTx(txId, { bon: null }).catch(() => {});
+      writes.push(updateTx(txId, { bon: null }));
     }
   });
+  await Promise.all(writes);
 }
 
 function _initApp() {
@@ -2357,7 +2335,7 @@ function _initApp() {
     }, { passive: true });
   })();
 
-  _autoLinkGmailBons();
+  _autoLinkGmailBons().catch(() => showToast('Bon-Verknüpfungen konnten nicht gespeichert werden', 6000));
   setProviderUI(state.aiProvider);
 
   // Bon-Key-Felder mit gespeicherten Keys vorbefüllen + Provider-Toggle setzen
@@ -2378,3 +2356,4 @@ if (document.readyState === 'loading') {
 } else {
   _bootWithFirebase();
 }
+

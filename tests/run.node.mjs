@@ -8,4 +8,6 @@ import './owners.test.js';
 import './bonDate.test.js';
 import { runAll } from './harness.js';
 
+await import('./stability.node.mjs');
 runAll();
+

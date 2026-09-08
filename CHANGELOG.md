@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v1.11.1 — 2026-09-08
+
+### Fixed
+- Bankimport: Dublettenprüfung nur gegen Bankbuchungen desselben Kontos; wiederholte Zeilen bleiben erhalten. Dateihash statt Monatssperre, stabile IDs für Wiederholungen nach Schreibfehlern.
+- Buchungen werden vor dem Importmarker bestätigt gespeichert; Fehler bleiben sichtbar und Dateien können erneut versucht werden.
+- Kontensummen und CSV enthalten nur Bankbuchungen. CSV nutzt Semikolon; Kontenanzeigen heißen „Summe der Buchungen“.
+- Matching beachtet bekannte Konten und Prüfhinweise. Rechnungsstatus basiert auf gespeicherter invoiceId; manuelle Bon-Korrekturen bleiben beim erneuten Verknüpfen erhalten.
+- Fehlendes Bon-Datum blockiert den Bankimport nicht; Kategorie-Filter behält den aktuellen Monat.
+- Gmail-Importer erhält Trinkgeld, Währung und Null-Euro-Positionen. Komplexe/unklare Belege bleiben mit „Bitte prüfen“ offen.
+- Bon-Prompt: eindeutige Endbeträge statt größter Zahl; keine erfundenen Summenkorrekturen; Servicegebühren und Fälligkeit nicht mit Trinkgeld/Einzug vermischen.
+
+### Tests
+- Gezielte lokale Regressionen mit synthetischen Daten, ohne Firebase-/KI-Zugriff.
+- Keine neuen Laufzeit-Dependencies, keine Datenmigration. Bereits importierte Gmail-Belege werden nicht erneut analysiert.
+
 ## v1.11.0 — 2026-08-15
 
 ### Fixed
@@ -921,3 +936,4 @@ Fenster des Importers — danach wäre die Buchung nach dem Löschen weg.
 - Demo-Daten (kein PDF nötig)
 - API Key Persistenz via localStorage
 - Mobile-First Dark Mode UI
+

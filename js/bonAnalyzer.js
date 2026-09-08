@@ -1,8 +1,8 @@
 // bonAnalyzer.js — Bon/Rechnung Analyse (Bild + PDF) via Claude Vision
 
-import { loadKeys } from './ui.js?v=1.11.0';
+import { loadKeys } from './ui.js?v=1.11.1';
 
-const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.11.0', import.meta.url).href;
+const _promptUrl = new URL('../prompts/analyze-bon.md?v=1.11.1', import.meta.url).href;
 
 // Modell für die Bon-Analyse (Anthropic). Sonnet statt Haiku: dichte
 // Thermobons mit zwei Preisspalten (EINZEL/GESAMT), vielen Zeilen und
@@ -102,6 +102,8 @@ function _safeParseObject(raw, today = todayIso()) {
     tip:     typeof tipRaw === 'number' ? tipRaw : parseFloat(tipRaw) || 0,
     items:   Array.isArray(obj.items)   ? obj.items   : [],
     category: obj.category || obj.kategorie || null,
+    currency: typeof obj.currency === 'string' ? obj.currency.toUpperCase() : 'EUR',
+    needsReview: obj.needs_review === true || obj.needsReview === true,
   };
 }
 

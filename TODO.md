@@ -1,5 +1,15 @@
 # TODO — Finance Dashboard
 
+## Erledigt (v1.11.1) — Kleiner Stabilitäts-PR
+
+- [x] Bankimport, Speicherreihenfolge und Wiederholbarkeit korrigiert
+- [x] Kontensummen / CSV ohne Gmail-Doppelzählung
+- [x] Kontobezogenes Matching und Erhalt manueller Bon-Korrekturen
+- [x] Filtermonat, fehlendes Bon-Datum und Null-Euro-Positionen korrigiert
+- [x] Prompt-Widersprüche bereinigt; Sonderfälle bleiben mit Prüfhinweis offen
+- [ ] Nach Merge: ein echter Kontoauszug und ein Bon im Browser prüfen
+
+
 ## Roadmap (offen)
 
 ### 🔴 Zeitkritisch
@@ -296,3 +306,4 @@ Das Feature-Dokument `gmail-invoice-matcher.md` ist gut durchdacht. Ein paar Pun
 **5. `manuel.rechnungen@gmail.com`**
 - Existierende Python-Skripte (`gmail_invoices.py`, `extract_verbund.py`) als Referenz nutzen
 - IMAP → Gmail API Umbau: Hauptunterschied ist Auth (OAuth2 statt App-Passwort) und Base64-Decode der Attachments
+
