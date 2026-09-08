@@ -1,0 +1,33 @@
+name: Match Rate Report
+
+# Nur lesend: vergleicht die automatische Bon-Zuordnung des aktuellen Standes
+# mit dem alten Matcher (v1.11.0) gegen die echten Firestore-Daten.
+# Schreibt nichts nach Firestore.
+
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: 'Beispiele je Ursache (0 = keine — Beispiele zeigen Händlernamen und Beträge im Log)'
+        required: false
+        default: '0'
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install firebase-admin
+
+      - name: Run report
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SAMPLES: ${{ inputs.samples }}
+        run: node scripts/match_rate_report.mjs --samples "$SAMPLES"
