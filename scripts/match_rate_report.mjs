@@ -192,9 +192,12 @@ async function main() {
 
   // Welche Kontopaare widersprechen sich? Nur IDs, keine Händlernamen.
   const accountPairs = new Map();
+  // 'unbekannt' und fehlende Konten sind vom Abzug ausgenommen — sie tauchen
+  // hier sonst als Widerspruch auf, den es gar nicht gibt.
+  const exempt = a => !a || a === 'unbekannt';
   lost.forEach(({ gmail, oldMatch }) => {
-    const a = gmail.account || '—', b = oldMatch.account || '—';
-    if (a === b) return;
+    const a = gmail.account, b = oldMatch.account;
+    if (a === b || exempt(a) || exempt(b)) return;
     const key = `${a} (Rechnung)  ↔  ${b} (Buchung)`;
     accountPairs.set(key, (accountPairs.get(key) || 0) + 1);
   });
