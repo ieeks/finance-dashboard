@@ -144,7 +144,7 @@ function diagnose(gmail, oldMatch, pool, excludeIds) {
   const hits = bon => !!findMatch(bon, pool, { excludeIds });
   const reasons = [];
 
-  if (hits({ ...base, account: undefined })) reasons.push('Kontofilter');
+  if (hits({ ...base, account: undefined })) reasons.push('Konto-Abzug drückt unter Schwelle');
   if (hits({ ...base, needsReview: false, currency: 'EUR' })) reasons.push('Prüfhinweis / Fremdwährung');
   if (hits({ ...base, items: undefined, itemsReview: false })) reasons.push('unvollständige Positionen');
   if (oldMatch) {
@@ -190,6 +190,15 @@ async function main() {
     if (!before && after) won.push({ gmail, newMatch: after });
   });
 
+  // Welche Kontopaare widersprechen sich? Nur IDs, keine Händlernamen.
+  const accountPairs = new Map();
+  lost.forEach(({ gmail, oldMatch }) => {
+    const a = gmail.account || '—', b = oldMatch.account || '—';
+    if (a === b) return;
+    const key = `${a} (Rechnung)  ↔  ${b} (Buchung)`;
+    accountPairs.set(key, (accountPairs.get(key) || 0) + 1);
+  });
+
   const byReason = new Map();
   lost.forEach(entry => entry.reasons.forEach(r => {
     if (!byReason.has(r)) byReason.set(r, []);
@@ -215,6 +224,7 @@ async function main() {
       neuGewonnen: won.length,
     },
     ursachen: Object.fromEntries([...byReason].map(([r, list]) => [r, list.length])),
+    kontopaare: Object.fromEntries([...accountPairs].sort((a, b) => b[1] - a[1])),
     ersterLauf: { linksGeloest: droppedLinks, linksErhalten: storedLinks.length - droppedLinks },
   };
 
@@ -247,6 +257,13 @@ async function main() {
           + ` Bon ${Number(bonTotal).toFixed(2)}  Bank ${Math.abs(oldMatch.amount).toFixed(2)}`);
       });
     });
+    console.log('');
+  }
+
+  if (accountPairs.size) {
+    console.log('Widersprüchliche Konten bei verlorenen Zuordnungen');
+    [...accountPairs].sort((a, b) => b[1] - a[1])
+      .forEach(([pair, n]) => console.log(`  ${pair.padEnd(46)} ${n}`));
     console.log('');
   }
 

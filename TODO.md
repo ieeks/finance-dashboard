@@ -12,6 +12,14 @@
 - [ ] Vor Merge: ein echter mehrseitiger Kontoauszug und ein Bon im Browser prüfen
 
 
+## Erledigt (v1.11.4) — Matcher nach Messlauf entschärft
+
+- [x] Kontofilter zum Score-Abzug gemacht
+- [x] Positionsprüfung warnt statt zu sperren
+- [x] Bestehende Verknüpfungen bleiben erhalten, wenn die Rechnung noch existiert
+- [ ] Report nach den Änderungen erneut laufen lassen und Quote gegen 66,2 % prüfen
+- [ ] „Kandidat vergeben“ (47 Fälle): Zuteilung in Rechnungsreihenfolge prüfen
+
 ## Roadmap (offen)
 
 ### 🔴 Zeitkritisch

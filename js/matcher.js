@@ -4,6 +4,7 @@
 //   Gleicher Zahlbetrag auf Cent → 50 | sonst Hard-Out
 //   days = 0              → 30   |  ≤ 3    → 20   |  ≤ 7   → 10  |  sonst Hard-Out
 //   nameScore (0..1)              → × 20   (max 20)
+//   widersprüchliches Konto       → − 15   (Abzug, kein Hard-Out)
 //
 // `days` ist der kleinste Abstand zwischen Buchung und einem der bekannten
 // Bon-Daten (Rechnungsdatum + optionales Abbuchungsdatum) — siehe
@@ -11,9 +12,12 @@
 //
 // Hard-Out Regeln:
 //   - signedDays < -1   (Bon-Datum mehr als 1 Tag NACH Buchung) → kein Match
-//   - Unvollständige Positionen: Händlerbezug und genau ein Kandidat nötig
+//   - Unvollständige Positionen sperren NICHT: bonItemsNeedReview() ist eine
+//     Anzeigewarnung. Ein Messlauf gegen den Echtbestand zeigte, dass die
+//     Sperre 40 korrekte Zuordnungen kostete.
 
 const AMOUNT_EXACT_EUR = 0.005;
+const ACCOUNT_PENALTY  = 15;
 const DATE_MAX_DAYS    = 7;
 const MIN_SCORE        = 60;
 
@@ -29,8 +33,9 @@ export function bonNeedsReview(bon) {
 // Positionsqualität ist unabhängig vom lesbaren Zahlbetrag.
 export function bonItemsNeedReview(bon) {
   if (bon.itemsReview) return true;
-  if (!Array.isArray(bon.items)) return false; // alte Belege ohne Positionsdaten
-  if (!bon.items.length) return true;
+  // Keine Positionsdaten ist kein Mangel: alte Belege haben das Feld nicht, und
+  // der Bon-Prompt lässt items: [] ausdrücklich zu (VERBUND, Kartenbelege).
+  if (!Array.isArray(bon.items) || !bon.items.length) return false;
   const amounts = bon.items.map(i => Number(i.price ?? i.gesamt));
   return amounts.some(n => !Number.isFinite(n))
     || Math.abs(Math.round(amounts.reduce((a, b) => a + b, 0) * 100)
@@ -105,12 +110,10 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
   if (bonNeedsReview(bon) || !bon.date || bon.dateSuspect) return null;
 
   const bonDates = [bon.date, bon.debitDate].filter(Boolean);
-  const itemsReview = bonItemsNeedReview(bon);
 
   const candidates = txList
     .filter(tx => Number.isFinite(tx.amount) && tx.amount < 0)
     .filter(tx => tx.source !== 'gmail_import')
-    .filter(tx => !bon.account || bon.account === 'unbekannt' || !tx.account || tx.account === bon.account)
     .filter(tx => !excludeIds || !excludeIds.has(tx.id))
     .map(tx => {
       // Trinkgeld (unbar) wird oft zusätzlich von der Karte abgebucht, steht
@@ -123,19 +126,24 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
       );
       const days       = _bestDateDistance(tx.date, bonDates);
       const nameScore  = nameSimilarity(tx.description, bon.store);
+      // Konten stammen aus zwei Quellen (Karte/IBAN am Beleg, Chip beim
+      // PDF-Import) und widersprechen sich regelmäßig. Ein Widerspruch wiegt
+      // schwer, schließt aber nicht aus — sonst gehen echte Treffer verloren.
+      const accountMismatch = !!(bon.account && bon.account !== 'unbekannt'
+        && tx.account && tx.account !== bon.account);
 
       // Hard-Outs — days === null: kein Bon-Datum liegt im zulässigen Fenster
       if (days === null)                               return null;
       const txCents = Math.round(txAbs * 100);
       if (txCents !== Math.round(bon.total * 100)
           && (!tip || txCents !== Math.round((bon.total + tip) * 100))) return null;
-      if (itemsReview && nameScore === 0) return null;
 
       let score = 50;
       if (days === 0)                    score += 30;
       else if (days <= 3)                score += 20;
       else                                score += 10;
       score += Math.round(nameScore * 20);
+      if (accountMismatch) score -= ACCOUNT_PENALTY;
 
       return {
         transaction: tx,
@@ -144,18 +152,19 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
         amountDiff,
         days,
         nameScore,
+        accountMismatch,
       };
     })
     .filter(Boolean)
     .filter(c => c.score >= MIN_SCORE)
     .sort((a, b) =>
       b.score - a.score
+      || a.accountMismatch - b.accountMismatch
       || a.amountDiff - b.amountDiff
       || a.days - b.days
       || b.nameScore - a.nameScore
     );
 
-  if (itemsReview && candidates.length !== 1) return null;
   return candidates[0] ?? null;
 }
 

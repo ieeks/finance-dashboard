@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v1.11.4 — 2026-09-08
+
+Messlauf gegen den Echtbestand (1536 Dokumente, 405 Rechnungen mit Bon) zeigte,
+dass der verschärfte Matcher die automatische Zuordnung von 66,2 % auf 34,1 %
+gedrückt und 129 von 267 gespeicherten Verknüpfungen gelöst hätte.
+
+### Fixed
+- Widersprüchliche Konten sperren das Matching nicht mehr, sondern kosten 15 Punkte. Rechnung (Karte/IBAN) und Bankbuchung (Import-Chip) beziehen ihr Konto aus verschiedenen Quellen; ein Widerspruch ist ein Indiz, kein Beweis. Kostete 48 Zuordnungen.
+- `bonItemsNeedReview` sperrt nicht mehr, sondern warnt nur. Die Bedingung „Händlerbezug und genau ein Kandidat“ kostete 40 Zuordnungen.
+- Fehlende Positionsdaten (`items: []`) gelten nicht mehr als unvollständig — der Bon-Prompt lässt sie ausdrücklich zu (VERBUND, Kartenbelege).
+- Eine bestehende Verknüpfung wird nur noch gelöst, wenn die Gmail-Rechnung entfernt wurde oder im selben Lauf an eine andere Buchung ging. Findet der Matcher sie nicht wieder, bleibt die frühere Zuordnung stehen.
+- Centgenauer Betragsvergleich bleibt: er kostete nur 5 Zuordnungen und verhindert Fehlzuordnungen.
+
+### Added
+- Report zeigt zusätzlich, welche Kontopaare sich bei verlorenen Zuordnungen widersprechen (nur Konto-IDs, keine Händlernamen).
+
 ## v1.11.3 — 2026-09-08
 
 - Alt-Verknüpfungen mit Prüfstatus werden vor dem Matching reserviert. Aktueller Rechnungsstatus wird berücksichtigt, entfernte Rechnungen werden auch beim letzten Link bereinigt.

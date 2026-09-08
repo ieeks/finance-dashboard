@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { webcrypto } from 'node:crypto';
 import { parseBankStatement, newBankTransactions } from '../js/parser.js';
-import { findMatch, bonNeedsReview } from '../js/matcher.js';
+import { findMatch, bonNeedsReview, bonItemsNeedReview } from '../js/matcher.js';
 import { formatEur, formatMoney, formatDate, escHtml } from '../js/ui.js';
 const source = fs.readFileSync(new URL('../js/app.js', import.meta.url), 'utf8');
 const section = (start, end) => {
@@ -112,13 +112,27 @@ await check('Gmail, Fremdwährung und Prüfbelege werden nicht automatisch gemat
   assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
 
 });
-await check('Unvollständige Positionen erlauben nur eindeutiges Matching mit Händlerbezug', () => {
+await check('Unvollständige Positionen warnen, sperren das Matching aber nicht', () => {
+  // Die frühere Sperre (Händlerbezug + genau ein Kandidat) kostete im Messlauf
+  // gegen den Echtbestand 40 korrekte Zuordnungen.
   const bon = { date: '2026-08-15', total: 100, store: 'Billa', items: [{ gesamt: 80 }] };
+  assert.equal(bonItemsNeedReview(bon), true);
   assert.equal(findMatch(bon, [tx('bank')]).transaction.id, 'bank');
-  assert.equal(findMatch(bon, [tx('bank', { description: 'OMV' })]), null);
-  assert.equal(findMatch(bon, [tx('a'), tx('b')]), null);
-  assert.equal(findMatch({ ...bon, items: [], itemsReview: true }, [tx('bank')]).transaction.id, 'bank');
+  assert.equal(findMatch(bon, [tx('bank', { description: 'OMV' })]).transaction.id, 'bank');
+  assert.equal(findMatch(bon, [tx('a'), tx('b')]).transaction.id, 'a');
+  // Fehlende Positionsdaten sind kein Mangel — der Bon-Prompt lässt sie zu.
+  assert.equal(bonItemsNeedReview({ ...bon, items: [] }), false);
+  assert.equal(bonItemsNeedReview({ ...bon, items: [], itemsReview: true }), true);
+  // Der Zahlbetrag bleibt hart.
   assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
+});
+await check('Widersprüchliches Konto zieht Punkte ab, sperrt aber nicht', () => {
+  const bon = { date: '2026-08-15', total: 100, store: 'Billa', account: 'privat' };
+  const fremd = findMatch(bon, [tx('fremd')]);
+  assert.equal(fremd.transaction.id, 'fremd');
+  assert.ok(fremd.score < findMatch({ ...bon, account: 'haushalt' }, [tx('gleich')]).score);
+  // Ohne weiteres Indiz reicht es nicht: 7 Tage entfernt, kein Händlerbezug.
+  assert.equal(findMatch(bon, [tx('weit', { date: '2026-08-22', description: 'OMV' })]), null);
 });
 await check('Gmail-Bon ohne Positionen wird gespeichertem Bankbeleg mit Prüfhinweis zugeordnet', async () => {
   const a = app(), g = invoice('gmail');
@@ -173,10 +187,10 @@ await check('Prüfbedürftiger Alt-Link wird nicht gelöscht', async () => {
   a.loadLink(); await a.c._autoLinkGmailBons();
   assert.equal(a.c.state.transactions[0].bon.invoiceId, 'gmail');
   assert.equal(cleared.filter(([, patch]) => patch.bon === null).length, 0);
-  // Gegenprobe: ein sauberer Bon ohne Match wird weiterhin gelöst.
+  // Gegenprobe: ist die Rechnung entfernt, wird der Link weiterhin gelöst.
   const b = app(), g2 = invoice('gmail');
   b.c.state.transactions = [tx('bank', { date: '2026-01-01',
-    bon: { ...structuredClone(g2.bon), invoiceId: g2.id } }), g2];
+    bon: { ...structuredClone(g2.bon), invoiceId: 'entfernte-rechnung' } }), g2];
   const cleared2 = []; b.c.updateTx = async (id, patch) => { cleared2.push([id, patch]); };
   b.loadLink(); await b.c._autoLinkGmailBons();
   assert.equal(cleared2.length, 1);
@@ -233,6 +247,18 @@ await check('Einzelnes Privatkonto wird verwendet, Konto bleibt während Import 
   b.loadImport(); await b.c.runImport();
   assert.ok(b.c.state.transactions.every(t => t.account === 'privat'));
   assert.ok(b.imports.every(i => i.id.startsWith('privat_')));
+});
+await check('Nicht wiedergefundene Verknüpfung bleibt bestehen', async () => {
+  // Rechnung existiert weiter, der Matcher findet die Buchung aber nicht wieder.
+  // Die frühere Zuordnung ist bewusst entstanden und darf nicht verfallen — im
+  // Messlauf hingen daran 129 von 267 gespeicherten Verknüpfungen.
+  const a = app(), g = invoice('gmail');
+  a.c.state.transactions = [tx('bank', { date: '2026-01-01',
+    bon: { ...structuredClone(g.bon), invoiceId: g.id } }), g];
+  const cleared = []; a.c.updateTx = async (id, patch) => { cleared.push([id, patch]); };
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions[0].bon.invoiceId, 'gmail');
+  assert.equal(cleared.filter(([, patch]) => patch.bon === null).length, 0);
 });
 await check('Filter anwenden behält den gewählten Monat', () => {
   const a = app(); a.load('function initBuchFilters()', '\n// ── Month Picker Bottom Sheet');

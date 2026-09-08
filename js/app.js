@@ -1,15 +1,15 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.3';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.3';
-import { formatEur, formatMoney, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.3';
-import { extractPdfText, parseBankStatement, categorizeWithAI, newBankTransactions } from './parser.js?v=1.11.3';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.4';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.4';
+import { formatEur, formatMoney, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.4';
+import { extractPdfText, parseBankStatement, categorizeWithAI, newBankTransactions } from './parser.js?v=1.11.4';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.3';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.4';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.3';
-import { findMatch, matchLabel, analyzeBonLinks, bonNeedsReview, bonItemsNeedReview } from './matcher.js?v=1.11.3';
+         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.4';
+import { findMatch, matchLabel, analyzeBonLinks, bonNeedsReview, bonItemsNeedReview } from './matcher.js?v=1.11.4';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -2255,9 +2255,25 @@ async function _autoLinkGmailBons() {
     }
   });
 
-  // Nur tatsächlich neu bewertete, nicht mehr passende Links lösen.
+  // Phase 3: Ein Link wird nur gelöst, wenn die Rechnung verschwunden ist oder
+  // in diesem Lauf an eine andere Buchung ging. Findet der Matcher sie schlicht
+  // nicht wieder, bleibt die frühere — bewusst entstandene — Zuordnung stehen:
+  // ein Messlauf gegen den Echtbestand löste sonst 129 von 267 Verknüpfungen.
+  const linkedInvoiceIds = new Set();
+  newlyLinked.forEach(txId => {
+    const tx = state.transactions.find(t => t.id === txId);
+    if (tx?.bon?.invoiceId) linkedInvoiceIds.add(tx.bon.invoiceId);
+  });
   previouslyLinked.forEach((prev, txId) => {
-    if (!newlyLinked.has(txId)) writes.push(updateTx(txId, { bon: null }));
+    if (newlyLinked.has(txId)) return;
+    const invoiceGone   = prev?.invoiceId && !invoices.some(g => g.id === prev.invoiceId);
+    const movedElsewhere = prev?.invoiceId && linkedInvoiceIds.has(prev.invoiceId);
+    if (!invoiceGone && !movedElsewhere) {
+      const tx = state.transactions.find(t => t.id === txId);
+      if (tx) tx.bon = prev;
+      return;
+    }
+    writes.push(updateTx(txId, { bon: null }));
   });
   await Promise.all(writes);
 }
