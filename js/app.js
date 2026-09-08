@@ -1072,7 +1072,7 @@ window.commitRematch = async function() {
 // ── PDF Upload ──
 let selectedPdfFiles = [];
 
-function _setUploadUI(files) {
+function _setUploadUI(files, kontoBehalten = false) {
   document.getElementById('upload-icon').textContent = '✅';
   if (files.length === 1) {
     document.getElementById('upload-title').textContent = files[0].name;
@@ -1082,17 +1082,23 @@ function _setUploadUI(files) {
     const totalKB = files.reduce((s, f) => s + f.size, 0) / 1024;
     document.getElementById('upload-sub').textContent   = `${totalKB.toFixed(1)} KB gesamt — bereit zum Import`;
   }
-  _renderAccountSelector(files);
+  _renderAccountSelector(files, kontoBehalten);
   document.getElementById('import-btn').style.display = 'flex';
 }
 
-function _renderAccountSelector(files) {
+function _renderAccountSelector(files, kontoBehalten = false) {
   const wrap  = document.getElementById('account-selector-wrap');
   const chips = document.getElementById('account-selector-chips');
   if (!wrap || !chips) return;
   if (state.accounts.length <= 1) { wrap.style.display = 'none'; return; }
   const firstName = (files[0]?.name || '').toLowerCase();
-  const autoId = (firstName.includes('easy') || firstName.includes('bawag')) ? 'haushalt' :
+  // Beim Neuaufbau nach einem Speicherfehler gewinnt die bereits getroffene
+  // Auswahl: sonst zieht die Dateinamen-Heuristik den Wiederholversuch auf ein
+  // anderes Konto als den ersten Durchlauf. Bei neu gewählten Dateien greift
+  // weiterhin die Heuristik.
+  const gewaehlt = chips.querySelector('.bs-chip.active')?.dataset.accId;
+  const autoId = (kontoBehalten && state.accounts.some(a => a.id === gewaehlt)) ? gewaehlt :
+                 (firstName.includes('easy') || firstName.includes('bawag')) ? 'haushalt' :
                  state.accounts.find(a => firstName.includes(a.name.toLowerCase()))?.id ||
                  state.accounts[0].id;
   wrap.style.display = 'block';
@@ -1286,7 +1292,7 @@ window.runImport = async function() {
   // ein Klick ist. Unlesbare Dateien nicht — die scheitern erneut.
   selectedPdfFiles = saveFailed;
   if (selectedPdfFiles.length) {
-    _setUploadUI(selectedPdfFiles);
+    _setUploadUI(selectedPdfFiles, true);
     renderDashboard(); renderKonten();
     return;
   }

@@ -8,6 +8,7 @@
 - Kontensalden und CSV-Export zählen Gmail-Rechnungen nicht mehr mit: sie sind Belege zu einer Bankbuchung, keine zweite Zahlung.
 - Teilweise gespeicherte Importe: `saveTxBatch()` schreibt in Blöcken zu 400. Scheiterte ein späterer Block, nahm der Import auch die bereits geschriebenen Buchungen lokal zurück — der zweite Versuch legte sie unter neuen IDs erneut an (401 Buchungen wurden zu 801). `saveTxBatch()` meldet jetzt die bereits gespeicherten IDs, zurückgenommen wird nur der Rest.
 - Der Abschluss meldete nach einem Speicherfehler trotzdem „✓ importiert" und leerte die Dateiauswahl. Bei Problemen steht dort jetzt „Import unvollständig" samt Ursache; Dateien mit Speicherfehler bleiben ausgewählt und können direkt erneut versucht werden.
+- Beim Wiederholen nach einem Speicherfehler baute die Dateianzeige die Kontoauswahl neu auf, wodurch die Dateinamen-Heuristik die getroffene Wahl überschrieb — die Restbuchungen landeten auf einem anderen Konto als der erste Durchlauf. Die Auswahl bleibt jetzt erhalten; bei neu gewählten Dateien greift weiterhin die Heuristik.
 
 ## v1.11.0 — 2026-08-15
 
