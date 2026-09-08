@@ -1,11 +1,10 @@
 {
   "name": "finance-dashboard",
   "private": true,
-  "version": "1.11.1",
+  "version": "1.11.3",
   "description": "Persönliches Finance Dashboard — Vanilla JS / PDF.js / Firebase. Kein Build-System.",
   "type": "module",
   "scripts": {
     "test": "node tests/run.node.mjs"
   }
 }
-

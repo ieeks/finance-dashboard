@@ -599,7 +599,8 @@ def is_duplicate(doc_id: str) -> bool:
 
 
 def _is_semantic_duplicate(
-    existing: list[dict], description: str, date_val: str, total_val: float, account: str
+    existing: list[dict], description: str, date_val: str, total_val: float, account: str,
+    receipt_total: float | None = None
 ) -> bool:
     """Fallback-Dedup für erneut verschickte digitale Kassenbons.
 
@@ -609,11 +610,17 @@ def _is_semantic_duplicate(
     Prüft stattdessen auf Store+Datum+Betrag+Konto-Übereinstimmung gegen
     bereits importierte Gmail-Rechnungen.
     """
+    # Altimporte ohne tip-Feld speicherten nur den Bonbetrag. Der eng begrenzte
+    # Fallback nutzt weiterhin Händler, Datum und Konto; neuere Belege behalten
+    # ihren tatsächlichen Zahlbetrag. Ausgabe und Erstattung nie gleichsetzen.
     for doc in existing:
         if (doc.get("description") == description
                 and doc.get("date") == date_val
                 and doc.get("account") == account
-                and abs(abs(doc.get("amount", 0)) - total_val) < 0.005):
+                and (abs(-doc.get("amount", 0) - total_val) < 0.005
+                     or (receipt_total is not None and receipt_total > 0
+                         and "tip" not in (doc.get("bon") or {})
+                         and abs(-doc.get("amount", 0) - receipt_total) < 0.005))):
             return True
     return False
 
@@ -897,8 +904,9 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         if value != value or abs(value) == float("inf"):
             print("  Bitte prüfen: ungültiger Geldbetrag — nicht gespeichert.")
             return False
-    if items_list and abs(round(_items_sum(items_list) * 100) - round((total_val - vat_val) * 100)) > 1:
-        needs_review = True
+    items_review = (ai_data.get("items_review") is True or ai_data.get("itemsReview") is True
+                    or not items_list
+                    or abs(round(_items_sum(items_list) * 100) - round((total_val - vat_val) * 100)) > 1)
 
     # Kategorie-Override: Vermieter (in unserem Fall Helvetia Versicherungen
     # AG als Hausverwalter, NICHT als Versicherer). Same Logik wie parser.js.
@@ -962,13 +970,14 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     except Exception as exc:
         print(f"  Semantik-Dedup-Check fehlgeschlagen: {exc}")
         existing = []
-    if _is_semantic_duplicate(existing, description, date_val, abs(total_val + tip_val), account):
+    if _is_semantic_duplicate(existing, description, date_val, total_val + tip_val, account,
+                              receipt_total=total_val if tip_val > 0 else None):
         print(f"  Übersprungen (inhaltliches Duplikat): {description} · {date_val} · {total_val} EUR · {account}")
         return False
 
     # Einzelposten → bon.items (gleiche Struktur wie Bon-Analyzer im Browser)
     bon = None
-    if items_list or needs_review or tip_val:
+    if items_list or needs_review or items_review or tip_val:
         bon = {
             "source":    "gmail_import",
             "total":     total_val,
@@ -976,6 +985,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
             "tip":       tip_val,
             "currency":  currency,
             "needsReview": needs_review,
+            "itemsReview": items_review,
             "date":      date_val,
             "debitDate": debit_val or None,
             "vendor":    description,
@@ -998,6 +1008,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
         "amount":        -(total_val + tip_val),
         "currency":      currency,
         "needsReview":   needs_review,
+        "itemsReview":   items_review,
         "description":   description,
         "category":      category,
         "account":       account,
@@ -1013,7 +1024,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
     if recurring:
         tx["isRecurring"]    = True
         tx["recurringLabel"] = recurring["label"]
-    if bon and bon["items"]:
+    if bon:
         tx["bon"] = bon
 
     try:

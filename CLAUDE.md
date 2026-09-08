@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.11.1`
+Aktuelle Version: `v1.11.3`
 
 ## Commit-Konventionen
 
@@ -169,11 +169,12 @@ Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Sca
 - **Firebase Config**: in `firebase-config.js` auslagern → in `.gitignore`
 - **Bon-Schema Netto/Brutto**: `total` ist der Rechnungsbruttobetrag ohne
   Trinkgeld. `tip` bleibt separat; der Matcher prüft `total` und `total + tip`.
-  `needsReview` markiert unklare Belege und verhindert automatische Zuordnung.
+  `needsReview` markiert unklare Zahlbeträge/Sonderfälle und verhindert automatische Zuordnung.
+  `itemsReview` betrifft nur Positionen: Zuordnung bei centgleichem Betrag, Händlerbezug und genau einem Kandidaten möglich.
   `invoiceId` am verknüpften Bon verweist auf die Gmail-Rechnung. `vat` ist die bei Netto-Rechnungen
   (VERBUND/Strom, Ladestrom, Handwerker, Hosting) separat aufgeschlagene USt., bei Kassenbons
   `0`. Es gilt `Σ items[].gesamt == total − vat`. Steht dort ein Nettobetrag,
-  scheitert das Bon-↔-Buchung-Matching am 2-€-Hard-Out in `findMatch()`.
+  scheitert das Bon-↔-Buchung-Matching am centgenauen Betragsvergleich in `findMatch()`.
   Absicherung: `_gross_total_correction()` in `gmail_finance_importer.py`.
 - **Bon-Datum kann nie in der Zukunft liegen**: Kassenbons drucken das Datum
   klein in der Fußzeile („Datum Uhrzeit Filiale Pos Bed Bon") direkt neben
@@ -239,4 +240,3 @@ html, body {
 ```
 
 Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
-

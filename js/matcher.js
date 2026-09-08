@@ -1,7 +1,7 @@
 // matcher.js — Score-basiertes Bon ↔ Buchung Matching
 //
 // Score-System (max 100):
-//   amountDiff < 0.005 €  → 50   |  ≤ 2 €  → 25   |  sonst Hard-Out
+//   Gleicher Zahlbetrag auf Cent → 50 | sonst Hard-Out
 //   days = 0              → 30   |  ≤ 3    → 20   |  ≤ 7   → 10  |  sonst Hard-Out
 //   nameScore (0..1)              → × 20   (max 20)
 //
@@ -11,11 +11,9 @@
 //
 // Hard-Out Regeln:
 //   - signedDays < -1   (Bon-Datum mehr als 1 Tag NACH Buchung) → kein Match
-//   - nameScore === 0 UND amountDiff > 0.005 → kein Match
-//     (verhindert Cross-Matches bei ähnlichen Beträgen ohne Händler-Bezug)
+//   - Unvollständige Positionen: Händlerbezug und genau ein Kandidat nötig
 
 const AMOUNT_EXACT_EUR = 0.005;
-const AMOUNT_NEAR_EUR  = 2;
 const DATE_MAX_DAYS    = 7;
 const MIN_SCORE        = 60;
 
@@ -25,13 +23,18 @@ export function bonNeedsReview(bon) {
   if (bon.currency && bon.currency !== 'EUR') return true;
   const vat = Number(bon.vat ?? 0), tip = Number(bon.tip ?? 0);
   if (!Number.isFinite(vat) || !Number.isFinite(tip) || vat < 0 || tip < 0) return true;
-  if (bon.items?.length) {
-    const amounts = bon.items.map(i => Number(i.price ?? i.gesamt));
-    if (amounts.some(n => !Number.isFinite(n))) return true;
-    if (Math.abs(Math.round(amounts.reduce((a, b) => a + b, 0) * 100)
-        - Math.round((bon.total - vat) * 100)) > 1) return true;
-  }
   return false;
+}
+
+// Positionsqualität ist unabhängig vom lesbaren Zahlbetrag.
+export function bonItemsNeedReview(bon) {
+  if (bon.itemsReview) return true;
+  if (!Array.isArray(bon.items)) return false; // alte Belege ohne Positionsdaten
+  if (!bon.items.length) return true;
+  const amounts = bon.items.map(i => Number(i.price ?? i.gesamt));
+  return amounts.some(n => !Number.isFinite(n))
+    || Math.abs(Math.round(amounts.reduce((a, b) => a + b, 0) * 100)
+      - Math.round((bon.total - (Number(bon.vat) || 0)) * 100)) > 1;
 }
 
 function _normalizeTokens(s) {
@@ -102,9 +105,10 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
   if (bonNeedsReview(bon) || !bon.date || bon.dateSuspect) return null;
 
   const bonDates = [bon.date, bon.debitDate].filter(Boolean);
+  const itemsReview = bonItemsNeedReview(bon);
 
   const candidates = txList
-    .filter(tx => tx.amount < 0)
+    .filter(tx => Number.isFinite(tx.amount) && tx.amount < 0)
     .filter(tx => tx.source !== 'gmail_import')
     .filter(tx => !bon.account || bon.account === 'unbekannt' || !tx.account || tx.account === bon.account)
     .filter(tx => !excludeIds || !excludeIds.has(tx.id))
@@ -122,12 +126,12 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
 
       // Hard-Outs — days === null: kein Bon-Datum liegt im zulässigen Fenster
       if (days === null)                               return null;
-      if (amountDiff > AMOUNT_NEAR_EUR)                return null;
-      if (nameScore === 0 && amountDiff > AMOUNT_EXACT_EUR) return null;
+      const txCents = Math.round(txAbs * 100);
+      if (txCents !== Math.round(bon.total * 100)
+          && (!tip || txCents !== Math.round((bon.total + tip) * 100))) return null;
+      if (itemsReview && nameScore === 0) return null;
 
-      let score = 0;
-      if (amountDiff < AMOUNT_EXACT_EUR) score += 50;
-      else                                score += 25;
+      let score = 50;
       if (days === 0)                    score += 30;
       else if (days <= 3)                score += 20;
       else                                score += 10;
@@ -151,6 +155,7 @@ export function findMatch(bon, txList, { excludeIds } = {}) {
       || b.nameScore - a.nameScore
     );
 
+  if (itemsReview && candidates.length !== 1) return null;
   return candidates[0] ?? null;
 }
 
@@ -184,6 +189,9 @@ export function analyzeBonLinks(transactions) {
       account:   bon.account,
       currency:  bon.currency,
       needsReview: bon.needsReview,
+      itemsReview: bon.itemsReview,
+      items: bon.items,
+      vat: bon.vat,
     };
     // Single-Candidate-Match: liefert null wenn die aktuelle Verknüpfung
     // den MIN_SCORE-Threshold (60) nicht mehr erreichen würde.

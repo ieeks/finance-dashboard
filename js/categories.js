@@ -1,6 +1,6 @@
 // categories.js — Kanonische Kategorie-Konfiguration
 
-import { LANDLORD } from './personalConfig.js?v=1.11.1';
+import { LANDLORD } from './personalConfig.js?v=1.11.3';
 
 export const CAT_CONFIG = {
   'Supermarkt':          { icon: '🛒', color: '#7B5723' },
@@ -92,4 +92,3 @@ export const SUBSCRIPTION_RULES = [
   { pattern: /paypal/i, amount:  8.99, name: 'Spotify (Solo)',   category: 'Freizeit' },
   { pattern: /paypal/i, amount: 17.99, name: 'Amazon Prime',     category: 'Online Shopping' },
 ];
-

@@ -110,7 +110,31 @@ await check('Gmail, Fremdwährung und Prüfbelege werden nicht automatisch gemat
   assert.equal(findMatch(bon, [invoice('gmail')]), null);
   assert.equal(findMatch({ ...bon, currency: 'USD' }, [tx('bank')]), null);
   assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
-  assert.equal(findMatch({ ...bon, items: [{ gesamt: 80 }] }, [tx('bank')]), null);
+
+});
+await check('Unvollständige Positionen erlauben nur eindeutiges Matching mit Händlerbezug', () => {
+  const bon = { date: '2026-08-15', total: 100, store: 'Billa', items: [{ gesamt: 80 }] };
+  assert.equal(findMatch(bon, [tx('bank')]).transaction.id, 'bank');
+  assert.equal(findMatch(bon, [tx('bank', { description: 'OMV' })]), null);
+  assert.equal(findMatch(bon, [tx('a'), tx('b')]), null);
+  assert.equal(findMatch({ ...bon, items: [], itemsReview: true }, [tx('bank')]).transaction.id, 'bank');
+  assert.equal(findMatch({ ...bon, needsReview: true }, [tx('bank')]), null);
+});
+await check('Gmail-Bon ohne Positionen wird gespeichertem Bankbeleg mit Prüfhinweis zugeordnet', async () => {
+  const a = app(), g = invoice('gmail');
+  g.itemsReview = true;
+  g.bon.items = [];
+  g.bon.itemsReview = true;
+  a.c.state.transactions = [tx('bank'), g];
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions[0].bon.invoiceId, 'gmail');
+  assert.equal(a.c.state.transactions[0].bon.itemsReview, true);
+});
+await check('Schon ein Cent Bankabweichung blockiert trotz passendem Händler und Datum', () => {
+  const bon = { date: '2026-08-15', total: 100, store: 'Billa' };
+  for (const amount of [-99.99, -100.01, -98, -102]) {
+    assert.equal(findMatch(bon, [tx('bank', { amount })]), null);
+  }
 });
 await check('Rechnungsstatus zeigt nur wirklich verknüpfte Belege', async () => {
   const a = app(); a.c.state.transactions = [tx('bank'), invoice('g1'), invoice('g2')];
@@ -157,6 +181,57 @@ await check('Prüf-Gate löscht keine bestehende Bon-Verknüpfung', async () => 
   assert.equal(cleared2.length, 1);
   assert.equal(cleared2[0][0], 'bank');
   assert.equal(cleared2[0][1].bon, null);
+});
+await check('Geschützte Alt-Links sind vor konkurrierenden Rechnungen reserviert', async () => {
+  for (const onCurrent of [false, true]) {
+    const a = app(), g = invoice('old');
+    const prev = { ...structuredClone(g.bon), invoiceId: g.id };
+    if (onCurrent) { g.needsReview = true; g.bon.needsReview = true; }
+    else prev.needsReview = true;
+    const writes = []; a.c.updateTx = async (id, patch) => writes.push({ id, patch });
+    a.c.state.transactions = [tx('bank', { bon: prev }), invoice('other'), g];
+    a.loadLink(); await a.c._autoLinkGmailBons();
+    assert.equal(a.c.state.transactions[0].bon.invoiceId, 'old');
+    assert.equal(writes.length, 0);
+    assert.equal(a.c.findRechnungMatch(g).transaction.id, 'bank');
+    assert.equal(a.c.findRechnungMatch(a.c.state.transactions[1]), null);
+  }
+});
+await check('Reservierte Rechnung wird nicht zusätzlich an freie Bankbuchung gehängt', async () => {
+  const a = app(), g = invoice('old');
+  const prev = { ...structuredClone(g.bon), invoiceId: g.id, needsReview: true };
+  a.c.state.transactions = [tx('bank', { bon: prev }), tx('free'), g];
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions.filter(t => t.bon?.invoiceId === g.id).length, 1);
+});
+await check('Gelöschte letzte Gmail-Rechnung löst auch einen Prüf-Link', async () => {
+  const a = app(), g = invoice('gone'), writes = [];
+  a.c.state.transactions = [tx('bank', { bon: { ...g.bon, invoiceId: g.id, needsReview: true } })];
+  a.c.updateTx = async (id, patch) => writes.push(patch);
+  a.loadLink(); await a.c._autoLinkGmailBons();
+  assert.equal(a.c.state.transactions[0].bon, null);
+  assert.equal(writes[0].bon, null);
+});
+await check('Fehlende Kontoauswahl blockiert Import vor jedem Schreibzugriff', async () => {
+  const a = app(); a.c.state.accounts.push({ id: 'privat', name: 'Privat' });
+  a.c.document.querySelector = () => null;
+  a.loadImport(); await a.c.runImport();
+  assert.equal(a.writes.length, 0); assert.equal(a.imports.length, 0);
+  assert.ok(a.logs.some(s => s.includes('Konto')));
+});
+await check('Einzelnes Privatkonto wird verwendet, Konto bleibt während Import stabil', async () => {
+  const a = app(); a.c.state.accounts = [{ id: 'privat', name: 'Privat' }];
+  a.c.document.querySelector = () => null;
+  a.loadImport(); await a.c.runImport();
+  assert.equal(a.c.state.transactions[0].account, 'privat');
+  const b = app(); b.c.state.accounts.push({ id: 'privat', name: 'Privat' });
+  let selected = 'privat'; b.c.document.querySelector = () => ({ dataset: { accId: selected } });
+  b.c.selectedPdfFiles.push({ name: 'second.pdf', arrayBuffer: async () => new Uint8Array([4]).buffer });
+  const originalSave = b.c.saveTxBatch;
+  b.c.saveTxBatch = async rows => { selected = 'haushalt'; await originalSave(rows); };
+  b.loadImport(); await b.c.runImport();
+  assert.ok(b.c.state.transactions.every(t => t.account === 'privat'));
+  assert.ok(b.imports.every(i => i.id.startsWith('privat_')));
 });
 await check('Filter anwenden behält den gewählten Monat', () => {
   const a = app(); a.load('function initBuchFilters()', '\n// ── Month Picker Bottom Sheet');

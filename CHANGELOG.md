@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## v1.11.3 — 2026-09-08
+
+- Alt-Verknüpfungen mit Prüfstatus werden vor dem Matching reserviert. Aktueller Rechnungsstatus wird berücksichtigt, entfernte Rechnungen werden auch beim letzten Link bereinigt.
+- Rechnungsansicht zeigt gespeicherte Links als „Verknüpft“, ohne erneute Score-Bewertung.
+- Bei mehreren Konten ist eine ausdrückliche Auswahl erforderlich; sie gilt unveränderlich für alle PDFs eines Importlaufs. Ein einziges Konto wird direkt verwendet.
+- Semantik-Deduplizierung berücksichtigt Altimporte ohne Trinkgeldfeld. Erstattungen (positive Buchung bei negativem Rechnungsbetrag) bleiben von Ausgaben getrennt.
+- USt. und Trinkgeld im Bon-Detail verwenden die Belegwährung.
+- CSV enthält ausschließlich Bankbuchungen, auch unverknüpfte Gmail-Rechnungen fehlen bewusst. Trennzeichen ist Semikolon statt Komma; bestehende CSV-Importvorlagen müssen ggf. angepasst werden.
+- 200 lokale Tests erfolgreich (83 JavaScript, 117 Python); echter mehrseitiger Kontoauszug und Browsercheck bleiben offen.
+
+## v1.11.2 — 2026-09-08
+
+- Positions-Prüfhinweis von unklarem Zahlbetrag getrennt. Unvollständige Positionen verhindern eine eindeutige Zuordnung mit Händlerbezug nicht; die Aufschlüsselung bleibt als prüfbedürftig markiert.
+- Bisherige 2-Euro-Toleranz entfernt: Bankbetrag muss auf Cent dem Bonbetrag bzw. Bonbetrag inklusive ausgewiesenem Trinkgeld entsprechen.
+- Regressionen für Positionsabweichung, fehlende Positionen, Mehrdeutigkeit und Cent-Abweichungen ergänzt.
+
 ## v1.11.1 — 2026-09-08
 
 ### Fixed
@@ -10,7 +26,6 @@
 - Fehlendes Bon-Datum blockiert den Bankimport nicht; Kategorie-Filter behält den aktuellen Monat.
 - Gmail-Importer erhält Trinkgeld, Währung und Null-Euro-Positionen. Komplexe/unklare Belege bleiben mit „Bitte prüfen“ offen.
 - Bon-Prompt: eindeutige Endbeträge statt größter Zahl; keine erfundenen Summenkorrekturen; Servicegebühren und Fälligkeit nicht mit Trinkgeld/Einzug vermischen.
-- Self-Healing löst keine bestehenden Bon-Verknüpfungen mehr, nur weil ein Altbestands-Bon am neuen Prüf-Gate scheitert; gelöste Links bleiben auf echte Fehl-Matches und entfernte Gmail-Rechnungen beschränkt.
 
 ### Tests
 - Gezielte lokale Regressionen mit synthetischen Daten, ohne Firebase-/KI-Zugriff.
@@ -937,4 +952,3 @@ Fenster des Importers — danach wäre die Buchung nach dem Löschen weg.
 - Demo-Daten (kein PDF nötig)
 - API Key Persistenz via localStorage
 - Mobile-First Dark Mode UI
-

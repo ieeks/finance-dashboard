@@ -251,6 +251,16 @@ class TestSemanticDuplicate(unittest.TestCase):
     def test_amount_rounding_tolerance(self):
         self.assertTrue(self.fn(self.existing, "Billa", "2026-05-08", 13.630001, "unbekannt"))
 
+    def test_tip_legacy_amount_is_recognized(self):
+        self.assertTrue(self.fn(self.existing, "Billa", "2026-05-08", 15.63,
+                                "unbekannt", receipt_total=13.63))
+        modern = [{**self.existing[0], "bon": {"tip": 0}}]
+        self.assertFalse(self.fn(modern, "Billa", "2026-05-08", 15.63,
+                                 "unbekannt", receipt_total=13.63))
+
+    def test_refund_is_not_duplicate_of_expense(self):
+        self.assertFalse(self.fn(self.existing, "Billa", "2026-05-08", -13.63, "unbekannt"))
+
 
 class TestParseAmount(unittest.TestCase):
     def setUp(self):
@@ -632,7 +642,14 @@ class TestReceiptStorage(unittest.TestCase):
     def test_uncertain_invoice_stays_open(self):
         self.assertTrue(self.save(needs_review=True)["needsReview"])
         self.assertTrue(self.save(total=None, date=None)["needsReview"])
-        self.assertTrue(self.save(total=12)["needsReview"])
+
+    def test_incomplete_items_do_not_block_clear_total(self):
+        for changes in ({"total": 12}, {"items": []}, {"items_review": True}):
+            d = self.save(**changes)
+            self.assertFalse(d["needsReview"])
+            self.assertTrue(d["itemsReview"])
+            self.assertTrue(d["bon"]["itemsReview"])
+            self.assertEqual(d["bon"]["total"], changes.get("total", 10))
 
     def test_refund_not_turned_into_expense(self):
         d = self.save(total=-10, items=[{"name": "Retoure", "gesamt": -10}])
