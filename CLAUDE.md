@@ -171,6 +171,14 @@ Drei Prinzipien: **Quiet Luxury · Tonal Layering · Editorial Layout**
 ### Screens geplant
 Dashboard · Buchungen · Import · Konten (Multi-Account) · Concierge (Bon-Scan) · Export
 
+## Vor dem Ausliefern messen
+
+Änderungen an Heuristiken (Matching, Parser, Kategorisierung, Dedup, Schwellen)
+werden gegen den Echtbestand gemessen, bevor sie nach main gehen — grüne Tests
+zeigen Korrektheit, nicht Wirkung. Vorgehen und Fallstricke:
+`.claude/skills/measure-before-shipping/SKILL.md`. Konkrete Umsetzung für dieses
+Projekt: `scripts/match_rate_report.mjs` + Workflow „Match Rate Report".
+
 ## Wichtige Hinweise
 
 - **Kein Build-System**: Alles bleibt Vanilla JS / CDN-Imports
