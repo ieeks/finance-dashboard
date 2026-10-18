@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v1.12.1 — 2026-10-18
+
+- Bon-Kategorien-Prüfung verwendet denselben Belegumfang wie die Aufschlüsselung. Tesla-Laderechnungen und andere ausgeschlossene Rechnungen erhalten keine irreführenden Waren-Unterkategorien mehr. Die Hauptkategorie für Ladestrom bleibt Mobilität / Auto.
+
 ## v1.12.0 — 2026-10-18
 
 ### Fixed

@@ -1,5 +1,18 @@
 // Pure category helpers shared by scan, Gmail linking and the repair preview.
-import { ALL_SUBCATEGORIES, normalizeSubcategory, SUBCAT_ITEM_RULES } from './categories.js?v=1.12.0';
+import { ALL_SUBCATEGORIES, normalizeSubcategory, SUBCAT_ITEM_RULES, BON_EXCLUDED_COMPANIES } from './categories.js?v=1.12.1';
+
+// Use the same receipt scope for the dashboard and category repair.
+const BON_BREAKDOWN_CATS = new Set([
+  'Supermarkt', 'Restaurant / Café', 'Drogerie',
+  'Online Shopping', 'Freizeit', 'Gesundheit',
+]);
+
+export function isBreakdownReceipt(bon, merchant = '', category = null) {
+  if (!bon?.items?.length) return false;
+  if (category && !BON_BREAKDOWN_CATS.has(category)) return false;
+  const names = [merchant, bon.vendor, bon.store].filter(Boolean).map(name => String(name).toLowerCase());
+  return !BON_EXCLUDED_COMPANIES.some(excluded => names.some(name => name.includes(excluded.toLowerCase())));
+}
 
 export function itemNameKey(name) {
   return String(name ?? '').normalize('NFKC').toLowerCase().trim()
@@ -65,12 +78,12 @@ export function planCategoryRepair(transactions, pendingBons, overrides = {}) {
   const rows = [];
   const inputs = [
     ...transactions.map(tx => ({ collection: 'transactions', id: tx.id, bon: tx.bon,
-      merchant: tx.description, date: tx.date })),
+      merchant: tx.description, category: tx.category, date: tx.date })),
     ...pendingBons.map(bon => ({ collection: 'pendingBons', id: bon.id, bon,
-      merchant: bon.store || bon.vendor, date: bon.date })),
+      merchant: bon.store || bon.vendor, category: bon.category, date: bon.date })),
   ];
   for (const input of inputs) {
-    if (!input.bon?.items?.length) continue;
+    if (!isBreakdownReceipt(input.bon, input.merchant, input.category)) continue;
     const changedRows = [];
     const items = input.bon.items.map((item, index) => {
       const old = item.subcategory || item.subkategorie || 'Sonstiges';

@@ -302,3 +302,5 @@ Das Feature-Dokument `gmail-invoice-matcher.md` ist gut durchdacht. Ein paar Pun
 **5. `manuel.rechnungen@gmail.com`**
 - Existierende Python-Skripte (`gmail_invoices.py`, `extract_verbund.py`) als Referenz nutzen
 - IMAP → Gmail API Umbau: Hauptunterschied ist Auth (OAuth2 statt App-Passwort) und Base64-Decode der Attachments
+
+- [x] Bon-Kategorien-Prüfung: Tesla und andere ausgeschlossene Rechnungen wie in der Aufschlüsselung ausnehmen.
