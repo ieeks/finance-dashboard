@@ -1,3 +1,9 @@
+## Erledigt — v1.12.0 (2026-10-18)
+- [x] Bon-Kategorien: Gmail-Lernregeln, dauerhafte manuelle Korrekturen,
+  sichtbare Speicherfehler, tolerante Normalisierung und sieben Ergänzungen.
+- [x] Bestandsbereinigung mit Vorschau unter Einstellungen → Bon-Kategorien prüfen.
+- [ ] Nach Deployment: Vorschau mit echten Daten prüfen und gewünschte Bereinigung speichern.
+
 # TODO — Finance Dashboard
 
 ## Roadmap (offen)

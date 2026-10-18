@@ -1,15 +1,16 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.11.1';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory, SUBCAT_ALIASES } from './categories.js?v=1.11.1';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.11.1';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.11.1';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.0';
+import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory } from './categories.js?v=1.12.0';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.0';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.0';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.11.1';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.0';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         fsSaveSubcategoryOverrides, fsSaveApiKeys } from './firebaseService.js?v=1.11.1';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.11.1';
+         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.0';
+import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot } from './bonCategories.js?v=1.12.0';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.0';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -754,8 +755,9 @@ window.openTxModal = function(id) {
       <div class="section-label" style="margin-bottom:10px;">🧾 ${escHtml(tx.bon.store || 'Kassenbon')}</div>
       ${(tx.bon.items||[]).map((item, idx) => {
         const sc = item.subcategory || item.subkategorie || 'Sonstiges';
-        const opts = Object.keys(SUBCAT_ICONS).map(s =>
-          `<option value="${escHtml(s)}"${s === sc ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
+        const opts = (Object.hasOwn(SUBCAT_ICONS, normalizeSubcategory(sc)) ? ''
+          : `<option value="${escHtml(sc)}" selected>⚠️ Prüfen: ${escHtml(sc)}</option>`) + Object.keys(SUBCAT_ICONS).map(s =>
+          `<option value="${escHtml(s)}"${s === normalizeSubcategory(sc) ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
         ).join('');
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--outline-soft);">
           <div style="flex:1;min-width:0;">
@@ -842,24 +844,91 @@ window.saveNote = function(id, value) {
   renderBuchungen();
 };
 
-window.updateBonItemSubcat = function(txId, itemIdx, newSubcat) {
+let _categorySaveBusy = false;
+window.updateBonItemSubcat = async function(txId, itemIdx, newSubcat) {
   const tx = state.transactions.find(t => t.id === txId);
-  if (!tx?.bon?.items?.[itemIdx]) return;
+  if (!tx?.bon?.items?.[itemIdx] || !Object.hasOwn(SUBCAT_ICONS, newSubcat)) return;
+  if (_categorySaveBusy) { window.openTxModal(txId); showToast('Speicherung läuft …'); return; }
+  _categorySaveBusy = true;
   const item = tx.bon.items[itemIdx];
-  item.subcategory = newSubcat;
-  if ('subkategorie' in item) item.subkategorie = newSubcat;
-  saveState();
-  updateTx(txId, { bon: tx.bon }).catch(() => {});
-
-  const key = (item.name || '').toLowerCase().trim();
-  if (key) {
-    const ov = { ...(state.subcategoryOverrides || {}), [key]: newSubcat };
-    state.subcategoryOverrides = ov;
-    fsSaveSubcategoryOverrides(ov).catch(() => {});
+  const changes = [];
+  // Persist the original Gmail invoice as well as its linked bank copy.
+  const sourceId = tx.source === 'gmail_import' ? tx.id : tx.bon.invoiceId;
+  const targets = state.transactions.filter(t => t.id === txId || (sourceId &&
+    (t.id === sourceId || t.bon?.invoiceId === sourceId)));
+  for (const target of targets) {
+    if (!target.bon?.items) continue;
+    const items = target.bon.items.map((it, idx) =>
+      (target.id === txId ? idx === itemIdx : itemNameKey(it.name) === itemNameKey(item.name))
+        ? { ...it, subcategory: newSubcat, subcategorySource: 'manual', subcategoryNeedsReview: false } : it);
+    changes.push({ collection: 'transactions', id: target.id,
+      before: structuredClone(target.bon), after: { ...target.bon, items } });
   }
+  try {
+    const overrides = await commitBonCategoryChanges(changes, { name: item.name, category: newSubcat });
+    for (const change of changes) state.transactions.find(t => t.id === change.id).bon = change.after;
+    state.subcategoryOverrides = overrides;
+    saveState();
+    renderDashboard();
+    showToast('Subkategorie geändert & gemerkt');
+  } catch (error) {
+    showToast('Nicht gespeichert: ' + error.message);
+    window.openTxModal(txId);
+  } finally { _categorySaveBusy = false; }
+};
 
-  renderDashboard();
-  showToast('Subkategorie geändert & gemerkt');
+// Preview covers all imported months, including pending receipts and linked copies.
+let _categoryRepairPlan = null;
+window.previewCategoryRepair = function() {
+  if (_categorySaveBusy) { showToast('Speicherung läuft …'); return; }
+  _categoryRepairPlan = planCategoryRepair(state.transactions, state.pendingBons || [], state.subcategoryOverrides);
+  const { rows, changes } = _categoryRepairPlan;
+  document.getElementById('category-repair-summary').textContent = rows.length
+    ? `${rows.length} Zuordnungen in ${changes.length} gespeicherten Belegen. Alle Monate. Rechnung und zugehörige Buchung werden gemeinsam aktualisiert.`
+    : 'Keine eindeutigen neuen Zuordnungen gefunden. Unklare Artikel bleiben zur manuellen Prüfung erhalten.';
+  document.getElementById('category-repair-list').innerHTML = rows.map(row => `
+    <div style="padding:10px 0;border-bottom:1px solid var(--outline-soft);">
+      <div style="font-size:0.84rem;font-weight:700;">${escHtml(row.name || 'Artikel')}</div>
+      <div style="font-size:0.72rem;color:var(--text-muted);">${escHtml(row.merchant)} · ${escHtml(row.date)}</div>
+      <div style="font-size:0.76rem;margin-top:4px;">${escHtml(row.from)} → <strong>${escHtml(row.to)}</strong></div>
+    </div>`).join('');
+  const button = document.getElementById('category-repair-save');
+  button.hidden = !changes.length;
+  button.disabled = changes.length > 300;
+  if (changes.length > 300) document.getElementById('category-repair-summary').textContent += ' Zu viele Belege für eine gemeinsame Speicherung (max. 300).';
+  window.closeClearModal();
+  document.getElementById('category-repair-modal').classList.add('open');
+};
+window.closeCategoryRepair = function() {
+  if (_categorySaveBusy) return;
+  _categoryRepairPlan = null;
+  document.getElementById('category-repair-modal').classList.remove('open');
+};
+window.saveCategoryRepair = async function() {
+  if (_categorySaveBusy || !_categoryRepairPlan?.changes.length) return;
+  _categorySaveBusy = true;
+  const button = document.getElementById('category-repair-save');
+  button.disabled = true;
+  try {
+    const { changes, rows } = _categoryRepairPlan;
+    // Also catch local edits made since opening the preview.
+    for (const change of changes) {
+      const entry = (change.collection === 'transactions' ? state.transactions : state.pendingBons).find(t => t.id === change.id);
+      const current = change.collection === 'transactions' ? entry?.bon : entry;
+      if (bonSnapshot(current) !== bonSnapshot(change.before)) throw new Error('Vorschau ist nicht mehr aktuell. Bitte erneut öffnen.');
+    }
+    await commitBonCategoryChanges(changes);
+    for (const change of changes) {
+      if (change.collection === 'transactions') state.transactions.find(t => t.id === change.id).bon = change.after;
+      else Object.assign(state.pendingBons.find(b => b.id === change.id), change.after);
+    }
+    saveState();
+    renderDashboard();
+    showToast(`${rows.length} Zuordnungen gespeichert`);
+    _categorySaveBusy = false;
+    window.closeCategoryRepair();
+  } catch (error) { showToast('Nicht gespeichert: ' + error.message); }
+  finally { _categorySaveBusy = false; button.disabled = false; }
 };
 
 // ── Clear / Settings Modal ──
@@ -1558,11 +1627,7 @@ window.handleBonUpload = async function(input) {
 };
 
 function applySubcatOverrides(items) {
-  const ov = state.subcategoryOverrides || {};
-  return items.map(item => {
-    const key = (item.name || '').toLowerCase().trim();
-    return ov[key] ? { ...item, subcategory: ov[key] } : item;
-  });
+  return items.map(item => resolveItemCategory(item, state.subcategoryOverrides || {}, true));
 }
 
 function renderConciergeResult(bon) {
@@ -1611,8 +1676,9 @@ function renderConciergeResult(bon) {
     </div>
     ${(bon.items||[]).map((item, idx) => {
       const sc   = item.subcategory || item.subkategorie || 'Sonstiges';
-      const opts = Object.keys(SUBCAT_ICONS).map(s =>
-        `<option value="${escHtml(s)}"${s === sc ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
+      const opts = (Object.hasOwn(SUBCAT_ICONS, normalizeSubcategory(sc)) ? ''
+          : `<option value="${escHtml(sc)}" selected>⚠️ Prüfen: ${escHtml(sc)}</option>`) + Object.keys(SUBCAT_ICONS).map(s =>
+        `<option value="${escHtml(s)}"${s === normalizeSubcategory(sc) ? ' selected' : ''}>${SUBCAT_ICONS[s]} ${escHtml(s)}</option>`
       ).join('');
       const priceVal = (Number(item.price ?? item.gesamt) || 0).toFixed(2).replace('.', ',');
       return `
@@ -1709,21 +1775,23 @@ let _currentBon = null;
 
 // Subkategorie eines Postens direkt im Scan-Ergebnis ändern (vor dem
 // Verknüpfen). Merkt die Wahl als Override für künftige Bons mit gleichem Item.
-window.updateCurrentBonItemSubcat = function(idx, newSubcat) {
-  if (!_currentBon?.items?.[idx]) return;
-  const item = _currentBon.items[idx];
-  item.subcategory = newSubcat;
-  if ('subkategorie' in item) item.subkategorie = newSubcat;
-
-  const key = (item.name || '').toLowerCase().trim();
-  if (key) {
-    const ov = { ...(state.subcategoryOverrides || {}), [key]: newSubcat };
-    state.subcategoryOverrides = ov;
-    fsSaveSubcategoryOverrides(ov).catch(() => {});
-  }
-
-  renderConciergeResult(_currentBon);
-  showToast('Subkategorie geändert & gemerkt');
+window.updateCurrentBonItemSubcat = async function(idx, newSubcat) {
+  if (!_currentBon?.items?.[idx] || !Object.hasOwn(SUBCAT_ICONS, newSubcat)) return;
+  if (_categorySaveBusy) { renderConciergeResult(_currentBon); showToast('Speicherung läuft …'); return; }
+  _categorySaveBusy = true;
+  const bon = _currentBon;
+  const item = bon.items[idx];
+  try {
+    const overrides = await commitBonCategoryChanges([], { name: item.name, category: newSubcat });
+    state.subcategoryOverrides = overrides;
+    Object.assign(item, { subcategory: newSubcat, subcategorySource: 'manual', subcategoryNeedsReview: false });
+    if ('subkategorie' in item) delete item.subkategorie;
+    if (_currentBon === bon) renderConciergeResult(bon);
+    showToast('Subkategorie geändert & gemerkt');
+  } catch (error) {
+    showToast('Nicht gespeichert: ' + error.message);
+    if (_currentBon === bon) renderConciergeResult(bon);
+  } finally { _categorySaveBusy = false; }
 };
 
 // Positionen des gescannten Bons manuell korrigieren, wenn die KI falsch
@@ -2219,10 +2287,8 @@ async function _bootWithFirebase() {
       state.currentMonth      = getCurrentMonth();
       setInMemoryKeys(data.apiKeys);
 
-      // Einmalige Subkat-Drift-Migration: alte Aliase auf kanonische Namen
-      // mappen und in Firestore persistieren. Läuft jeden Login still im
-      // Hintergrund — no-op sobald die Daten clean sind.
-      _migrateSubcatAliases().catch(e => console.warn('Subcat migration:', e));
+      // Existing labels are normalized for display. Persist category repairs
+      // only after the user has reviewed the category preview.
 
     } catch(e) {
       console.warn('Firestore load error:', e);
@@ -2252,31 +2318,6 @@ window.firebaseLogout = async function() {
   setInMemoryKeys({ anthropic: '', openai: '' });
   document.getElementById('login-screen')?.classList.add('visible');
 };
-
-async function _migrateSubcatAliases() {
-  const aliasKeys = Object.keys(SUBCAT_ALIASES);
-  const dirty = [];
-  state.transactions.forEach(tx => {
-    if (!tx.bon?.items?.length) return;
-    let changed = false;
-    const items = tx.bon.items.map(item => {
-      const raw = item.subcategory || item.subkategorie;
-      if (!raw || !aliasKeys.includes(String(raw).trim())) return item;
-      changed = true;
-      const normalized = normalizeSubcategory(raw);
-      const next = { ...item, subcategory: normalized };
-      delete next.subkategorie;
-      return next;
-    });
-    if (changed) {
-      tx.bon = { ...tx.bon, items };
-      dirty.push(tx);
-    }
-  });
-  if (!dirty.length) return;
-  console.log(`[subcat-migration] ${dirty.length} Tx mit Subkat-Aliasen normalisiert`);
-  await Promise.all(dirty.map(tx => updateTx(tx.id, { bon: tx.bon })));
-}
 
 function _autoLinkGmailBons() {
   const gmailWithBon = state.transactions.filter(t => t.source === 'gmail_import' && t.bon);
@@ -2308,10 +2349,17 @@ function _autoLinkGmailBons() {
     };
     const result = findMatch(bonObj, bankTxs, { excludeIds: usedTxIds });
     if (result?.transaction) {
-      result.transaction.bon = gmail.bon;
+      const bon = linkedBon(gmail, state.subcategoryOverrides);
+      result.transaction.bon = bon;
       usedTxIds.add(result.transaction.id);
       newlyLinked.add(result.transaction.id);
-      updateTx(result.transaction.id, { bon: gmail.bon }).catch(() => {});
+      const previous = previouslyLinked.get(result.transaction.id);
+      if (bonSnapshot(previous) !== bonSnapshot(bon)) {
+        updateTx(result.transaction.id, { bon }).catch(error => {
+          console.warn('Bon-Verknüpfung nicht gespeichert:', error);
+          showToast('Bon-Verknüpfung konnte nicht gespeichert werden. Bitte neu laden.');
+        });
+      }
     }
   });
 

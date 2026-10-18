@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta name="application-version" content="1.11.1">
+<meta name="application-version" content="1.12.0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light">
@@ -1403,10 +1403,26 @@ html, body {
     <div style="font-family:var(--serif);font-size:1.2rem;font-weight:700;margin-bottom:8px;">Einstellungen</div>
     <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:24px;">Daten verwalten und App zurücksetzen.</p>
     <div style="display:flex;flex-direction:column;gap:10px;">
+      <button class="btn-ghost" onclick="previewCategoryRepair()">🏷️ Bon-Kategorien prüfen</button>
       <button class="btn-ghost" onclick="exportCSV()">📊 Buchungen als CSV exportieren</button>
       <a class="btn-ghost" href="https://github.com/ieeks/finance-dashboard/actions/workflows/delete_firestore_prefixes.yml" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:block;">🧹 PDF-/Bild-Buchungen aufräumen (Actions)</a>
       <button onclick="clearTransactions(); closeClearModal();" style="width:100%;background:var(--red-bg);color:var(--red);border:none;border-radius:var(--radius-sm);padding:14px;font-family:var(--sans);font-size:0.85rem;font-weight:600;cursor:pointer;">🗑️ Alle Buchungen löschen</button>
       <button onclick="closeClearModal();" class="btn-ghost" style="margin-top:4px;">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category repair: preview first, explicit save, all months -->
+<div class="modal-overlay" id="category-repair-modal" onclick="if(event.target===this)closeCategoryRepair()">
+  <div class="modal-sheet" style="max-height:85vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div style="font-family:var(--serif);font-size:1.3rem;font-weight:700;">Bon-Kategorien prüfen</div>
+    <p id="category-repair-summary" style="font-size:0.8rem;margin:12px 0;"></p>
+    <p style="font-size:0.75rem;color:var(--text-muted);">Vorschläge für unklare Kategorien und bekannte Schreibweisen. Manuelle Zuordnungen bleiben erhalten. Beträge bleiben gleich.</p>
+    <div id="category-repair-list" style="overflow-y:auto;flex:1;min-height:0;margin-bottom:16px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <button id="category-repair-save" class="btn-primary" onclick="saveCategoryRepair()">Vorgeschlagene Zuordnungen speichern</button>
+      <button class="btn-ghost" onclick="closeCategoryRepair()">Schließen</button>
     </div>
   </div>
 </div>

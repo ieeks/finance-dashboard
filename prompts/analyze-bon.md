@@ -39,7 +39,7 @@ Hinweise zu Trinkgeld & Betrag:
 Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Milchprodukte**: Milch, Joghurt, Käse, Topfen, Schlagobers, Sauerrahm,
   Mozzarella, Parmesan, Feta, Buttermilch, Kefir
-- **Süßwaren / Naschen**: Schokolade, Kekse, Bonbons, Eis, Riegel, Donut,
+- **Süßwaren / Naschen**: Schokolade, Kekse, Bonbons, Riegel, Donut,
   Krapfen, Götterspeise, Pudding, Sahnepudding, Mousse, Kaugummi, Gummi-
   bärchen, Müsliriegel, Schokoriegel, Bounty, Snickers, Manner, Milka
 - **Backwaren**: Brot, Semmel, Gebäck, Croissant, Striezel, Brioche,
@@ -62,7 +62,7 @@ Erlaubte subcategory-Werte (mit typischen Beispielen):
   Pasta-Gericht, Schnitzel, Curry, Bowl, Suppe, Vorspeise, Dessert,
   Tagesmenü. Faustregel: Wenn der Beleg ein Restaurant/Café/Imbiss ist und
   die Position ein fertig zubereitetes Gericht/Getränk zum Verzehr ist →
-  hierher, NICHT "Sonstiges". Getränke im Lokal dürfen auch "Getränke".
+  hierher, NICHT "Sonstiges". Getränke im Lokal IMMER "Getränke"; Speisen IMMER "Restaurant".
 - **Öl**: Olivenöl, Sonnenblumenöl, Rapsöl, Kürbiskernöl, Sesamöl
 - **Aufstriche & Butter**: Butter, Margarine, Marmelade, Konfitüre, Honig,
   Nutella, Liptauer, Frischkäse, Erdnussbutter, Topfenaufstrich
@@ -88,8 +88,33 @@ Erlaubte subcategory-Werte (mit typischen Beispielen):
 - **Elektronik**: Batterien, Akkus, Glühbirnen, LED-Lampen, Ladekabel,
   USB-Stick, Verlängerungskabel, Steckdosen, Kopfhörer
 - **Dienstleistung**: Reinigung, Reparatur, Service, Wartung, Lieferung
+- **Spielzeug & Freizeitartikel**: Wasserpistolen (auch elektrisch/USB),
+  Water Blaster, aufblasbare Spieltiere, Kinderpools, LEGO, Gesellschaftsspiele
+- **Haushalt & Garten**: Aufbewahrungsboxen, Kühlschrankboxen, Kissenboxen,
+  Outdoor-Matten, Geschirr, Küchenutensilien, Backpapier, Alufolie
+- **Knabberartikel, Nüsse & Kerne**: Soletti, Salzstangen, Chips, Lay's,
+  Sonnenblumenkerne, Nüsse, Maiswaffeln, Reiswaffeln (ohne Süßwarenüberzug)
+- **Eier**: Hühnereier, Eier M 10er, Freilandeier (nicht Ei-haltige Fertigprodukte)
+- **Frühstück & Backzutaten**: Müsli, Haferflocken, Frühstückscerealien,
+  Kellogg's Krispies Chocos, Mehl, Zucker, Hefe, Backpulver
+- **Blumen & Pflanzen**: Schnittblumen, Pfingstrosen, Topfpflanzen
+- **Sportnahrung & Nahrungsergänzung**: Proteinpulver, Whey, ESN Isoclear,
+  Nahrungsergänzungsmittel. Normale Desserts mit Protein-Zusatz bleiben
+  "Süßwaren / Naschen", z.B. Protein-Mousse oder Protein-Pudding.
 - **Sonstiges**: NUR als letzte Option, wenn wirklich nichts anderes passt.
   Versuche IMMER zuerst eine konkrete Subkategorie zu finden.
+
+Eindeutige Zuordnung:
+- Verwende die erlaubten Kategorienamen exakt, einschließlich Großschreibung.
+- Kategorie je Produkt wählen, nicht pauschal nach Händler. Ein Bipa-Bon kann
+  Putzmittel, Hygiene und Sportnahrung enthalten; ein Supermarkt-Bon Spielzeug.
+- Speiseeis (Cornetto, Magnum, Milka Choc Topped Cone) IMMER "Tiefkühl".
+- Gouda/Burrata → "Milchprodukte"; Philadelphia/Guacamole/Argeta-Aufstrich/
+  Rama → "Aufstriche & Butter"; Maggi Fix/Dressing → "Gewürze & Saucen".
+- Persil Waschmittel/Dr. Beckmann Frischeduft → "Putzmittel";
+  AXE Dusche → "Hygiene & Drogerie"; Barilla Mini Rigate → "Nudeln & Reis".
+- Abkürzungen nur bei ausreichend sicherer Produktidentifikation auflösen.
+  Unklare Angaben wie "VICI STI.FLO" nicht allein anhand der Marke erraten.
 
 Hinweise zum Datum:
 - **Datumsformat ist TT.MM.JJJJ** (Tag zuerst, europäisch/österreichisch).

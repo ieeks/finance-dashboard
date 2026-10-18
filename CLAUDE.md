@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.11.1`
+Aktuelle Version: `v1.12.0`
 
 ## Commit-Konventionen
 
@@ -237,3 +237,16 @@ html, body {
 ```
 
 Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
+
+
+## Bon-Kategorien ab v1.12.0
+- Subkategorien/Regeln in `js/categories.js`, `gmail_finance_importer.py` und
+  `prompts/analyze-bon.md` synchron halten. Paritätstest: `tests/categoryParity.test.mjs`.
+- `js/bonCategories.js`: Normalisierung, Lernregeln, Vorschau der Bestandsbereinigung.
+- `subcategorySource: manual` hat Vorrang. `subcategoryRaw` erhält den KI-Wert;
+  unbekannte Labels werden nicht mehr unwiderruflich zu Sonstiges.
+- Manuelle Kategorieänderung an Gmail-Bons: Rechnung und Bankkopie gemeinsam
+  mit Lernregel speichern. `commitBonCategoryChanges` prüft veraltete Daten
+  in einer Firestore-Transaktion; keine Erfolgsmeldung vor erfolgreichem Commit.
+- Einstellungen → Bon-Kategorien prüfen: Vorschau über alle Monate, anschließend
+  explizit speichern. Keine KI-Abfrage und kein erneuter Belegimport nötig.
