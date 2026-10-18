@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.12.1`
+Aktuelle Version: `v1.12.2`
 
 ## Commit-Konventionen
 
@@ -250,3 +250,5 @@ Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
   in einer Firestore-Transaktion; keine Erfolgsmeldung vor erfolgreichem Commit.
 - Einstellungen → Bon-Kategorien prüfen: Vorschau über alle Monate, anschließend
   explizit speichern. Keine KI-Abfrage und kein erneuter Belegimport nötig.
+
+- Bestandsbereinigung: Firestore-Beleglesevorgänge parallel starten; alle Lesevorgänge vor den Schreibvorgängen abschließen. Fortschritt/Fehler im Dialog anzeigen, Erfolg erst nach Commit-Bestätigung.

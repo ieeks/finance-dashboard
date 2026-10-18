@@ -1,16 +1,16 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.1';
-import { CAT_CONFIG, SUBCAT_ICONS, normalizeSubcategory } from './categories.js?v=1.12.1';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.1';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.1';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.2';
+import { CAT_CONFIG, SUBCAT_ICONS, normalizeSubcategory } from './categories.js?v=1.12.2';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.2';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.2';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.1';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.2';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.1';
-import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot, isBreakdownReceipt } from './bonCategories.js?v=1.12.1';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.1';
+         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.2';
+import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot, isBreakdownReceipt } from './bonCategories.js?v=1.12.2';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.2';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -868,6 +868,7 @@ window.updateBonItemSubcat = async function(txId, itemIdx, newSubcat) {
 let _categoryRepairPlan = null;
 window.previewCategoryRepair = function() {
   if (_categorySaveBusy) { showToast('Speicherung läuft …'); return; }
+  document.getElementById('category-repair-status').hidden = true;
   _categoryRepairPlan = planCategoryRepair(state.transactions, state.pendingBons || [], state.subcategoryOverrides);
   const { rows, changes } = _categoryRepairPlan;
   document.getElementById('category-repair-summary').textContent = rows.length
@@ -895,7 +896,19 @@ window.saveCategoryRepair = async function() {
   if (_categorySaveBusy || !_categoryRepairPlan?.changes.length) return;
   _categorySaveBusy = true;
   const button = document.getElementById('category-repair-save');
+  const closeButton = document.getElementById('category-repair-close');
+  const status = document.getElementById('category-repair-status');
   button.disabled = true;
+  button.textContent = 'Wird gespeichert …';
+  closeButton.disabled = true;
+  status.hidden = false;
+  status.style.color = '';
+  status.textContent = 'Verbindung zur Datenbank wird geprüft …';
+  let acceptingProgress = true;
+  let lastProgress = status.textContent;
+  const slowTimer = setInterval(() => {
+    status.textContent = lastProgress + ' Die Verbindung braucht länger. Bitte dieses Fenster geöffnet lassen.';
+  }, 15000);
   try {
     const { changes, rows } = _categoryRepairPlan;
     // Also catch local edits made since opening the preview.
@@ -904,7 +917,13 @@ window.saveCategoryRepair = async function() {
       const current = change.collection === 'transactions' ? entry?.bon : entry;
       if (bonSnapshot(current) !== bonSnapshot(change.before)) throw new Error('Vorschau ist nicht mehr aktuell. Bitte erneut öffnen.');
     }
-    await commitBonCategoryChanges(changes);
+    await commitBonCategoryChanges(changes, null, progress => {
+      if (!acceptingProgress) return;
+      lastProgress = progress.phase === 'checking'
+        ? `${progress.completed} von ${progress.total} Belegen geprüft …`
+        : 'Zuordnungen werden gespeichert. Warte auf Bestätigung …';
+      status.textContent = lastProgress;
+    });
     for (const change of changes) {
       if (change.collection === 'transactions') state.transactions.find(t => t.id === change.id).bon = change.after;
       else Object.assign(state.pendingBons.find(b => b.id === change.id), change.after);
@@ -914,8 +933,18 @@ window.saveCategoryRepair = async function() {
     showToast(`${rows.length} Zuordnungen gespeichert`);
     _categorySaveBusy = false;
     window.closeCategoryRepair();
-  } catch (error) { showToast('Nicht gespeichert: ' + error.message); }
-  finally { _categorySaveBusy = false; button.disabled = false; }
+  } catch (error) {
+    status.style.color = 'var(--error, #b3261e)';
+    status.textContent = 'Nicht gespeichert: ' + error.message;
+    showToast('Zuordnungen konnten nicht gespeichert werden. Details stehen im Fenster.');
+  } finally {
+    acceptingProgress = false;
+    clearInterval(slowTimer);
+    _categorySaveBusy = false;
+    button.disabled = false;
+    button.textContent = 'Vorgeschlagene Zuordnungen speichern';
+    closeButton.disabled = false;
+  }
 };
 
 // ── Clear / Settings Modal ──

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## v1.12.2 — 2026-10-18
+
+- Bon-Kategorien speichern: Belege parallel statt seriell in Firestore prüfen; reduziert Wartezeit bei vielen Belegen und hoher Netzlatenz. Kategorien werden weiterhin gemeinsam nach vollständiger Prüfung gespeichert.
+- Fortschritt und Speicherfehler direkt im Dialog anzeigen. Während der Speicherung eindeutige Button-Beschriftung und Sperre gegen Doppelklicks; nach Fehler ist erneutes Speichern/Schließen möglich.
+- Offene Bons mit erst beim Laden ergänzter Dokument-ID verursachen keinen falschen Änderungskonflikt mehr.
+
 ## v1.12.1 — 2026-10-18
 
 - Bon-Kategorien-Prüfung verwendet denselben Belegumfang wie die Aufschlüsselung. Tesla-Laderechnungen und andere ausgeschlossene Rechnungen erhalten keine irreführenden Waren-Unterkategorien mehr. Die Hauptkategorie für Ladestrom bleibt Mobilität / Auto.

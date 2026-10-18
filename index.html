@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta name="application-version" content="1.12.1">
+<meta name="application-version" content="1.12.2">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="color-scheme" content="light">
@@ -1421,8 +1421,9 @@ html, body {
     <p style="font-size:0.75rem;color:var(--text-muted);">Vorschläge für unklare Kategorien und bekannte Schreibweisen. Manuelle Zuordnungen bleiben erhalten. Beträge bleiben gleich.</p>
     <div id="category-repair-list" style="overflow-y:auto;flex:1;min-height:0;margin-bottom:16px;"></div>
     <div style="display:flex;flex-direction:column;gap:8px;flex-shrink:0;">
+      <p id="category-repair-status" role="status" aria-live="polite" hidden style="font-size:0.8rem;line-height:1.5;margin:0 0 4px;overflow-wrap:anywhere;"></p>
       <button id="category-repair-save" class="btn-primary" onclick="saveCategoryRepair()">Vorgeschlagene Zuordnungen speichern</button>
-      <button class="btn-ghost" onclick="closeCategoryRepair()">Schließen</button>
+      <button id="category-repair-close" class="btn-ghost" onclick="closeCategoryRepair()">Schließen</button>
     </div>
   </div>
 </div>
