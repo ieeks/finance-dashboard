@@ -89,3 +89,5 @@ Wenn Textergebnis oder Lesbarkeit nicht ausreichen, wird das vollständige PDF v
 Weiterhin unplausible Ergebnisse und Nicht-EUR-Rechnungen werden nicht automatisch als Ausgaben gespeichert. Der Grund erscheint im GitHub-Actions-Importprotokoll als Hinweis zur manuellen Prüfung. Bereits importierte Rechnungen bleiben durch die vorhandene Duplikaterkennung erhalten; die neue Prüfung verarbeitet sie nicht automatisch erneut. Der Browser-Upload nutzt weiterhin seinen bisherigen Ablauf.
 
 Für den E-Mail-Import ist Haiku 5.5 auch bei Bildbelegen der primäre Anbieter; OpenAI bleibt Ausweichweg. Haiku nutzt adaptives Denken mit niedrigem Aufwand und 20.000 Tokens Budget für Denken und Antwort. Nur Textblöcke werden als Ergebnis ausgewertet; abgelehnte/abgeschnittene Antworten führen zum Fallback. Die Haiku-/Sonnet-Aufrufe im Browser sind von dieser E-Mail-Migration nicht betroffen.
+
+Beim Gmail-Sync werden auch bereits gespeicherte E-Mail-Belege mit leerem/unbekanntem Konto anhand des bestätigten Kartenmappings nachgetragen. Das läuft über alle gespeicherten Monate ohne KI-Aufruf. Vorhandene Kontozuordnungen und Bankbuchungen werden nicht überschrieben.

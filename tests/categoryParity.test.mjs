@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { CARD_CONFIG } from '../js/state.js';
 import { ALL_SUBCATEGORIES, SUBCAT_ALIASES, SUBCAT_ITEM_RULES, normalizeSubcategory, SUBCAT_ICONS } from '../js/categories.js';
 import { resolveItemCategory, itemNameKey, learnedCategory, withLearnedCategory, linkedBon, planCategoryRepair, bonSnapshot } from '../js/bonCategories.js';
 
@@ -298,4 +299,10 @@ test('Save UI keeps failure visible and unlocks retry and close without local ch
   assert.equal(isClosed(),false);
   assert.equal(ctx.state.transactions[0].bon.items[0].subcategory,'Sonstiges');
   assert.ok(!logs.some(s=>s.endsWith('Zuordnungen gespeichert')));
+});
+
+
+test('Card account assignments match between browser configuration and importer', () => {
+  const py=execFileSync('python',['-c',"import json; from tests.test_python_importer import H; print(json.dumps(H['CARD_ACCOUNT_MAP']))"],{encoding:'utf8'});
+  assert.deepEqual(JSON.parse(py),Object.fromEntries(Object.entries(CARD_CONFIG).map(([card,config])=>[card,config.accountId])));
 });

@@ -7,7 +7,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider,
          onAuthStateChanged, signOut }                      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { firebaseConfig, ALLOWED_EMAILS }                   from '../firebase-config.js';
 
-import { bonSnapshot, withLearnedCategory } from './bonCategories.js?v=1.13.0';
+import { bonSnapshot, withLearnedCategory } from './bonCategories.js?v=1.13.1';
 
 const app  = initializeApp(firebaseConfig);
 const db   = getFirestore(app);

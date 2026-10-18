@@ -11,6 +11,9 @@ export const CARD_CONFIG = {
   '0678': { accountId: 'haushalt',      owner: 'Olga',               },
   '6351': { accountId: 'privat_olga',   owner: 'Olga',               },
   '4575': { accountId: 'privat_manuel', owner: 'Manuel (iPhone)',     },
+  '9880': { accountId: 'haushalt',      owner: 'Manuel',             },
+  '9466': { accountId: 'privat_manuel', owner: 'Manuel',             },
+  '4343': { accountId: 'privat_olga_erste', owner: 'Olga',            },
 };
 
 const DEFAULT_ACCOUNTS = [

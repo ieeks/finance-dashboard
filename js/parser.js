@@ -1,9 +1,9 @@
 // parser.js — BAWAG/easybank PDF-Extraktion, lokaler Parser, KI-Kategorisierung
 
-import { loadKeys } from './ui.js?v=1.13.0';
-import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js?v=1.13.0';
-import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js?v=1.13.0';
-import { LANDLORD } from './personalConfig.js?v=1.13.0';
+import { loadKeys } from './ui.js?v=1.13.1';
+import { SUBSCRIPTION_RULES, RECURRING_RULES } from './categories.js?v=1.13.1';
+import { OWNERS, matchOwner, OWNER_HEADER_RE } from './owners.js?v=1.13.1';
+import { LANDLORD } from './personalConfig.js?v=1.13.1';
 
 // Debug-Logs via window.DEBUG_PARSER = true aktivieren.
 const _DBG = typeof window !== 'undefined' && window.DEBUG_PARSER === true;
@@ -484,7 +484,7 @@ function _extractDesc(rawDesc, contLines, amount) {
 
 // ── Generic Statement Parser ──
 // Zeilenweise + anchored — verhindert dass Header/Footer-Zeilen mit Datumsangabe
-// als Transaktion gelesen werden (z.B. "Saldo per 31.13.0025: 1.234,56").
+// als Transaktion gelesen werden (z.B. "Saldo per 31.13.1025: 1.234,56").
 function parseGenericStatement(text) {
   const transactions = [];
   const linePattern  = /^(\d{2}\.\d{2}\.\d{4})\s+(.+?)\s+([-+]?\d{1,3}(?:\.\d{3})*,\d{2})\s*(?:EUR)?\s*$/;

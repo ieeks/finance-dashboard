@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.13.0`
+Aktuelle Version: `v1.13.1`
 
 ## Commit-Konventionen
 
@@ -262,3 +262,5 @@ Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
 - Unvollständige API-Antworten, weiterhin unplausible oder nicht in EUR ausgewiesene Daten nicht speichern. Grund im Importprotokoll ausgeben; keine erfundenen Ausgleichspositionen.
 - Natives PDF maximal 20 MiB (Base64 + Prompt müssen in die Anfrage passen); keine stillen Teilimporte. OpenAI-Ausgabe-Budget 12.000 Tokens; Haiku 5.5 20.000 Tokens inklusive adaptivem Denken mit niedrigem Aufwand.
 - Browser-Upload wird davon nicht geändert. E-Mail-Importer: Haiku 5.5 primär für Text/PDF/Bilder; OpenAI-Fallback. Browser-Modelle separat behandeln.
+
+- Kartenmapping in `state.js CARD_CONFIG` und Python `CARD_ACCOUNT_MAP` synchron halten. `repair_unknown_card_accounts` trägt ausschließlich offene Gmail-Konten nach und prüft den aktuellen Stand transaktional.

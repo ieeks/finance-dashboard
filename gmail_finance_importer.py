@@ -58,6 +58,9 @@ CARD_ACCOUNT_MAP: dict[str, str] = {
     "0678": "haushalt",       # Olga Debit Mastercard (Easybank Haushalt)
     "6351": "privat_olga",    # Olga Privatkonto (Easybank)
     "4575": "privat_manuel",  # Manuel iPhone (Erste Bank Privat)
+    "9880": "haushalt",       # Manuel bestätigt; vermutlich Apple Watch
+    "9466": "privat_manuel",  # Manuel Privatkonto
+    "4343": "privat_olga_erste",  # Olga bestätigt: Erste Bank Privat
 }
 
 # Firestore-Pfad: household/main/transactions/{id}  ← gleich wie Browser-Parser
@@ -1397,6 +1400,52 @@ def ensure_imap(mail: imaplib.IMAP4_SSL) -> imaplib.IMAP4_SSL:
         return imap_connect()
 
 
+def _unknown_card_account_patch(data: dict) -> dict | None:
+    """Only fill unresolved Gmail accounts from an explicitly mapped card."""
+    if data.get("source") != "gmail_import" or data.get("account") not in (None, "", "unbekannt"):
+        return None
+    card = str(data.get("card_last4") or "").strip()
+    account = CARD_ACCOUNT_MAP.get(card)
+    return {"account": account} if account else None
+
+
+def repair_unknown_card_accounts() -> int:
+    """Backfill account only, without AI calls, reimport or altering known accounts."""
+    db = get_firestore_db()
+    col = _tx_collection()
+    if db is None or col is None:
+        return 0
+    from firebase_admin import firestore as fs
+    from google.cloud.firestore_v1.base_query import FieldFilter
+
+    @fs.transactional
+    def repair(transaction, reference):
+        current = reference.get(transaction=transaction)
+        patch = _unknown_card_account_patch(current.to_dict() or {}) if current.exists else None
+        if patch is None:
+            return False
+        transaction.update(reference, patch)
+        return True
+
+    try:
+        # Materialize before writes so the query stream cannot expire during repair.
+        candidates = list(col.where(filter=FieldFilter("source", "==", "gmail_import")).stream())
+    except Exception as exc:
+        print(f"  Konto-Nachtrag nicht möglich: {exc}")
+        return 0
+    updated = 0
+    for candidate in candidates:
+        if _unknown_card_account_patch(candidate.to_dict() or {}) is None:
+            continue
+        try:
+            if repair(db.transaction(), candidate.reference):
+                updated += 1
+        except Exception as exc:
+            print(f"  Konto-Nachtrag {candidate.id} fehlgeschlagen: {exc}")
+    print(f"Kontozuordnung: {updated} bisher unbekannte E-Mail-Belege nachgetragen (ohne KI).")
+    return updated
+
+
 def main() -> None:
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] gmail_finance_importer.py gestartet")
 
@@ -1422,6 +1471,9 @@ def main() -> None:
         except Exception:
             pass
         sys.exit(1)
+
+    # Include already imported receipts; the duplicate guard below skips their PDFs.
+    repair_unknown_card_accounts()
 
     # Mails der letzten 30 Tage suchen (SEIT-Filter statt UNSEEN)
     # Damit teilen sich beide Skripte (gmail-pdf-sync + dieses) dasselbe
