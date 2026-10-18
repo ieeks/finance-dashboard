@@ -22,6 +22,7 @@ import email.utils
 import hashlib
 import imaplib
 import json
+import unicodedata
 import os
 import re
 import sys
@@ -85,6 +86,14 @@ SUBCATEGORIES = [
     "Nudeln & Reis", "Restaurant", "Öl", "Aufstriche & Butter",
     "Gewürze & Saucen", "Konserven", "Tiefkühl", "Hygiene & Drogerie",
     "Putzmittel", "Pfand", "Elektronik", "Dienstleistung", "Sonstiges",
+    "Spielzeug & Freizeitartikel",
+    "Haushalt & Garten",
+    "Knabberartikel, Nüsse & Kerne",
+    "Eier",
+    "Frühstück & Backzutaten",
+    "Blumen & Pflanzen",
+    "Sportnahrung & Nahrungsergänzung",
+
 ]
 
 # Persönliche Konfiguration — sync mit js/personalConfig.js.
@@ -818,18 +827,87 @@ _SUBCAT_ALIASES = {
     "Süßwaren":         "Süßwaren / Naschen",
     "Fisch":            "Fisch / Meeresfrüchte",
     "Restaurant / Gericht": "Restaurant",
+    "Milchprodukte / Käse": "Milchprodukte",
+    "Käse": "Milchprodukte",
+    "Waschmittel": "Putzmittel",
+    "Reinigungsmittel": "Putzmittel",
+    "Tiefkühlprodukte": "Tiefkühl",
+    "Tiefkühlkost": "Tiefkühl",
+    "Süßigkeiten": "Süßwaren / Naschen",
+    "Körperpflege": "Hygiene & Drogerie",
+    "Spielzeug": "Spielzeug & Freizeitartikel",
+    "Haushalt": "Haushalt & Garten",
+    "Salzige Snacks & Nüsse": "Knabberartikel, Nüsse & Kerne",
+    "Frühstück & Cerealien": "Frühstück & Backzutaten",
+    "Backzutaten": "Frühstück & Backzutaten",
+    "Blumen": "Blumen & Pflanzen",
+    "Sportnahrung": "Sportnahrung & Nahrungsergänzung",
+
 }
 
 
+# Keep these rules in sync with SUBCAT_ITEM_RULES in js/categories.js.
+_SUBCAT_ITEM_RULES = [['(^| )(wasserpistole|water blaster|.*x-shot water blaster)( |$)', 'Spielzeug & Freizeitartikel'],
+ ['(^| )(intex aufblasbares krokodil|pool lizenz 3-ringe)( |$)', 'Spielzeug & Freizeitartikel'],
+ ['(kissenbox|aufbewahrbox|aufbewahrungsbox|kühlschrankbox|outdoor-matte)', 'Haushalt & Garten'],
+ ['(^| )(soletti|lays|lay.s chips|sonnenblumenkerne|maiswaffel)( |$)',
+  'Knabberartikel, Nüsse & Kerne'],
+ ['(^| )(eier)( |$)', 'Eier'],
+ ['(krispies chocos|feinkristallzucker|haferflocken|backpulver)', 'Frühstück & Backzutaten'],
+ ['(^| )(pfingstrosen|schnittblumen)( |$)', 'Blumen & Pflanzen'],
+ ['(^| )(esn isoclear|whey protein|proteinpulver)( |$)', 'Sportnahrung & Nahrungsergänzung'],
+ ['(^| )(gouda|burrata|burra)( |$)', 'Milchprodukte'],
+ ['(guacamole|argeta thunfisch|rama mit butter|phil\\. natur|everything bagel dip|everthing bagel '
+  'dip)',
+  'Aufstriche & Butter'],
+ ['(^| )(cornetto|eskimo cornetto|magnum mini|magnum mandel|magnum sandwich|iglo rösti|milka choc '
+  'topped cone)( |$)',
+  'Tiefkühl'],
+ ['(bahlsen leibniz|bahl\\.pick up|kinder choco fresh|götterspeise|goetterspeise|kidsworld '
+  'dessert|protein mousse|gefüllte frischeiwaffeln)',
+  'Süßwaren / Naschen'],
+ ['(persil waschmittel|dr\\. beckmann frischeduft)', 'Putzmittel'],
+ ['(^| )(axe dusche)( |$)', 'Hygiene & Drogerie'],
+ ['(maggi fix|dress\\. prem)', 'Gewürze & Saucen'],
+ ['(^| )(barilla mini rigate)( |$)', 'Nudeln & Reis'],
+ ['(genusswelt shi?itake|dkih erdbeeren)', 'Obst & Gemüse'],
+ ['(^| )(riesenbohnen in tomatensauce)( |$)', 'Konserven'],
+ ['(ölz italian sandwich|laugencroissant mit schin)', 'Backwaren']]
+
+
+def _category_key(value):
+    v = unicodedata.normalize("NFKC", str(value or "")).lower().strip()
+    return re.sub(r"\s+", " ", re.sub(r"\s*([/&])\s*", r"\1", v))
+
+
 def _normalize_subcategory(value: str) -> str:
-    """Mappt Aliase auf kanonische Subkategorie. Fällt zurück auf 'Sonstiges'
-    wenn der Wert weder kanonisch noch ein bekannter Alias ist."""
-    v = (value or "").strip()
-    if v in SUBCATEGORIES:
-        return v
-    if v in _SUBCAT_ALIASES:
-        return _SUBCAT_ALIASES[v]
-    return "Sonstiges"
+    """Normalize known labels; never discard an unknown AI label."""
+    v = str(value or "").strip()
+    key = _category_key(v)
+    for category in SUBCATEGORIES:
+        if _category_key(category) == key:
+            return category
+    for alias, category in _SUBCAT_ALIASES.items():
+        if _category_key(alias) == key:
+            return category
+    return v or "Sonstiges"
+
+
+def _item_category_fields(item):
+    raw = item.get("subcategory") or item.get("subkategorie") or "Sonstiges"
+    category = _normalize_subcategory(raw)
+    source = "ai"
+    if category == "Sonstiges" or category not in SUBCATEGORIES:
+        name = unicodedata.normalize("NFKC", str(item.get("name") or "")).lower().strip()
+        name = re.sub(r"^[\s@*]+", "", name)
+        name = re.sub(r"\s+", " ", name)
+        for pattern, target in _SUBCAT_ITEM_RULES:
+            if re.search(pattern, name):
+                category, source = target, "rule"
+                break
+    return {"subcategory": category, "subcategoryRaw": raw,
+            "subcategorySource": source,
+            "subcategoryNeedsReview": category == "Sonstiges" or category not in SUBCATEGORIES}
 
 
 def _ai_get(ai_data: dict, *keys: str, default=None):
@@ -966,9 +1044,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
                     "name":        p.get("name", ""),
                     "menge":       p.get("menge", 1),
                     "price":       float(p.get("gesamt") or p.get("einzelpreis") or 0),
-                    "subcategory": _normalize_subcategory(
-                        p.get("subcategory") or p.get("subkategorie") or "Sonstiges"
-                    ),
+                    **_item_category_fields(p),
                 }
                 for p in items_list if p.get("name")
             ],

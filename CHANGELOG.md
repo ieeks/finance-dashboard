@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## v1.12.0 — 2026-10-18
+
+### Fixed
+- Gmail-Bon-Verknüpfung berücksichtigt gemerkte Artikelkategorien; Originalrechnung
+  und Bankkopie werden bei manuellen Korrekturen gemeinsam gespeichert.
+- Speicherfehler werden angezeigt. Kategorieänderungen und Lernregel sind atomar;
+  veraltete Vorschauen überschreiben keine zwischenzeitlichen Änderungen.
+- Kategorien werden in Python/JS tolerant normalisiert. Unbekannte KI-Werte bleiben
+  erhalten statt still als Sonstiges gespeichert zu werden; Dropdowns zeigen sie an.
+- Lernschlüssel normalisieren Unicode, führende Bonmarker und Leerzeichen.
+
+### Added
+- Sieben Bon-Unterkategorien für Spielzeug, Haushalt/Garten, Knabberartikel,
+  Eier, Frühstück/Backzutaten, Blumen/Pflanzen und Sportnahrung.
+- Konservative Artikelregeln für neue Scans/Imports; unbekannte Abkürzungen und
+  manuelle Zuordnungen werden nicht erraten/überschrieben.
+- Einstellungen → Bon-Kategorien prüfen: Vorschau und ausdrückliches Speichern
+  bestehender Zuordnungen über alle Monate, einschließlich Rechnungskopien
+  und noch nicht verknüpfter Bons. Beträge/Datum/Verknüpfungen bleiben erhalten.
+- Regressionsprüfungen für Reload, Speicherausfall, Bestandsbereinigung und
+  identische Kategorien/Regeln in Python und JavaScript.
+
 ## v1.11.1 — 2026-09-08
 
 ### Fixed

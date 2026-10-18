@@ -26,7 +26,7 @@ jobs:
         run: python -m unittest tests.test_python_importer -v
 
   js-tests:
-    name: JS (matcher, owners)
+    name: JS (matcher, owners, receipt categories)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,5 +36,10 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Set up Python for category parity tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Run tests
-        run: node tests/run.node.mjs
+        run: npm test

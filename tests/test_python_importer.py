@@ -7,6 +7,7 @@ Aufruf: python3 -m unittest tests/test_python_importer.py
 """
 
 import ast
+import unicodedata
 import re
 import unittest
 from pathlib import Path
@@ -25,6 +26,7 @@ def _load_helpers():
         "__file__": str(IMPORTER),
         "Path":     Path,
         "re":       re,
+        "unicodedata": unicodedata,
     }
     for node in tree.body:
         if isinstance(node, (ast.Assign, ast.AnnAssign, ast.FunctionDef)):
@@ -46,7 +48,7 @@ class TestConstants(unittest.TestCase):
         self.assertIn("Wohnen / Miete", H["MAIN_CATEGORIES"])
 
     def test_subcategories_count(self):
-        self.assertEqual(len(H["SUBCATEGORIES"]), 20)
+        self.assertEqual(len(H["SUBCATEGORIES"]), 27)
 
     def test_subcategories_has_pfand(self):
         self.assertIn("Pfand", H["SUBCATEGORIES"])
@@ -91,8 +93,8 @@ class TestNormalizeSubcategory(unittest.TestCase):
     def test_alias_suesswaren(self):
         self.assertEqual(self.fn("Süßwaren"), "Süßwaren / Naschen")
 
-    def test_unknown_to_sonstiges(self):
-        self.assertEqual(self.fn("Unbekannt"), "Sonstiges")
+    def test_unknown_is_preserved(self):
+        self.assertEqual(self.fn("Unbekannt"), "Unbekannt")
 
     def test_empty_to_sonstiges(self):
         self.assertEqual(self.fn(""), "Sonstiges")
