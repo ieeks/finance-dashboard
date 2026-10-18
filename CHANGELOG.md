@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## v1.13.1 — 2026-10-18
+
+- Bestätigte Kartenendungen ergänzt: 9880 → Haushalt, 9466 → Manuel privat, 4343 → Olga privat (Erste Bank).
+- Gmail-Sync trägt Konten bereits importierter Belege mit unbekanntem Konto anhand des Kartenmappings nach. Aktualisiert nur das Kontofeld, ohne erneute KI-Auswertung; vorhandene Zuordnungen und Bankbuchungen bleiben erhalten.
+
 ## v1.13.0 — 2026-10-18
 
 - E-Mail-Rechnungen: vollständiger PDF-Text statt Abschneiden nach 8.000 Zeichen. Sehr lange Dokumente und Seiten mit wenig/defektem Text werden über das Original-PDF geprüft.

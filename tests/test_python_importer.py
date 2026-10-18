@@ -818,5 +818,48 @@ class TestHaiku55Migration(unittest.TestCase):
             fallback.assert_called_once()
 
 
+class TestCardAccountBackfill(unittest.TestCase):
+    def test_only_unresolved_gmail_accounts_get_a_patch(self):
+        for card,target in [('9880','haushalt'),('9466','privat_manuel'),('4343','privat_olga_erste')]:
+            data={'source':'gmail_import','account':'unbekannt','card_last4':card,'amount':-12,'bon':{'items':[]}}
+            self.assertEqual(H['_unknown_card_account_patch'](data),{'account':target})
+            self.assertEqual(data['account'],'unbekannt')
+            for account in ['haushalt','privat_manuel','privat_olga','privat_olga_erste']:
+                self.assertIsNone(H['_unknown_card_account_patch']({**data,'account':account}))
+            self.assertIsNone(H['_unknown_card_account_patch']({**data,'source':'bank_import'}))
+        self.assertIsNone(H['_unknown_card_account_patch']({'source':'gmail_import','account':'unbekannt','card_last4':'9999'}))
+
+    def test_backfill_rechecks_current_document_and_updates_only_account(self):
+        old={'source':'gmail_import','account':'unbekannt','card_last4':'9880','amount':-15.29,'date':'2026-09-03','bon':{'items':[{'name':'Test','price':15.29}]}}
+        current=dict(old)
+        manual={**old,'account':'privat_manuel'}
+        snapshots=[]
+        writes=[]
+        def snapshot(key, initial, live, exists=True):
+            ref=SimpleNamespace(get=Mock(return_value=SimpleNamespace(exists=exists,to_dict=lambda:live)))
+            snapshots.append(SimpleNamespace(id=key,reference=ref,to_dict=lambda:initial))
+        snapshot('correct',old,current)
+        snapshot('changed-on-another-device',old,manual)
+        snapshot('bank',{**old,'source':'bank_import'},{**old,'source':'bank_import'})
+        snapshot('deleted',old,None,False)
+        col=Mock(); col.where.return_value.stream.return_value=snapshots
+        transaction=SimpleNamespace(update=lambda ref,patch:(writes.append(dict(patch)),current.update(patch)))
+        db=SimpleNamespace(transaction=lambda:transaction)
+        fs=SimpleNamespace(transactional=lambda fn:fn)
+        modules={'firebase_admin':SimpleNamespace(firestore=fs),
+                 'google.cloud.firestore_v1.base_query':SimpleNamespace(FieldFilter=lambda *a:a)}
+        with patch.dict('sys.modules',modules),patch.dict(H,{'get_firestore_db':lambda:db,'_tx_collection':lambda:col}):
+            self.assertEqual(H['repair_unknown_card_accounts'](),1)
+            self.assertEqual(H['repair_unknown_card_accounts'](),0)
+        self.assertEqual(writes,[{'account':'haushalt'}])
+        self.assertEqual(current,{**old,'account':'haushalt'})
+        self.assertEqual(manual['account'],'privat_manuel')
+        self.assertEqual(col.where.call_args.kwargs['filter'],('source','==','gmail_import'))
+
+    def test_missing_database_does_not_block_import(self):
+        with patch.dict(H,{'get_firestore_db':lambda:None,'_tx_collection':lambda:None}):
+            self.assertEqual(H['repair_unknown_card_accounts'](),0)
+
+
 if __name__ == "__main__":
     unittest.main()
