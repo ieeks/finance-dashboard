@@ -304,3 +304,5 @@ Das Feature-Dokument `gmail-invoice-matcher.md` ist gut durchdacht. Ein paar Pun
 - IMAP → Gmail API Umbau: Hauptunterschied ist Auth (OAuth2 statt App-Passwort) und Base64-Decode der Attachments
 
 - [x] Bon-Kategorien-Prüfung: Tesla und andere ausgeschlossene Rechnungen wie in der Aufschlüsselung ausnehmen.
+
+- [x] Bestandszuordnungen speichern: parallele Belegprüfung und sichtbarer Fortschritt/Fehler im Dialog (v1.12.2).

@@ -7,7 +7,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider,
          onAuthStateChanged, signOut }                      from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 import { firebaseConfig, ALLOWED_EMAILS }                   from '../firebase-config.js';
 
-import { bonSnapshot, withLearnedCategory } from './bonCategories.js?v=1.12.1';
+import { bonSnapshot, withLearnedCategory } from './bonCategories.js?v=1.12.2';
 
 const app  = initializeApp(firebaseConfig);
 const db   = getFirestore(app);
@@ -157,26 +157,39 @@ export async function fsSaveApiKeys(patch) {
 
 // Atomic category-only updates. Refuse stale previews rather than overwriting
 // changes made on another device. All reads precede all transaction writes.
-export async function commitBonCategoryChanges(changes, learning = null) {
+export async function commitBonCategoryChanges(changes, learning = null, onProgress = () => {}) {
   if (changes.length > 300) throw new Error('Bitte die Bereinigung auf weniger als 300 Belege aufteilen.');
+  if (globalThis.navigator?.onLine === false) throw new Error('Keine Internetverbindung. Bitte Verbindung herstellen und erneut speichern.');
   return runTransaction(db, async transaction => {
+    let checked = 0;
+    onProgress({ phase: 'checking', completed: 0, total: changes.length });
     const refs = changes.map(change => {
       if (!['transactions', 'pendingBons'].includes(change.collection)) throw new Error('Ungültiger Belegtyp');
       return doc(db, `${HH}/${change.collection}`, change.id);
     });
-    const snapshots = [];
-    for (const ref of refs) snapshots.push(await transaction.get(ref));
     const overrideRef = doc(db, `${HH}/config`, 'subcategoryOverrides');
-    const overrideSnap = learning ? await transaction.get(overrideRef) : null;
+    // Each get is a server round trip. Start them together; serial reads made
+    // all-month repairs appear stuck on mobile networks. All reads still finish
+    // before the first write, including the optional learning document.
+    const [snapshots, overrideSnap] = await Promise.all([
+      Promise.all(refs.map(async ref => {
+        const snapshot = await transaction.get(ref);
+        onProgress({ phase: 'checking', completed: ++checked, total: refs.length });
+        return snapshot;
+      })),
+      learning ? transaction.get(overrideRef) : Promise.resolve(null),
+    ]);
     for (let i = 0; i < changes.length; i++) {
       const saved = snapshots[i];
-      const current = changes[i].collection === 'pendingBons' ? saved.data() : saved.data()?.bon;
+      const current = changes[i].collection === 'pendingBons'
+        ? (saved.exists() ? { ...saved.data(), id: changes[i].id } : undefined) : saved.data()?.bon;
       if (!saved.exists() || bonSnapshot(current) !== bonSnapshot(changes[i].before)) {
         throw new Error('Ein Beleg wurde inzwischen geändert. Bitte App neu laden und Vorschau erneut öffnen.');
       }
     }
     const overrides = learning ? withLearnedCategory(
       overrideSnap.exists() ? overrideSnap.data().overrides || {} : {}, learning.name, learning.category) : null;
+    onProgress({ phase: 'saving', completed: changes.length, total: changes.length });
     changes.forEach((change, i) => {
       // Change only items; retain monetary fields, dates, links and metadata.
       transaction.update(refs[i], change.collection === 'pendingBons'
