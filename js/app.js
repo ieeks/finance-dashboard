@@ -1,16 +1,16 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.0';
-import { CAT_CONFIG, SUBCAT_ICONS, BON_EXCLUDED_COMPANIES, normalizeSubcategory } from './categories.js?v=1.12.0';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.0';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.0';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.1';
+import { CAT_CONFIG, SUBCAT_ICONS, normalizeSubcategory } from './categories.js?v=1.12.1';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.1';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.1';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.0';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.1';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.0';
-import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot } from './bonCategories.js?v=1.12.0';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.0';
+         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.1';
+import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot, isBreakdownReceipt } from './bonCategories.js?v=1.12.1';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.1';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);
@@ -215,24 +215,11 @@ function renderMonthlyComparison(txs) {
     <div class="card" style="padding:16px 20px;">${rows}</div>`;
 }
 
-// Nur Kategorien, in denen Bons strukturell mehrere Items haben.
-// Miete/Versicherung/Strom/Telekom sind Einzeilen-Rechnungen — die Items
-// dort sind keine echten Subkategorien und würden "Sonstiges" aufblähen.
-const BON_BREAKDOWN_CATS = new Set([
-  'Supermarkt', 'Restaurant / Café', 'Drogerie',
-  'Online Shopping', 'Freizeit', 'Gesundheit',
-]);
-
 function renderBonBreakdown(txs) {
   const el = document.getElementById('db-bon-breakdown');
   if (!el) return;
 
-  const bonTxs = txs.filter(t => {
-    if (!t.bon?.items?.length) return false;
-    if (!BON_BREAKDOWN_CATS.has(t.category)) return false;
-    const haystacks = [t.description, t.bon.vendor, t.bon.store].filter(Boolean);
-    return !BON_EXCLUDED_COMPANIES.some(exc => haystacks.some(h => h.includes(exc)));
-  });
+  const bonTxs = txs.filter(t => isBreakdownReceipt(t.bon, t.description, t.category));
   if (!bonTxs.length) { el.style.display = 'none'; return; }
 
   const bySubcat = {};

@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.12.0`
+Aktuelle Version: `v1.12.1`
 
 ## Commit-Konventionen
 
@@ -239,7 +239,7 @@ html, body {
 Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
 
 
-## Bon-Kategorien ab v1.12.0
+## Bon-Kategorien ab v1.12.1
 - Subkategorien/Regeln in `js/categories.js`, `gmail_finance_importer.py` und
   `prompts/analyze-bon.md` synchron halten. Paritätstest: `tests/categoryParity.test.mjs`.
 - `js/bonCategories.js`: Normalisierung, Lernregeln, Vorschau der Bestandsbereinigung.

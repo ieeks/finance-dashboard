@@ -184,3 +184,19 @@ test('Repair commit only updates item categories and preserves invoice total and
   assert.equal(gmail.bon.total,2.37);
   assert.equal(gmail.amount,-2.37);
 });
+
+
+test('Category repair excludes Tesla charging and non-shopping bills, including pending receipts', () => {
+  const items=[{name:'Stromgebühr',subcategory:'Sonstiges',price:15}];
+  const txs=[
+    {id:'tesla',description:'Tesla Germany GmbH',category:'Online Shopping',bon:{items}},
+    {id:'copy',description:'Kartenzahlung',bon:{store:'TESLA Germany GmbH',items}},
+    {id:'charging',category:'Mobilität / Auto',bon:{items}},
+    {id:'utility',category:'Energie / Strom',bon:{items}},
+    {id:'shop',category:'Supermarkt',bon:{items:[{name:'Gouda',subcategory:'Sonstiges'}]}},
+  ];
+  const pending=[{id:'pending',vendor:'Tesla Austria GmbH',items}];
+  const plan=planCategoryRepair(txs,pending,{'stromgebühr':'Dienstleistung'});
+  assert.deepEqual(plan.changes.map(c=>c.id),['shop']);
+  assert.equal(plan.rows[0].to,'Milchprodukte');
+});
