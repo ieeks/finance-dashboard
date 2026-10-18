@@ -1,16 +1,16 @@
 // app.js — Entry Point
-import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.12.2';
-import { CAT_CONFIG, SUBCAT_ICONS, normalizeSubcategory } from './categories.js?v=1.12.2';
-import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.12.2';
-import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.12.2';
+import { state, saveState, getCurrentMonth, getMonthLabel, getAvailableMonths, getTransactionsForMonth } from './state.js?v=1.13.0';
+import { CAT_CONFIG, SUBCAT_ICONS, normalizeSubcategory } from './categories.js?v=1.13.0';
+import { formatEur, formatDate, escHtml, loadKeys, setInMemoryKeys, showToast, showLoading, hideLoading } from './ui.js?v=1.13.0';
+import { extractPdfText, parseBankStatement, categorizeWithAI } from './parser.js?v=1.13.0';
 import { analyzeBonImage, analyzeBonPdf, analyzeBonOpenAI, analyzeBonPdfOpenAI,
-         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.12.2';
+         normalizeBonDate, todayIso } from './bonAnalyzer.js?v=1.13.0';
 import { login, logout, onAuthChange, currentEmail,
          loadAllData, saveTxBatch, updateTx, deleteTx, checkImportExists, saveImport,
          fsAddPendingBon, fsDeletePendingBon, fsSaveCategoryOverrides,
-         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.12.2';
-import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot, isBreakdownReceipt } from './bonCategories.js?v=1.12.2';
-import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.12.2';
+         commitBonCategoryChanges, fsSaveApiKeys } from './firebaseService.js?v=1.13.0';
+import { resolveItemCategory, linkedBon, itemNameKey, planCategoryRepair, bonSnapshot, isBreakdownReceipt } from './bonCategories.js?v=1.13.0';
+import { findMatch, matchLabel, analyzeBonLinks } from './matcher.js?v=1.13.0';
 
 function _addDays(dateStr, days) {
   const d = new Date(dateStr);

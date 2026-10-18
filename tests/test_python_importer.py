@@ -8,6 +8,14 @@ Aufruf: python3 -m unittest tests/test_python_importer.py
 
 import ast
 import unicodedata
+import math
+import json
+import base64
+from datetime import datetime, timedelta
+from types import SimpleNamespace
+from unittest.mock import patch, Mock
+import tempfile
+import urllib.request
 import re
 import unittest
 from pathlib import Path
@@ -27,6 +35,11 @@ def _load_helpers():
         "Path":     Path,
         "re":       re,
         "unicodedata": unicodedata,
+        "math": math,
+        "json": json,
+        "base64": base64,
+        "datetime": datetime,
+        "timedelta": timedelta,
     }
     for node in tree.body:
         if isinstance(node, (ast.Assign, ast.AnnAssign, ast.FunctionDef)):
@@ -584,6 +597,225 @@ class TestFutureDateCorrection(unittest.TestCase):
 
     def test_empty_date_no_correction(self):
         self.assertIsNone(self.fix("15.08.2026", "", self.today))
+
+
+class TestPdfExtractionValidation(unittest.TestCase):
+    def valid(self, **updates):
+        return {"store": "Testmarkt", "date": "2026-07-31", "total": 12.0,
+                "vat": 0, "tip": 0, "currency": "EUR", "category": "Supermarkt",
+                "items": [{"name": "Artikel", "gesamt": 12.0}], **updates}
+
+    def test_full_text_including_invoice_tail_is_passed(self):
+        text = "Position " * 2000 + "\nGesamtbetrag 123,45 EUR"
+        prompt = H["_build_prompt"](text, "month.pdf")
+        self.assertIn(text, prompt)
+        self.assertTrue(prompt.endswith("Gesamtbetrag 123,45 EUR"))
+
+    def test_oversized_text_is_rejected_not_cut(self):
+        with self.assertRaises(ValueError):
+            H["_build_prompt"]("x" * (H["PDF_TEXT_MAX_CHARS"] + 1), "large.pdf")
+
+    def test_regular_gross_net_discount_tip_and_free_items(self):
+        cases = [self.valid(), self.valid(total=14.4, vat=2.4), self.valid(tip=2),
+                 self.valid(items=[{"name":"Artikel","gesamt":15}, {"name":"Rabatt","gesamt":-3}]),
+                 self.valid(items=[{"name":"Artikel","gesamt":12}, {"name":"Gratis","gesamt":0,"einzelpreis":5}])]
+        for data in cases:
+            with self.subTest(data=data):
+                self.assertEqual(H["_pdf_validation_issues"](data), [])
+        self.assertEqual(H["_item_amount"]({"gesamt":0,"einzelpreis":5}), 0)
+        self.assertEqual(H["_pdf_validation_issues"](self.valid(tip=2), "Zahlbetrag 14,00 EUR"), [])
+
+    def test_missing_wrong_fields_nonfinite_values_and_inconsistent_sum(self):
+        for patch_data in [{"store":None}, {"date":"2026-02-30"}, {"date":"2999-01-01"},
+                           {"total":None}, {"total":True}, {"total":"NaN"}, {"vat":float('inf')},
+                           {"items":None}, {"items":[]}, {"items":["bad"]},
+                           {"items":[{"name":"X","gesamt":"NaN"}]}, {"total":13}, {"currency":"USD"}]:
+            with self.subTest(patch_data=patch_data):
+                self.assertTrue(H["_pdf_validation_issues"](self.valid(**patch_data)))
+        self.assertTrue(H["_pdf_validation_issues"]([]))
+
+    def test_missing_detail_permitted_for_simple_bill_without_inventing_items(self):
+        self.assertEqual(H["_pdf_validation_issues"](self.valid(category="Wohnen / Miete",items=[])), [])
+
+    def test_self_consistent_but_wrong_total_is_detected_from_pdf(self):
+        self.assertTrue(H["_pdf_validation_issues"](self.valid(), "Gesamtbetrag 25,00 EUR"))
+        self.assertEqual(H["_pdf_validation_issues"](self.valid(), "Rechnungsbetrag netto 10,00 EUR"), [])
+        self.assertEqual(H["_pdf_validation_issues"](self.valid(), "Gesamtbetrag 12,00 EUR\nGesamtbetrag 25,00 EUR"), [])
+
+    def test_existing_evidence_based_net_correction_runs_before_validation(self):
+        result = H["_prepare_pdf_result"](self.valid(), "Gesamtbetrag 14,40 EUR")
+        self.assertEqual(result["total"], 14.4)
+        self.assertEqual(result["vat"], 2.4)
+        self.assertEqual(H["_pdf_validation_issues"](result), [])
+
+    def test_truncated_provider_responses_are_rejected_even_with_valid_json(self):
+        data={"choices":[{"finish_reason":"length","message":{"content":json.dumps(self.valid())}}]}
+        self.assertIsNone(H["_openai_pdf_response"](data))
+        data['choices'][0]['finish_reason']='stop'
+        self.assertEqual(H["_openai_pdf_response"](data), self.valid())
+        message=SimpleNamespace(stop_reason='max_tokens',content=[SimpleNamespace(type='text',text=json.dumps(self.valid()))])
+        self.assertIsNone(H["_anthropic_pdf_response"](message))
+        message.stop_reason='end_turn'
+        message.content.insert(0,SimpleNamespace(type='thinking'))
+        self.assertEqual(H["_anthropic_pdf_response"](message), self.valid())
+
+    def test_partial_scans_and_broken_text_trigger_visual_check(self):
+        for text, image in [("",False),("Invoice header",True),("X"*80,True),("long text "*30+'\ufffd',False)]:
+            self.assertTrue(H["_pdf_page_needs_visual"](text,image))
+        self.assertFalse(H["_pdf_page_needs_visual"]('Artikel Rechnungsdatum Gesamtbetrag '*10,True))
+
+    def run_route(self, text="valid invoice text", issues=None, text_result=None,
+                  claude_result=None, openai_result=None, claude_key='test', openai_key='test'):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'invoice.pdf'
+            path.write_bytes(b'%PDF-fixture')
+            text_call=Mock(return_value=text_result)
+            claude_call=Mock(side_effect=claude_result) if isinstance(claude_result,Exception) else Mock(return_value=claude_result)
+            openai_call=Mock(return_value=openai_result)
+            with patch.dict(H,{'extract_with_ai':text_call,'extract_pdf_with_claude_ocr':claude_call,
+                               'extract_pdf_with_openai':openai_call,'ANTHROPIC_API_KEY':claude_key,'OPENAI_API_KEY':openai_key}):
+                result=H['extract_validated_pdf'](path,text,issues or [])
+            return result,text_call,claude_call,openai_call
+
+    def test_good_text_avoids_paid_visual_request(self):
+        result,text,claude,openai=self.run_route(text_result=self.valid())
+        self.assertEqual(result,self.valid()); text.assert_called_once(); claude.assert_not_called(); openai.assert_not_called()
+
+    def test_bad_json_missing_fields_or_wrong_sum_triggers_full_pdf(self):
+        for data in [None, {}, self.valid(total=25)]:
+            result,text,claude,openai=self.run_route(text_result=data,claude_result=self.valid())
+            self.assertEqual(result,self.valid()); claude.assert_called_once(); openai.assert_not_called()
+
+    def test_partial_or_long_pdf_bypasses_text_route(self):
+        for text,issues in [('header',['page 2 has no text']),('x'*(H['PDF_TEXT_MAX_CHARS']+1),[])]:
+            result,text_call,claude,_=self.run_route(text=text,issues=issues,claude_result=self.valid())
+            self.assertEqual(result,self.valid()); text_call.assert_not_called(); claude.assert_called_once()
+
+    def test_openai_native_fallback_with_only_openai_key(self):
+        result,_,claude,openai=self.run_route(text='',claude_key='',openai_result=self.valid())
+        self.assertEqual(result,self.valid()); claude.assert_not_called(); openai.assert_called_once()
+
+    def test_native_provider_error_or_bad_result_uses_other_provider(self):
+        for bad in [RuntimeError('API unavailable'), self.valid(total=99)]:
+            result,_,claude,openai=self.run_route(text='',claude_result=bad,openai_result=self.valid())
+            self.assertEqual(result,self.valid()); claude.assert_called_once(); openai.assert_called_once()
+
+    def test_unresolved_data_or_missing_keys_not_returned_as_success(self):
+        result,*_=self.run_route(text='',claude_result=self.valid(total=99),openai_result={})
+        self.assertIsNone(result)
+        result,*_=self.run_route(text='',claude_key='',openai_key='')
+        self.assertIsNone(result)
+
+    def test_oversized_visual_file_is_not_sent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'large.pdf'
+            path.write_bytes(b'12345')
+            claude=Mock()
+            with patch.dict(H,{'PDF_VISUAL_MAX_BYTES':4,'extract_pdf_with_claude_ocr':claude}):
+                self.assertIsNone(H['extract_validated_pdf'](path,'',['scan']))
+            claude.assert_not_called()
+
+    def test_process_pdf_only_saves_validated_result_and_preserves_dedup(self):
+        save=Mock(return_value=True)
+        with patch.dict(H,{'_pdf_doc_id':Mock(return_value='pdf-test'),'is_duplicate':Mock(return_value=False),
+                           'inspect_pdf_text':Mock(return_value=('raw invoice',[])),
+                           '_prefilter_pdf_duplicate':Mock(return_value=False),
+                           'extract_validated_pdf':Mock(return_value=None),'save_to_firestore':save}):
+            self.assertFalse(H['process_pdf'](Path('invoice.pdf')))
+            save.assert_not_called()
+            H['extract_validated_pdf'].return_value=self.valid()
+            self.assertTrue(H['process_pdf'](Path('invoice.pdf')))
+            self.assertEqual(save.call_args[0][0]['_raw_text'],'raw invoice')
+            save.reset_mock()
+            H['is_duplicate'].return_value=True
+            H['inspect_pdf_text'].reset_mock()
+            self.assertFalse(H['process_pdf'](Path('invoice.pdf')))
+            H['inspect_pdf_text'].assert_not_called(); save.assert_not_called()
+
+
+    def test_native_openai_request_contains_original_pdf_and_larger_output_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'invoice.pdf'; path.write_bytes(b'%PDF-full-original')
+            response=Mock(); response.read.return_value=json.dumps({"choices":[{"finish_reason":"stop","message":{"content":json.dumps(self.valid())}}]}).encode()
+            context=Mock(); context.__enter__=Mock(return_value=response); context.__exit__=Mock(return_value=False)
+            urlopen=Mock(return_value=context)
+            http=SimpleNamespace(request=SimpleNamespace(Request=urllib.request.Request,urlopen=urlopen))
+            with patch.dict(H,{'urllib':http,'OPENAI_API_KEY':'test-only'}):
+                self.assertEqual(H['extract_pdf_with_openai'](path),self.valid())
+            request=urlopen.call_args[0][0]
+            body=json.loads(request.data)
+            file=body['messages'][0]['content'][0]['file']
+            self.assertEqual(base64.b64decode(file['file_data'].split(',',1)[1]),path.read_bytes())
+            self.assertEqual(body['max_tokens'],12000)
+
+    def test_all_pages_are_inspected_including_page_without_text(self):
+        pages=[SimpleNamespace(extract_text=lambda:'Invoice body '*50,images=[]),
+               SimpleNamespace(extract_text=lambda:'Scanned header',images=[{}])]
+        opened=Mock(); opened.__enter__=Mock(return_value=SimpleNamespace(pages=pages)); opened.__exit__=Mock(return_value=False)
+        with patch.dict(H,{'pdfplumber':SimpleNamespace(open=Mock(return_value=opened))}):
+            text,issues=H['inspect_pdf_text'](Path('invoice.pdf'))
+        self.assertIn('Scanned header',text)
+        self.assertEqual(len(issues),1); self.assertIn('Seite 2',issues[0])
+
+
+class TestHaiku55Migration(unittest.TestCase):
+    def test_all_importer_haiku_requests_use_new_api_contract_and_skip_thinking_blocks(self):
+        valid=TestPdfExtractionValidation().valid()
+        response=SimpleNamespace(stop_reason='end_turn',content=[
+            SimpleNamespace(type='thinking',signature='test'),
+            SimpleNamespace(type='text',text=json.dumps(valid)),
+        ])
+        create=Mock(return_value=response)
+        sdk=SimpleNamespace(Anthropic=Mock(return_value=SimpleNamespace(messages=SimpleNamespace(create=create))))
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf=Path(tmp)/'invoice.pdf'; pdf.write_bytes(b'%PDF-test')
+            image=Path(tmp)/'invoice.png'; image.write_bytes(b'image-test')
+            with patch.dict('sys.modules',{'anthropic':sdk}), patch.dict(H,{'ANTHROPIC_API_KEY':'test-only'}):
+                for call,arg in [('_call_anthropic','invoice text'),('_call_anthropic_vision',image),('extract_pdf_with_claude_ocr',pdf)]:
+                    with self.subTest(call=call):
+                        self.assertEqual(H[call](arg),valid)
+                        body=create.call_args.kwargs
+                        self.assertEqual(body['model'],'claude-haiku-5-5')
+                        self.assertEqual(body['max_tokens'],20000)
+                        self.assertEqual(body['thinking'],{'type':'adaptive'})
+                        self.assertEqual(body['output_config'],{'effort':'low'})
+                        self.assertEqual(body['messages'][-1]['role'],'user')
+                        for old_setting in ['temperature','top_p','top_k']:
+                            self.assertNotIn(old_setting,body)
+
+    def test_refusal_and_context_overflow_are_not_parsed_as_success(self):
+        for stop in ['refusal','model_context_window_exceeded','max_tokens']:
+            response=SimpleNamespace(stop_reason=stop,content=[SimpleNamespace(type='text',text='{"total":12}')])
+            self.assertIsNone(H['_anthropic_pdf_response'](response))
+
+    def test_haiku_is_primary_for_text_and_images_and_openai_remains_fallback(self):
+        valid=TestPdfExtractionValidation().valid()
+        for route,primary_name,fallback_name,args in [
+            ('text','_call_anthropic','_call_openai',('invoice','invoice.pdf')),
+            ('image','_call_anthropic_vision','_call_openai_vision',(Path('invoice.png'),)),
+        ]:
+            orchestrate=H['extract_with_ai' if route=='text' else 'extract_image_with_ai']
+            for primary_result in [valid,None,RuntimeError('unavailable')]:
+                with self.subTest(route=route,primary_result=primary_result):
+                    primary=Mock(side_effect=primary_result) if isinstance(primary_result,Exception) else Mock(return_value=primary_result)
+                    fallback=Mock(return_value=valid)
+                    with patch.dict(H,{'ANTHROPIC_API_KEY':'test','OPENAI_API_KEY':'test',primary_name:primary,fallback_name:fallback}):
+                        self.assertEqual(orchestrate(*args),valid)
+                    primary.assert_called_once()
+                    if primary_result==valid: fallback.assert_not_called()
+                    else: fallback.assert_called_once()
+
+    def test_openai_only_setup_still_works_and_both_failures_are_reported(self):
+        valid=TestPdfExtractionValidation().valid()
+        for key in ['', 'test']:
+            primary=Mock(return_value=None); fallback=Mock(return_value=valid if not key else None)
+            with patch.dict(H,{'ANTHROPIC_API_KEY':key,'OPENAI_API_KEY':'test','_call_anthropic':primary,'_call_openai':fallback}):
+                result=H['extract_with_ai']('invoice','invoice.pdf')
+            if not key:
+                self.assertEqual(result,valid); primary.assert_not_called()
+            else:
+                self.assertIsNone(result); primary.assert_called_once()
+            fallback.assert_called_once()
 
 
 if __name__ == "__main__":

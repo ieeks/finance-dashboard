@@ -1,5 +1,5 @@
 // Pure category helpers shared by scan, Gmail linking and the repair preview.
-import { ALL_SUBCATEGORIES, normalizeSubcategory, SUBCAT_ITEM_RULES, BON_EXCLUDED_COMPANIES } from './categories.js?v=1.12.2';
+import { ALL_SUBCATEGORIES, normalizeSubcategory, SUBCAT_ITEM_RULES, BON_EXCLUDED_COMPANIES } from './categories.js?v=1.13.0';
 
 // Use the same receipt scope for the dashboard and category repair.
 const BON_BREAKDOWN_CATS = new Set([

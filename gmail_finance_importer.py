@@ -5,8 +5,8 @@ gmail_finance_importer.py — PDF- & Bild-Rechnungen aus Gmail → Firestore (fi
 Ablauf:
   1. IMAP: Mails im Label "Rechnungen" abholen, PDF- und Bild-Anhänge speichern
   2a. PDF: pdfplumber → Text extrahieren
-  2b. Bild (PNG/JPG): Base64 → GPT-4o Vision → strukturierte Daten
-  3. AI: OpenAI gpt-4o-mini/gpt-4o (primär) → Claude Haiku (Fallback)
+  2b. Bild (PNG/JPG): Base64 → Claude Haiku 5.5 Vision → strukturierte Daten
+  3. AI: Claude Haiku 5.5 (primär) → OpenAI gpt-4o-mini/gpt-4o (Fallback)
   4. Firestore: Transaktion unter household/main/transactions/{id} speichern
 
 Felder werden auf das Format des Browser-Parsers gemappt:
@@ -22,6 +22,7 @@ import email.utils
 import hashlib
 import imaplib
 import json
+import math
 import unicodedata
 import os
 import re
@@ -378,13 +379,35 @@ def download_attachments(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
 
 # ── PDF Text-Extraktion ────────────────────────────────────────────────────────
 
-def extract_pdf_text(pdf_path: Path) -> str:
-    """Gesamten Text aus PDF extrahieren (alle Seiten)."""
-    text = ""
+# Never truncate invoice text. Large documents take the native PDF route.
+PDF_TEXT_MAX_CHARS = 100_000
+PDF_MAX_OUTPUT_TOKENS = 12_000
+HAIKU_MODEL = "claude-haiku-5-5"
+HAIKU_MAX_OUTPUT_TOKENS = 20_000  # newer tokenizer + adaptive thinking need extra room
+PDF_VISUAL_MAX_BYTES = 20 * 1024 * 1024  # leaves room for base64 in Claude's 32 MB request
+
+
+def _pdf_page_needs_visual(text: str, has_images: bool = False) -> bool:
+    meaningful = sum(char.isalnum() for char in text)
+    return meaningful < 40 or (has_images and meaningful < 200) or "\ufffd" in text
+
+
+def inspect_pdf_text(pdf_path: Path) -> tuple[str, list[str]]:
+    """Read every page; detect empty/low-text pages in otherwise readable PDFs."""
+    pages, issues = [], []
     with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            text += (page.extract_text() or "") + "\n"
-    return text
+        for index, page in enumerate(pdf.pages, 1):
+            text = page.extract_text() or ""
+            pages.append(text)
+            if _pdf_page_needs_visual(text, bool(page.images)):
+                issues.append(f"Seite {index}: Text fehlt oder ist möglicherweise unvollständig")
+    return "\n".join(pages), issues
+
+
+def extract_pdf_text(pdf_path: Path) -> str:
+    """Compatibility helper: full text from every page."""
+    return inspect_pdf_text(pdf_path)[0]
+
 
 # ── Bild-Extraktion via Vision ────────────────────────────────────────────────
 
@@ -437,8 +460,10 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
     b64, mime = _image_to_base64(image_path)
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
         system=VISION_SYSTEM,
         messages=[{
             "role": "user",
@@ -449,43 +474,39 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
             ],
         }],
     )
-    return _parse_ai_response(message.content[0].text, provider="Anthropic Vision")
+    return _anthropic_pdf_response(message)
 
 
 def extract_image_with_ai(image_path: Path) -> dict | None:
-    """Vision-Extraktion: GPT-4o Vision primär → Claude Haiku Vision Fallback."""
-    if OPENAI_API_KEY:
+    """Claude Haiku 5.5 first; GPT-4o fallback when unavailable or incomplete."""
+    for provider, key, call in [
+        ("Claude Haiku 5.5 Vision", ANTHROPIC_API_KEY, _call_anthropic_vision),
+        ("OpenAI Vision", OPENAI_API_KEY, _call_openai_vision),
+    ]:
+        if not key:
+            continue
         try:
-            result = _call_openai_vision(image_path)
+            result = call(image_path)
             if result:
-                print("  Vision: GPT-4o erfolgreich.")
-                return result
-            print("  Vision: GPT-4o — kein valides JSON, versuche Claude...")
-        except Exception as exc:
-            print(f"  Vision: GPT-4o fehlgeschlagen ({exc}), versuche Claude...")
-
-    if ANTHROPIC_API_KEY:
-        try:
-            result = _call_anthropic_vision(image_path)
-            if result:
-                print("  Vision: Claude Haiku (Fallback) erfolgreich.")
+                print(f"  Vision: {provider} erfolgreich.")
                 return result
         except Exception as exc:
-            print(f"  Vision: Claude fehlgeschlagen ({exc}).")
-
+            print(f"  Vision: {provider} fehlgeschlagen ({exc}).")
     print("  FEHLER: Beide Vision-Provider fehlgeschlagen.")
     return None
 
 
-# ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
+# ── AI-Extraktion (Haiku 5.5 primär → OpenAI Fallback) ────────────────────────
 
 def _build_prompt(pdf_text: str, filename: str) -> str:
     """PDF-Text-Prompt: shared Bon-Prompt + Python-Suffix + Rechnungstext."""
+    if len(pdf_text) > PDF_TEXT_MAX_CHARS:
+        raise ValueError("PDF-Text zu lang für den Textweg; Original-PDF verwenden")
     return (
         BON_PROMPT
         + PYTHON_PROMPT_SUFFIX
         + _date_anchor()
-        + f"\n\nDateiname: {filename}\nRechnungstext:\n{pdf_text[:8000]}"
+        + f"\n\nDateiname: {filename}\nRechnungstext:\n{pdf_text}"
     )
 
 
@@ -503,11 +524,27 @@ def _parse_ai_response(text: str, provider: str = "") -> dict | None:
         return None
 
 
+def _openai_pdf_response(data: dict) -> dict | None:
+    choice = data["choices"][0]
+    if choice.get("finish_reason") != "stop":
+        print("  PDF: OpenAI-Antwort unvollständig oder abgelehnt")
+        return None
+    return _parse_ai_response(choice["message"].get("content") or "", provider="OpenAI PDF")
+
+
+def _anthropic_pdf_response(message) -> dict | None:
+    if message.stop_reason != "end_turn":
+        print("  PDF: Claude-Antwort unvollständig oder abgelehnt")
+        return None
+    text = "\n".join(block.text for block in message.content if block.type == "text")
+    return _parse_ai_response(text, provider="Claude PDF")
+
+
 def _call_openai(prompt: str) -> dict | None:
     body = json.dumps({
         "model": "gpt-4o-mini",
         "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 4096,
+        "max_tokens": PDF_MAX_OUTPUT_TOKENS,
     }).encode()
     req = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
@@ -519,43 +556,38 @@ def _call_openai(prompt: str) -> dict | None:
     )
     with urllib.request.urlopen(req, timeout=30) as resp:
         data = json.loads(resp.read())
-    return _parse_ai_response(data["choices"][0]["message"]["content"], provider="OpenAI")
+    return _openai_pdf_response(data)
 
 
 def _call_anthropic(prompt: str) -> dict | None:
     import anthropic
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
         messages=[{"role": "user", "content": prompt}],
     )
-    return _parse_ai_response(message.content[0].text, provider="Anthropic")
+    return _anthropic_pdf_response(message)
 
 
 def extract_with_ai(pdf_text: str, filename: str) -> dict | None:
-    """OpenAI zuerst, Anthropic als Fallback. None wenn beide fehlschlagen."""
+    """Haiku 5.5 first, OpenAI as fallback. PDF validation follows separately."""
     prompt = _build_prompt(pdf_text, filename)
-
-    if OPENAI_API_KEY:
+    for provider, key, call in [
+        ("Claude Haiku 5.5", ANTHROPIC_API_KEY, _call_anthropic),
+        ("OpenAI", OPENAI_API_KEY, _call_openai),
+    ]:
+        if not key:
+            continue
         try:
-            result = _call_openai(prompt)
+            result = call(prompt)
             if result:
-                print("  AI: OpenAI erfolgreich.")
-                return result
-            print("  AI: OpenAI — kein valides JSON, versuche Anthropic...")
-        except Exception as exc:
-            print(f"  AI: OpenAI fehlgeschlagen ({exc}), versuche Anthropic...")
-
-    if ANTHROPIC_API_KEY:
-        try:
-            result = _call_anthropic(prompt)
-            if result:
-                print("  AI: Anthropic (Fallback) erfolgreich.")
+                print(f"  AI: {provider} erfolgreich.")
                 return result
         except Exception as exc:
-            print(f"  AI: Anthropic fehlgeschlagen ({exc}).")
-
+            print(f"  AI: {provider} fehlgeschlagen ({exc}).")
     print("  FEHLER: Beide AI-Provider fehlgeschlagen.")
     return None
 
@@ -727,17 +759,25 @@ _GROSS_TOTAL_RE = re.compile(
 _VAT_RATES = (0.20, 0.19, 0.13, 0.10, 0.07)
 
 
+def _finite_amount(value) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _item_amount(item: dict) -> float | None:
+    for key in ("gesamt", "price", "einzelpreis"):
+        if item.get(key) is not None:
+            return _finite_amount(item[key])
+    return None
+
+
 def _items_sum(items_list: list) -> float:
-    """Summe der Positionsbeträge — gleiche Feld-Priorität wie save_to_firestore."""
-    total = 0.0
-    for p in items_list:
-        if not isinstance(p, dict):
-            continue
-        try:
-            total += float(p.get("gesamt") or p.get("einzelpreis") or 0)
-        except (TypeError, ValueError):
-            continue
-    return round(total, 2)
+    return round(sum(_item_amount(p) or 0 for p in items_list if isinstance(p, dict)), 2)
 
 
 def _gross_total_correction(
@@ -1043,7 +1083,7 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
                 {
                     "name":        p.get("name", ""),
                     "menge":       p.get("menge", 1),
-                    "price":       float(p.get("gesamt") or p.get("einzelpreis") or 0),
+                    "price":       _item_amount(p) or 0.0,
                     **_item_category_fields(p),
                 }
                 for p in items_list if p.get("name")
@@ -1084,40 +1124,157 @@ def save_to_firestore(ai_data: dict, filename: str, doc_id: str, is_new: bool = 
 # ── PDF-OCR Fallback via Claude native PDF-Support ────────────────────────────
 
 def extract_pdf_with_claude_ocr(pdf_path: Path) -> dict | None:
-    """Scanned/Bild-PDF via Claude Haiku PDF-Vision extrahieren (kein pdfplumber-Text nötig)."""
-    if not ANTHROPIC_API_KEY:
-        print("  OCR: Anthropic API-Key fehlt.")
-        return None
+    """Send all PDF pages (including images) to Claude, without local text truncation."""
     import anthropic
     b64 = base64.b64encode(pdf_path.read_bytes()).decode("utf-8")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    message = client.messages.create(
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
+        system=VISION_SYSTEM,
+        messages=[{"role": "user", "content": [
+            {"type": "document", "source": {"type": "base64",
+                "media_type": "application/pdf", "data": b64}},
+            {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX + _date_anchor()},
+        ]}],
+    )
+    return _anthropic_pdf_response(message)
+
+
+def extract_pdf_with_openai(pdf_path: Path) -> dict | None:
+    """Native PDF input also works when only the OpenAI key is configured."""
+    b64 = base64.b64encode(pdf_path.read_bytes()).decode("utf-8")
+    body = json.dumps({
+        "model": "gpt-4o",
+        "max_tokens": PDF_MAX_OUTPUT_TOKENS,
+        "messages": [{"role": "user", "content": [
+            {"type": "file", "file": {"filename": pdf_path.name,
+                "file_data": f"data:application/pdf;base64,{b64}"}},
+            {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX + _date_anchor()},
+        ]}],
+    }).encode()
+    req = urllib.request.Request("https://api.openai.com/v1/chat/completions", data=body,
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {OPENAI_API_KEY}"})
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read())
+    return _openai_pdf_response(data)
+
+
+def _prepare_pdf_result(data, text: str):
+    """Apply existing evidence-based corrections BEFORE consistency validation."""
+    if not isinstance(data, dict):
+        return data
+    result = dict(data)
+    items = _ai_get(result, "items", "positionen", default=[])
+    total = _finite_amount(_ai_get(result, "total", "betrag_brutto"))
+    if total is not None and isinstance(items, list):
+        correction = _gross_total_correction(text, total, _items_sum(items))
+        if correction:
+            result["total"], result["vat"] = correction
+    date = str(_ai_get(result, "date", "rechnungsdatum", default=""))
+    fixed = _future_date_correction(text, date, datetime.now().strftime("%Y-%m-%d"))
+    if fixed:
+        result["date"] = fixed
+    return result
+
+
+def _pdf_validation_issues(data, text: str = "") -> list[str]:
+    """Validate fields and the prompt's arithmetic contract; never repair by guessing."""
+    if not isinstance(data, dict):
+        return ["Kein gültiges Rechnungsobjekt"]
+    issues = []
+    store = _ai_get(data, "store", "absender")
+    if not isinstance(store, str) or not store.strip():
+        issues.append("Händler fehlt")
+    date = _ai_get(data, "date", "rechnungsdatum")
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=4096,
-            system=VISION_SYSTEM,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "document",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "application/pdf",
-                            "data": b64,
-                        },
-                    },
-                    {"type": "text", "text": BON_PROMPT + PYTHON_PROMPT_SUFFIX + _date_anchor()},
-                ],
-            }],
-        )
-        result = _parse_ai_response(message.content[0].text, provider="Claude PDF-OCR")
-        if result:
-            print("  OCR: Claude Haiku PDF-Vision erfolgreich.")
-        return result
-    except Exception as exc:
-        print(f"  OCR: Claude fehlgeschlagen ({exc}).")
+        if not isinstance(date, str) or not _DATE_ISO_RE.fullmatch(date):
+            raise ValueError()
+        parsed = datetime.strptime(date, "%Y-%m-%d")
+        if parsed.date() > datetime.now().date():
+            raise ValueError()
+    except ValueError:
+        issues.append("Rechnungsdatum fehlt, ist ungültig oder liegt in der Zukunft")
+    total = _finite_amount(_ai_get(data, "total", "betrag_brutto"))
+    vat = _finite_amount(_ai_get(data, "vat", "ust", "mwst", default=0))
+    tip = _finite_amount(data.get("tip", 0))
+    if total is None or total < 0:
+        issues.append("Endbetrag fehlt oder ist ungültig")
+    if vat is None or vat < 0 or (total is not None and vat > total):
+        issues.append("Steueraufschlag ist ungültig")
+    if tip is None or tip < 0:
+        issues.append("Trinkgeld ist ungültig")
+    if data.get("currency", "EUR") != "EUR":
+        issues.append("Währung ist nicht EUR; keine automatische Umrechnung")
+    # Only compare unambiguous, explicitly labelled gross totals. Never infer
+    # a final amount from a subtotal, VAT table or several competing amounts.
+    evidence = set()
+    for line in text.splitlines():
+        if _GROSS_TOTAL_RE.search(line) and not re.search(r"netto|teilsumme|zwischensumme", line, re.I):
+            evidence.update(round(amount, 2) for raw in _AMOUNT_RE.findall(line)
+                            if (amount := _parse_amount(raw)) is not None)
+    if len(evidence) == 1 and total is not None and tip is not None:
+        observed = next(iter(evidence))
+        if round(min(abs(observed - total), abs(observed - total - tip)), 2) > 0.02:
+            issues.append("Endbetrag widerspricht dem ausdrücklich ausgewiesenen PDF-Betrag")
+    items = _ai_get(data, "items", "positionen")
+    if not isinstance(items, list):
+        issues.append("Positionsliste fehlt oder ist ungültig")
+    elif not items:
+        # No invented items: a simple bill may legitimately show only a total.
+        if _ai_get(data, "category", "kategorie") in (
+                "Supermarkt", "Restaurant / Café", "Drogerie", "Online Shopping"):
+            issues.append("Artikelpositionen fehlen")
+    else:
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("name"), str) or not item["name"].strip():
+                issues.append("Ungültige Artikelposition")
+                break
+            if _item_amount(item) is None:
+                issues.append("Positionsbetrag fehlt oder ist ungültig")
+                break
+        else:
+            if total is not None and vat is not None and round(abs(_items_sum(items) + vat - total), 2) > 0.02:
+                issues.append("Positionssumme plus Steueraufschlag stimmt nicht mit Endbetrag überein")
+    return issues
+
+
+def _validated_pdf_result(data, text: str, route: str) -> dict | None:
+    result = _prepare_pdf_result(data, text)
+    issues = _pdf_validation_issues(result, text)
+    if issues:
+        print(f"  PDF-Prüfung ({route}): " + "; ".join(issues))
         return None
+    print(f"  PDF-Prüfung ({route}): erfolgreich")
+    return result
+
+
+def extract_validated_pdf(pdf_path: Path, text: str, text_issues: list[str]) -> dict | None:
+    if not text_issues and text.strip() and len(text) <= PDF_TEXT_MAX_CHARS:
+        result = _validated_pdf_result(extract_with_ai(text, pdf_path.name), text, "Text")
+        if result is not None:
+            return result
+    print("  PDF: Original wird visuell nachgeprüft (Text unvollständig oder Ergebnis unplausibel).")
+    if pdf_path.stat().st_size > PDF_VISUAL_MAX_BYTES:
+        print("  PDF: Original größer als 20 MiB; bitte für die Prüfung aufteilen. Keine Teilinhalte importiert.")
+        return None
+    providers = [
+        ("Claude PDF", ANTHROPIC_API_KEY, extract_pdf_with_claude_ocr),
+        ("OpenAI PDF", OPENAI_API_KEY, extract_pdf_with_openai),
+    ]
+    for route, key, call in providers:
+        if not key:
+            continue
+        try:
+            result = _validated_pdf_result(call(pdf_path), text, route)
+            if result is not None:
+                return result
+        except Exception as exc:
+            print(f"  PDF: {route} fehlgeschlagen ({exc}).")
+    print("  PDF: Manuelle Prüfung erforderlich; keine unplausiblen Daten gespeichert.")
+    return None
 
 
 # ── Haupt-Orchestrierung ───────────────────────────────────────────────────────
@@ -1169,48 +1326,18 @@ def process_pdf(pdf_path: Path) -> bool:
         print(f"  Übersprungen (Firestore-Duplikat): {doc_id}")
         return False
 
-    text = extract_pdf_text(pdf_path)
-    if not text.strip():
-        print("  Kein Text im PDF — versuche Claude PDF-OCR …")
-        ai_data = extract_pdf_with_claude_ocr(pdf_path)
-        if not ai_data:
-            print("  FEHLER: PDF-OCR fehlgeschlagen.")
-            return False
-    else:
-        # Vorab-Dedup: byte-verschiedene Re-Sends abfangen, bevor ein AI-Call
-        # anfällt (Byte-Hash-Dedup oben greift dafür nicht).
-        if _prefilter_pdf_duplicate(text):
-            return False
-        ai_data = extract_with_ai(text, pdf_path.name)
-    if not ai_data:
-        print("  FEHLER: AI-Extraktion fehlgeschlagen.")
-        return False
-
-    # PDF-Rohtext für Kategorie-Override (Helvetia-Miete-Detection) durchreichen
-    ai_data["_raw_text"] = text
-
-    items_list = ai_data.get("items") or ai_data.get("positionen") or []
-
-    # Netto-Falle korrigieren, bevor geloggt und gespeichert wird.
     try:
-        ai_total = float(_ai_get(ai_data, "total", "betrag_brutto", default=0) or 0)
-    except (TypeError, ValueError):
-        ai_total = 0.0
-    correction = _gross_total_correction(text, ai_total, _items_sum(items_list))
-    if correction:
-        brutto, vat = correction
-        print(f"  Korrektur: {ai_total:.2f} EUR war netto → {brutto:.2f} EUR "
-              f"brutto (USt. {vat:.2f})")
-        ai_data["total"] = brutto
-        ai_data["vat"]   = vat
-
-    # Datum in der Zukunft ist immer ein Lesefehler — aus dem Rohtext belegen.
-    today    = datetime.now().strftime("%Y-%m-%d")
-    ai_date  = str(_ai_get(ai_data, "date", "rechnungsdatum", default="") or "")
-    fixed    = _future_date_correction(text, ai_date, today)
-    if fixed:
-        print(f"  Korrektur: Datum {ai_date} liegt in der Zukunft → {fixed}")
-        ai_data["date"] = fixed
+        text, text_issues = inspect_pdf_text(pdf_path)
+    except Exception as exc:
+        print(f"  PDF-Text nicht lesbar ({exc}); Original-PDF prüfen.")
+        text, text_issues = "", ["Textextraktion fehlgeschlagen"]
+    if text and not text_issues and _prefilter_pdf_duplicate(text):
+        return False
+    ai_data = extract_validated_pdf(pdf_path, text, text_issues)
+    if ai_data is None:
+        return False
+    ai_data["_raw_text"] = text
+    items_list = _ai_get(ai_data, "items", "positionen", default=[])
 
     items_info = f" · {len(items_list)} Positionen" if items_list else ""
     store      = ai_data.get("store") or ai_data.get("absender") or "?"
