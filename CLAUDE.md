@@ -258,7 +258,7 @@ Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
 - `inspect_pdf_text` liest alle Seiten und erkennt Seiten mit wenig/defektem Text.
 - Keine stille Textkürzung: bis 100.000 Zeichen Textweg; darüber natives Original-PDF.
 - `extract_validated_pdf` prüft Händler, echtes Datum, endliche EUR-Beträge, Positionssummen + Steuer und eindeutige PDF-Endbeträge. Bestehende belegbare Brutto-/Datumskorrekturen laufen vorher.
-- Bei fehlenden/unplausiblen Textdaten: natives PDF an Claude Haiku 4.5, bei Ausfall/unplausiblen Ergebnissen an OpenAI GPT-4o (auch ohne Anthropic-Key).
+- Bei fehlenden/unplausiblen Textdaten: natives PDF an Claude Haiku 5.5, bei Ausfall/unplausiblen Ergebnissen an OpenAI GPT-4o (auch ohne Anthropic-Key).
 - Unvollständige API-Antworten, weiterhin unplausible oder nicht in EUR ausgewiesene Daten nicht speichern. Grund im Importprotokoll ausgeben; keine erfundenen Ausgleichspositionen.
-- Natives PDF maximal 20 MiB (Base64 + Prompt müssen in die Anfrage passen); keine stillen Teilimporte. Ausgabe-Budget 12.000 Tokens.
-- Browser-Upload und Bild-Import werden davon nicht geändert. Modellwechsel separat mit Rechnungsvergleich testen.
+- Natives PDF maximal 20 MiB (Base64 + Prompt müssen in die Anfrage passen); keine stillen Teilimporte. OpenAI-Ausgabe-Budget 12.000 Tokens; Haiku 5.5 20.000 Tokens inklusive adaptivem Denken mit niedrigem Aufwand.
+- Browser-Upload wird davon nicht geändert. E-Mail-Importer: Haiku 5.5 primär für Text/PDF/Bilder; OpenAI-Fallback. Browser-Modelle separat behandeln.

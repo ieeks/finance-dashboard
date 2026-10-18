@@ -5,8 +5,8 @@ gmail_finance_importer.py — PDF- & Bild-Rechnungen aus Gmail → Firestore (fi
 Ablauf:
   1. IMAP: Mails im Label "Rechnungen" abholen, PDF- und Bild-Anhänge speichern
   2a. PDF: pdfplumber → Text extrahieren
-  2b. Bild (PNG/JPG): Base64 → GPT-4o Vision → strukturierte Daten
-  3. AI: OpenAI gpt-4o-mini/gpt-4o (primär) → Claude Haiku (Fallback)
+  2b. Bild (PNG/JPG): Base64 → Claude Haiku 5.5 Vision → strukturierte Daten
+  3. AI: Claude Haiku 5.5 (primär) → OpenAI gpt-4o-mini/gpt-4o (Fallback)
   4. Firestore: Transaktion unter household/main/transactions/{id} speichern
 
 Felder werden auf das Format des Browser-Parsers gemappt:
@@ -382,6 +382,8 @@ def download_attachments(mail: imaplib.IMAP4_SSL, msg_id: bytes) -> list[Path]:
 # Never truncate invoice text. Large documents take the native PDF route.
 PDF_TEXT_MAX_CHARS = 100_000
 PDF_MAX_OUTPUT_TOKENS = 12_000
+HAIKU_MODEL = "claude-haiku-5-5"
+HAIKU_MAX_OUTPUT_TOKENS = 20_000  # newer tokenizer + adaptive thinking need extra room
 PDF_VISUAL_MAX_BYTES = 20 * 1024 * 1024  # leaves room for base64 in Claude's 32 MB request
 
 
@@ -458,8 +460,10 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
     b64, mime = _image_to_base64(image_path)
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=4096,
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
         system=VISION_SYSTEM,
         messages=[{
             "role": "user",
@@ -470,35 +474,29 @@ def _call_anthropic_vision(image_path: Path) -> dict | None:
             ],
         }],
     )
-    return _parse_ai_response(message.content[0].text, provider="Anthropic Vision")
+    return _anthropic_pdf_response(message)
 
 
 def extract_image_with_ai(image_path: Path) -> dict | None:
-    """Vision-Extraktion: GPT-4o Vision primär → Claude Haiku Vision Fallback."""
-    if OPENAI_API_KEY:
+    """Claude Haiku 5.5 first; GPT-4o fallback when unavailable or incomplete."""
+    for provider, key, call in [
+        ("Claude Haiku 5.5 Vision", ANTHROPIC_API_KEY, _call_anthropic_vision),
+        ("OpenAI Vision", OPENAI_API_KEY, _call_openai_vision),
+    ]:
+        if not key:
+            continue
         try:
-            result = _call_openai_vision(image_path)
+            result = call(image_path)
             if result:
-                print("  Vision: GPT-4o erfolgreich.")
-                return result
-            print("  Vision: GPT-4o — kein valides JSON, versuche Claude...")
-        except Exception as exc:
-            print(f"  Vision: GPT-4o fehlgeschlagen ({exc}), versuche Claude...")
-
-    if ANTHROPIC_API_KEY:
-        try:
-            result = _call_anthropic_vision(image_path)
-            if result:
-                print("  Vision: Claude Haiku (Fallback) erfolgreich.")
+                print(f"  Vision: {provider} erfolgreich.")
                 return result
         except Exception as exc:
-            print(f"  Vision: Claude fehlgeschlagen ({exc}).")
-
+            print(f"  Vision: {provider} fehlgeschlagen ({exc}).")
     print("  FEHLER: Beide Vision-Provider fehlgeschlagen.")
     return None
 
 
-# ── AI-Extraktion (OpenAI primär → Anthropic Fallback) ────────────────────────
+# ── AI-Extraktion (Haiku 5.5 primär → OpenAI Fallback) ────────────────────────
 
 def _build_prompt(pdf_text: str, filename: str) -> str:
     """PDF-Text-Prompt: shared Bon-Prompt + Python-Suffix + Rechnungstext."""
@@ -565,36 +563,31 @@ def _call_anthropic(prompt: str) -> dict | None:
     import anthropic
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=PDF_MAX_OUTPUT_TOKENS,
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
         messages=[{"role": "user", "content": prompt}],
     )
     return _anthropic_pdf_response(message)
 
 
 def extract_with_ai(pdf_text: str, filename: str) -> dict | None:
-    """OpenAI zuerst, Anthropic als Fallback. None wenn beide fehlschlagen."""
+    """Haiku 5.5 first, OpenAI as fallback. PDF validation follows separately."""
     prompt = _build_prompt(pdf_text, filename)
-
-    if OPENAI_API_KEY:
+    for provider, key, call in [
+        ("Claude Haiku 5.5", ANTHROPIC_API_KEY, _call_anthropic),
+        ("OpenAI", OPENAI_API_KEY, _call_openai),
+    ]:
+        if not key:
+            continue
         try:
-            result = _call_openai(prompt)
+            result = call(prompt)
             if result:
-                print("  AI: OpenAI erfolgreich.")
-                return result
-            print("  AI: OpenAI — kein valides JSON, versuche Anthropic...")
-        except Exception as exc:
-            print(f"  AI: OpenAI fehlgeschlagen ({exc}), versuche Anthropic...")
-
-    if ANTHROPIC_API_KEY:
-        try:
-            result = _call_anthropic(prompt)
-            if result:
-                print("  AI: Anthropic (Fallback) erfolgreich.")
+                print(f"  AI: {provider} erfolgreich.")
                 return result
         except Exception as exc:
-            print(f"  AI: Anthropic fehlgeschlagen ({exc}).")
-
+            print(f"  AI: {provider} fehlgeschlagen ({exc}).")
     print("  FEHLER: Beide AI-Provider fehlgeschlagen.")
     return None
 
@@ -1136,8 +1129,10 @@ def extract_pdf_with_claude_ocr(pdf_path: Path) -> dict | None:
     b64 = base64.b64encode(pdf_path.read_bytes()).decode("utf-8")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=PDF_MAX_OUTPUT_TOKENS,
+        model=HAIKU_MODEL,
+        max_tokens=HAIKU_MAX_OUTPUT_TOKENS,
+        thinking={"type": "adaptive"},
+        output_config={"effort": "low"},
         system=VISION_SYSTEM,
         messages=[{"role": "user", "content": [
             {"type": "document", "source": {"type": "base64",

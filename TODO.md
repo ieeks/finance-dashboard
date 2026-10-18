@@ -308,3 +308,5 @@ Das Feature-Dokument `gmail-invoice-matcher.md` ist gut durchdacht. Ein paar Pun
 - [x] Bestandszuordnungen speichern: parallele Belegprüfung und sichtbarer Fortschritt/Fehler im Dialog (v1.12.2).
 
 - [x] E-Mail-PDF-Import: keine stille Textkürzung, Feld-/Summenprüfung und Original-PDF-Fallback (v1.13.0).
+
+- [x] E-Mail-Belege auf Haiku 5.5 primär migrieren, OpenAI-Fallback erhalten (v1.13.0).

@@ -758,5 +758,65 @@ class TestPdfExtractionValidation(unittest.TestCase):
         self.assertEqual(len(issues),1); self.assertIn('Seite 2',issues[0])
 
 
+class TestHaiku55Migration(unittest.TestCase):
+    def test_all_importer_haiku_requests_use_new_api_contract_and_skip_thinking_blocks(self):
+        valid=TestPdfExtractionValidation().valid()
+        response=SimpleNamespace(stop_reason='end_turn',content=[
+            SimpleNamespace(type='thinking',signature='test'),
+            SimpleNamespace(type='text',text=json.dumps(valid)),
+        ])
+        create=Mock(return_value=response)
+        sdk=SimpleNamespace(Anthropic=Mock(return_value=SimpleNamespace(messages=SimpleNamespace(create=create))))
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf=Path(tmp)/'invoice.pdf'; pdf.write_bytes(b'%PDF-test')
+            image=Path(tmp)/'invoice.png'; image.write_bytes(b'image-test')
+            with patch.dict('sys.modules',{'anthropic':sdk}), patch.dict(H,{'ANTHROPIC_API_KEY':'test-only'}):
+                for call,arg in [('_call_anthropic','invoice text'),('_call_anthropic_vision',image),('extract_pdf_with_claude_ocr',pdf)]:
+                    with self.subTest(call=call):
+                        self.assertEqual(H[call](arg),valid)
+                        body=create.call_args.kwargs
+                        self.assertEqual(body['model'],'claude-haiku-5-5')
+                        self.assertEqual(body['max_tokens'],20000)
+                        self.assertEqual(body['thinking'],{'type':'adaptive'})
+                        self.assertEqual(body['output_config'],{'effort':'low'})
+                        self.assertEqual(body['messages'][-1]['role'],'user')
+                        for old_setting in ['temperature','top_p','top_k']:
+                            self.assertNotIn(old_setting,body)
+
+    def test_refusal_and_context_overflow_are_not_parsed_as_success(self):
+        for stop in ['refusal','model_context_window_exceeded','max_tokens']:
+            response=SimpleNamespace(stop_reason=stop,content=[SimpleNamespace(type='text',text='{"total":12}')])
+            self.assertIsNone(H['_anthropic_pdf_response'](response))
+
+    def test_haiku_is_primary_for_text_and_images_and_openai_remains_fallback(self):
+        valid=TestPdfExtractionValidation().valid()
+        for route,primary_name,fallback_name,args in [
+            ('text','_call_anthropic','_call_openai',('invoice','invoice.pdf')),
+            ('image','_call_anthropic_vision','_call_openai_vision',(Path('invoice.png'),)),
+        ]:
+            orchestrate=H['extract_with_ai' if route=='text' else 'extract_image_with_ai']
+            for primary_result in [valid,None,RuntimeError('unavailable')]:
+                with self.subTest(route=route,primary_result=primary_result):
+                    primary=Mock(side_effect=primary_result) if isinstance(primary_result,Exception) else Mock(return_value=primary_result)
+                    fallback=Mock(return_value=valid)
+                    with patch.dict(H,{'ANTHROPIC_API_KEY':'test','OPENAI_API_KEY':'test',primary_name:primary,fallback_name:fallback}):
+                        self.assertEqual(orchestrate(*args),valid)
+                    primary.assert_called_once()
+                    if primary_result==valid: fallback.assert_not_called()
+                    else: fallback.assert_called_once()
+
+    def test_openai_only_setup_still_works_and_both_failures_are_reported(self):
+        valid=TestPdfExtractionValidation().valid()
+        for key in ['', 'test']:
+            primary=Mock(return_value=None); fallback=Mock(return_value=valid if not key else None)
+            with patch.dict(H,{'ANTHROPIC_API_KEY':key,'OPENAI_API_KEY':'test','_call_anthropic':primary,'_call_openai':fallback}):
+                result=H['extract_with_ai']('invoice','invoice.pdf')
+            if not key:
+                self.assertEqual(result,valid); primary.assert_not_called()
+            else:
+                self.assertIsNone(result); primary.assert_called_once()
+            fallback.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

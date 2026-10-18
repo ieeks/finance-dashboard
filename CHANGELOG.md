@@ -5,7 +5,7 @@
 - E-Mail-Rechnungen: vollständiger PDF-Text statt Abschneiden nach 8.000 Zeichen. Sehr lange Dokumente und Seiten mit wenig/defektem Text werden über das Original-PDF geprüft.
 - Pflichtfelder, Datumswerte, endliche Beträge, Positionssumme + Steueraufschlag sowie eindeutige Endbeträge im PDF prüfen. Bestehende Netto-/Brutto-Korrektur bleibt erhalten.
 - Bei unplausibler Textantwort natives PDF an Claude; bei Ausfall/fehlerhaftem Ergebnis OpenAI-PDF-Fallback, auch mit ausschließlich OpenAI-Key. Weiterhin unplausible Ergebnisse werden mit Prüfhinweis im Protokoll nicht importiert.
-- Abgeschnittene KI-Antworten erkennen, Ausgabe-Budget für PDFs auf 12.000 Tokens erhöhen, explizite Null-Euro-Positionen erhalten. Keine Modellumstellung.
+- Abgeschnittene KI-Antworten erkennen, Ausgabe-Budget für PDFs auf 12.000 Tokens erhöhen, explizite Null-Euro-Positionen erhalten. E-Mail-Importer auf Claude Haiku 5.5 als primären Anbieter migriert (Text/PDF/Bild), OpenAI bleibt Fallback. Adaptive Thinking mit niedrigem Aufwand; Haiku-Budget 20.000 Tokens, Antwortauswertung nach Blocktyp.
 
 ## v1.12.2 — 2026-10-18
 
