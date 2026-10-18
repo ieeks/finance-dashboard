@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## v1.13.0 — 2026-10-18
+
+- E-Mail-Rechnungen: vollständiger PDF-Text statt Abschneiden nach 8.000 Zeichen. Sehr lange Dokumente und Seiten mit wenig/defektem Text werden über das Original-PDF geprüft.
+- Pflichtfelder, Datumswerte, endliche Beträge, Positionssumme + Steueraufschlag sowie eindeutige Endbeträge im PDF prüfen. Bestehende Netto-/Brutto-Korrektur bleibt erhalten.
+- Bei unplausibler Textantwort natives PDF an Claude; bei Ausfall/fehlerhaftem Ergebnis OpenAI-PDF-Fallback, auch mit ausschließlich OpenAI-Key. Weiterhin unplausible Ergebnisse werden mit Prüfhinweis im Protokoll nicht importiert.
+- Abgeschnittene KI-Antworten erkennen, Ausgabe-Budget für PDFs auf 12.000 Tokens erhöhen, explizite Null-Euro-Positionen erhalten. Keine Modellumstellung.
+
 ## v1.12.2 — 2026-10-18
 
 - Bon-Kategorien speichern: Belege parallel statt seriell in Firestore prüfen; reduziert Wartezeit bei vielen Belegen und hoher Netzlatenz. Kategorien werden weiterhin gemeinsam nach vollständiger Prüfung gespeichert.

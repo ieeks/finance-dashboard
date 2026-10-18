@@ -16,7 +16,7 @@ Format: `v MAJOR.MINOR.PATCH` — z.B. `v0.9.1`
 - **Minor** (`v0.9.x → v0.10.0`): Neues Feature oder größerer Block
 - **Major** (`v0.x → v1.0.0`): Milestone-Release (Firebase-Integration)
 
-Aktuelle Version: `v1.12.2`
+Aktuelle Version: `v1.13.0`
 
 ## Commit-Konventionen
 
@@ -252,3 +252,13 @@ Gilt für: `index.html` und alle weiteren HTML-Seiten im Projekt.
   explizit speichern. Keine KI-Abfrage und kein erneuter Belegimport nötig.
 
 - Bestandsbereinigung: Firestore-Beleglesevorgänge parallel starten; alle Lesevorgänge vor den Schreibvorgängen abschließen. Fortschritt/Fehler im Dialog anzeigen, Erfolg erst nach Commit-Bestätigung.
+
+
+## E-Mail-PDF-Prüfung ab v1.13.0
+- `inspect_pdf_text` liest alle Seiten und erkennt Seiten mit wenig/defektem Text.
+- Keine stille Textkürzung: bis 100.000 Zeichen Textweg; darüber natives Original-PDF.
+- `extract_validated_pdf` prüft Händler, echtes Datum, endliche EUR-Beträge, Positionssummen + Steuer und eindeutige PDF-Endbeträge. Bestehende belegbare Brutto-/Datumskorrekturen laufen vorher.
+- Bei fehlenden/unplausiblen Textdaten: natives PDF an Claude Haiku 4.5, bei Ausfall/unplausiblen Ergebnissen an OpenAI GPT-4o (auch ohne Anthropic-Key).
+- Unvollständige API-Antworten, weiterhin unplausible oder nicht in EUR ausgewiesene Daten nicht speichern. Grund im Importprotokoll ausgeben; keine erfundenen Ausgleichspositionen.
+- Natives PDF maximal 20 MiB (Base64 + Prompt müssen in die Anfrage passen); keine stillen Teilimporte. Ausgabe-Budget 12.000 Tokens.
+- Browser-Upload und Bild-Import werden davon nicht geändert. Modellwechsel separat mit Rechnungsvergleich testen.

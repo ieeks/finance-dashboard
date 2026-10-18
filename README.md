@@ -76,3 +76,14 @@ Benötigt das Secret `FIREBASE_SERVICE_ACCOUNT` (gleiches Secret wie der Gmail-I
 ## Lizenz
 
 MIT
+
+
+## E-Mail-Rechnungen aus PDFs
+
+Der Importer liest mit pdfplumber alle Seiten. Vollständiger Text bis 100.000 Zeichen geht an den bisherigen Textanbieter (GPT-4o mini, alternativ Claude Haiku 4.5); es werden keine Rechnungsenden mehr abgeschnitten. Seiten mit sehr wenig oder defektem Text sowie größere Texte werden direkt am Original-PDF ausgewertet.
+
+Vor dem Speichern werden Händler, Rechnungsdatum und Beträge geprüft. Positionen inklusive Rabatten müssen zusammen mit dem Steueraufschlag zum Endbetrag passen. Trinkgeld wird separat behandelt. Eindeutige Endbeträge im PDF werden zusätzlich verglichen; mehrdeutige Beträge werden nicht geraten. Einfache Rechnungen ohne Artikelaufstellung dürfen eine leere Positionsliste haben, Einkaufsbelege benötigen Artikel.
+
+Wenn Textergebnis oder Lesbarkeit nicht ausreichen, wird das vollständige PDF visuell geprüft: zuerst mit dem vorhandenen Anthropic-Key, bei fehlendem Key, Fehler oder unplausiblem Ergebnis mit dem vorhandenen OpenAI-Key. Dafür ist kein zusätzlicher Dienst erforderlich. Das Original-PDF darf für diesen Weg maximal 20 MiB groß sein. Größere Dokumente bitte aufteilen; es gibt keinen stillen Teilimport. API-Antworten, die am Tokenlimit enden, werden verworfen.
+
+Weiterhin unplausible Ergebnisse und Nicht-EUR-Rechnungen werden nicht automatisch als Ausgaben gespeichert. Der Grund erscheint im GitHub-Actions-Importprotokoll als Hinweis zur manuellen Prüfung. Bereits importierte Rechnungen bleiben durch die vorhandene Duplikaterkennung erhalten; die neue Prüfung verarbeitet sie nicht automatisch erneut. Der Browser-Upload nutzt weiterhin seinen bisherigen Ablauf.
